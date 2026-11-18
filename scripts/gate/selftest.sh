@@ -144,5 +144,77 @@ R=$(novo_repo email-example-no-meio); base_limpa "$R"
 echo "fale com fulano""@mail.exam""ple.empresa""real.com" > "$R/contato.md"; commitar "$R" "docs: contato"
 esperar "email-example-no-meio-reprovado" vaza "$R"
 
+# --- matriz padrões x superfícies: mensagens, tags, refs, metadados, nomes de arquivo, merges
+CPF="123.456.""789-09"
+
+R=$(novo_repo cpf-msg-commit); base_limpa "$R"
+commitar "$R" "docs: dado do titular $CPF"
+esperar "cpf-em-mensagem-de-commit" vaza "$R"
+
+R=$(novo_repo email-msg-commit); base_limpa "$R"
+commitar "$R" "docs: fale com $PESSOAL"
+esperar "email-pessoal-em-mensagem-de-commit" vaza "$R"
+
+R=$(novo_repo cpf-msg-tag); base_limpa "$R"
+git -C "$R" tag -a v1 -m "versao do titular $CPF"
+esperar "cpf-em-mensagem-de-tag" vaza "$R"
+
+R=$(novo_repo email-msg-tag); base_limpa "$R"
+git -C "$R" tag -a v1 -m "contato $PESSOAL"
+esperar "email-pessoal-em-mensagem-de-tag" vaza "$R"
+
+R=$(novo_repo cpf-ref); base_limpa "$R"
+git -C "$R" branch "feat/titular-$CPF"
+esperar "cpf-em-nome-de-branch" vaza "$R"
+
+R=$(novo_repo tagger-email); base_limpa "$R"
+git -C "$R" -c user.email="$PESSOAL" tag -a v1 -m "versao"
+esperar "email-pessoal-no-tagger" vaza "$R"
+
+R=$(novo_repo tagger-termo); base_limpa "$R"
+git -C "$R" -c user.name="Fulano xyzzy""foo" tag -a v1 -m "versao"
+esperar "termo-no-nome-do-tagger" vaza "$R"
+
+R=$(novo_repo autor-cpf); base_limpa "$R"
+echo "x" > "$R/a.txt"; git -C "$R" add -A
+git -C "$R" -c user.name="Fulano $CPF" commit -q -m "feat: a"
+esperar "cpf-no-nome-do-autor" vaza "$R"
+
+R=$(novo_repo arquivo-cpf); base_limpa "$R"
+echo "x" > "$R/titular-$CPF.txt"; commitar "$R" "docs: ficha"
+git -C "$R" rm -q "titular-$CPF.txt"; commitar "$R" "fix: remove ficha"
+esperar "cpf-no-nome-de-arquivo" vaza "$R"
+
+R=$(novo_repo arquivo-termo); base_limpa "$R"
+echo "x" > "$R/xyzzy""foo.md"; commitar "$R" "docs: notas"
+esperar "termo-no-nome-de-arquivo" vaza "$R"
+
+# merge: o vazamento nasce só na resolução, nunca em um dos pais
+merge_com() { # repo conteudo-do-vazamento
+  git -C "$1" checkout -q -b rama
+  echo "a" > "$1/a.txt"; commitar "$1" "feat: a"
+  git -C "$1" checkout -q main
+  echo "b" > "$1/b.txt"; commitar "$1" "feat: b"
+  git -C "$1" merge -q --no-commit --no-ff rama >/dev/null 2>&1
+  echo "$2" > "$1/resolucao.txt"
+  commitar "$1" "merge: integra rama"
+}
+
+R=$(novo_repo merge-segredo); base_limpa "$R"
+merge_com "$R" "token=$SEG2"
+esperar "segredo-so-na-resolucao-de-merge" vaza "$R"
+
+R=$(novo_repo merge-cpf); base_limpa "$R"
+merge_com "$R" "cpf $CPF"
+esperar "cpf-so-na-resolucao-de-merge" vaza "$R"
+
+R=$(novo_repo merge-email); base_limpa "$R"
+merge_com "$R" "fale com $PESSOAL"
+esperar "email-pessoal-so-na-resolucao-de-merge" vaza "$R"
+
+R=$(novo_repo merge-limpo); base_limpa "$R"
+merge_com "$R" "resolvido sem dado sensivel"
+esperar "merge-limpo" limpo "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0
