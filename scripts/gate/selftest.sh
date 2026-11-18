@@ -312,5 +312,42 @@ printf 'version https://git-lfs.git''hub.com/spec/v1\noid sha256:%s\nsize 10\n' 
 commitar "$R" "docs: ponteiro"
 esperar "ponteiro-de-lfs" vaza "$R"
 
+# --- arquivos que fazem o próprio gitleaks calar: ignore, baseline, configuração alternativa
+CFG_REPO="$AQUI/../../.gitleaks.toml"
+impressao_digital() { # repo -> primeira impressão digital achada pelo gitleaks cru
+  ( cd "$RAIZ_TMP" && gitleaks git "$1" --config "$CFG_REPO" --log-opts="--all -m" --redact --no-banner --no-color \
+      --report-format json --report-path "$RAIZ_TMP/rel.json" >/dev/null 2>&1 )
+  grep -o '"Fingerprint": *"[^"]*"' "$RAIZ_TMP/rel.json" | head -1 | sed 's/.*: *"//;s/"$//'
+}
+
+R=$(novo_repo ignore-versionado); base_limpa "$R"
+echo "token=$SEG2" > "$R/config.txt"; commitar "$R" "feat: config"
+impressao_digital "$R" > "$R/.gitleaksignore"; commitar "$R" "chore: ignore"
+esperar "gitleaksignore-versionado" vaza "$R"
+
+R=$(novo_repo ignore-na-arvore); base_limpa "$R"
+echo "token=$SEG2" > "$R/config.txt"; commitar "$R" "feat: config"
+impressao_digital "$R" > "$R/.gitleaksignore"
+esperar "gitleaksignore-so-na-arvore" vaza "$R"
+
+R=$(novo_repo baseline); base_limpa "$R"
+echo "[]" > "$R/gitleaks-baseline.json"; commitar "$R" "chore: baseline"
+esperar "baseline-do-gitleaks-versionado" vaza "$R"
+
+R=$(novo_repo config-alternativa); base_limpa "$R"
+echo "title = \"x\"" > "$R/gitleaks-alt.toml"; commitar "$R" "chore: config"
+esperar "config-alternativa-do-gitleaks-versionada" vaza "$R"
+
+# o ignore do diretório de execução (padrão ".") não pode calar o portão
+R=$(novo_repo ignore-cwd); base_limpa "$R"
+echo "token=$SEG2" > "$R/config.txt"; commitar "$R" "feat: config"
+D="$RAIZ_TMP/cwd-com-ignore"; mkdir -p "$D"
+impressao_digital "$R" > "$D/.gitleaksignore"
+( cd "$D" && gitleaks git "$R" --config "$CFG_REPO" --log-opts="--all -m" --redact --no-banner --no-color --exit-code 1 >/dev/null 2>&1 )
+if [ $? -eq 0 ]; then echo "PASSOU controle-positivo-ignore-suprime"; else echo "FALHOU controle-positivo-ignore-suprime"; FALHAS=$((FALHAS+1)); fi
+cd "$D" || exit 2
+esperar "gitleaksignore-no-diretorio-de-execucao" vaza "$R"
+cd "$AQUI" || exit 2
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0

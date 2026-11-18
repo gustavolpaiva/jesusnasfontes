@@ -50,9 +50,13 @@ EXTRA="${PUBLIC_GATE_EXTRA_CONFIG:-}"
 if [ -n "$EXTRA" ] && [ ! -r "$EXTRA" ]; then
   indisponivel "PUBLIC_GATE_EXTRA_CONFIG aponta para arquivo ilegível"
 fi
+[ -z "$EXTRA" ] || EXTRA="$(cd "$(dirname "$EXTRA")" && pwd -P)/$(basename "$EXTRA")"
 
 TMP="$(mktemp -d)" || indisponivel "sem diretório temporário"
 trap 'rm -rf "$TMP"' EXIT
+mkdir "$TMP/neutro" || indisponivel "sem diretório neutro"
+# O gitleaks lê .gitleaksignore do diretório de execução (padrão "."): roda sempre de um diretório vazio, com caminhos absolutos.
+gl() { ( cd "$TMP/neutro" && gitleaks "$@" ); }
 VAZOU=0
 
 # --- regras de texto (id<TAB>regex), lidas das regras [[rules]] dos .toml
@@ -103,7 +107,7 @@ git -C "$REPO" log --all -m --text --no-ext-diff --no-textconv -p --format= 2>/d
 # --- Verificação 1
 v1_ok=1
 for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
-  gitleaks git "$REPO" --config "$cfg" --log-opts="--all -m" --ignore-gitleaks-allow --redact --no-banner \
+  gl git "$REPO" --config "$cfg" --log-opts="--all -m" --ignore-gitleaks-allow --redact --no-banner \
     --no-color --exit-code 1 >/dev/null 2>&1
   rc=$?
   case $rc in
@@ -114,7 +118,7 @@ for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
 done
 # O gitleaks git não lê conteúdo binário nem arquivo com -diff; o mesmo texto bruto passa por ele via stdin.
 for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
-  gitleaks stdin --config "$cfg" --ignore-gitleaks-allow --redact --no-banner --no-color --exit-code 1 \
+  gl stdin --config "$cfg" --ignore-gitleaks-allow --redact --no-banner --no-color --exit-code 1 \
     < "$TMP/adicionadas.txt" >/dev/null 2>&1
   rc=$?
   case $rc in
@@ -162,7 +166,7 @@ fi
 checar_cpf_email "$TMP/textos.txt" "em-metadado" || v3_ok=0
 # O gitleaks varre diffs; os detectores padrão não veem metadado. O mesmo texto passa por ele via stdin.
 for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
-  gitleaks stdin --config "$cfg" --ignore-gitleaks-allow --redact --no-banner --no-color --exit-code 1 \
+  gl stdin --config "$cfg" --ignore-gitleaks-allow --redact --no-banner --no-color --exit-code 1 \
     < "$TMP/textos.txt" >/dev/null 2>&1
   rc=$?
   case $rc in
@@ -196,6 +200,16 @@ if grep -Eq '^:(160000 [0-7]{6}|[0-7]{6} 160000) ' "$TMP/raw.txt"; then
 fi
 if grep -aEq 'filter[=]lfs|git-lfs[.]github[.]com/spec' "$TMP/adicionadas.txt"; then
   echo "verificacao 4: VAZAMENTO git-lfs-no-historico (conteudo fora do git, nao examinado)"; v4_ok=0
+fi
+# Arquivos que calam o próprio gitleaks (ignore, baseline, configuração alternativa) em qualquer revisão ou na árvore.
+if grep -Eq '(^|/)\.gitleaksignore$' "$TMP/arquivos.txt" || [ -e "$REPO/.gitleaksignore" ]; then
+  echo "verificacao 4: VAZAMENTO gitleaksignore-presente"; v4_ok=0
+fi
+if grep -Eiq 'gitleaks[^/]*baseline|baseline[^/]*gitleaks' "$TMP/arquivos.txt"; then
+  echo "verificacao 4: VAZAMENTO baseline-do-gitleaks-versionado"; v4_ok=0
+fi
+if grep -Ei '(^|/)\.?gitleaks[^/]*\.toml$' "$TMP/arquivos.txt" | grep -Evx '\.gitleaks\.toml' | grep -q .; then
+  echo "verificacao 4: VAZAMENTO config-alternativa-do-gitleaks-versionada"; v4_ok=0
 fi
 VERIF=4
 checar_cpf_email "$TMP/adicionadas.txt" "no-historico" || v4_ok=0
