@@ -109,5 +109,32 @@ R=$(novo_repo email-pessoal); base_limpa "$R"
 echo "fale com fulano""@gm""ail.com" > "$R/contato.md"; commitar "$R" "docs: contato"
 esperar "email-pessoal-na-arvore" vaza "$R"
 
+# --- histórico: o vazamento entra num commit e sai no seguinte (continua no histórico)
+SEG2="gh""p_""zY8xW6vU4tS2rQ0pO8nM6lK4jI2hG0fE8dC6"
+PESSOAL="fulano""@gm""ail.com"
+
+R=$(novo_repo token-em-mensagem); base_limpa "$R"
+commitar "$R" "feat: usa token $SEG2"
+esperar "token-em-mensagem-de-commit" vaza "$R"
+
+R=$(novo_repo token-em-tag); base_limpa "$R"
+git -C "$R" tag -a v1 -m "versao com token $SEG2"
+esperar "token-em-mensagem-de-tag" vaza "$R"
+
+R=$(novo_repo cpf-apagado); base_limpa "$R"
+echo "cpf 123.456.""789-09" > "$R/dados.md"; commitar "$R" "docs: dados"
+git -C "$R" rm -q dados.md; commitar "$R" "fix: remove dados"
+esperar "cpf-apagado-depois" vaza "$R"
+
+R=$(novo_repo email-pessoal-apagado); base_limpa "$R"
+echo "fale com $PESSOAL" > "$R/contato.md"; commitar "$R" "docs: contato"
+git -C "$R" rm -q contato.md; commitar "$R" "fix: remove contato"
+esperar "email-pessoal-apagado-depois" vaza "$R"
+
+R=$(novo_repo caminho-apagado); base_limpa "$R"
+mkdir -p "$R/.claude"; echo "x" > "$R/.claude/regra.md"; commitar "$R" "chore: config"
+git -C "$R" rm -q -r .claude; commitar "$R" "fix: remove config"
+esperar "caminho-proibido-apagado-depois" vaza "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0
