@@ -2,24 +2,25 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Cabecalho } from "./cabecalho";
 import { LinkDeSalto } from "./link-de-salto";
+import { MenuSheet } from "./menu-sheet";
 import { type ItemDeNavegacao, Navegacao } from "./navegacao";
 
 type Props = {
   children: ReactNode;
   // Itens da navegação (só para quem está autenticado). Sem itens, não há navegação.
   navegacao?: readonly ItemDeNavegacao[];
-  // O Menu (botão e folha), montado no cabeçalho.
-  slotMenu?: ReactNode;
+  // Ação de sair, entregue pelo plano de autenticação; sem ela o Menu não mostra "Sair".
+  acaoSair?: () => Promise<void>;
 };
 
 const margens = "px-6 sm:px-8 md:px-12";
 
-export function AppShell({ children, navegacao = [], slotMenu }: Props) {
+export function AppShell({ children, navegacao = [], acaoSair }: Props) {
   return (
     <div className="flex min-h-dvh flex-col">
       <LinkDeSalto />
       <Cabecalho
-        slotMenu={slotMenu}
+        slotMenu={<MenuSheet itens={navegacao} acaoSair={acaoSair} />}
         navegacao={
           navegacao.length > 0 ? <Navegacao itens={navegacao} posicao="cabecalho" /> : null
         }

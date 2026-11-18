@@ -38,12 +38,12 @@ export function Navegacao({ itens, posicao }: Props) {
         {itens.map((item) => {
           const ativo = caminho === item.href || caminho.startsWith(`${item.href}/`);
           return (
-            <li key={item.href} className="flex">
+            <li key={item.href} className="flex min-w-0">
               <Link
                 href={item.href}
                 aria-current={ativo ? "page" : undefined}
                 className={[
-                  "text-label flex flex-1 items-center justify-center px-2 text-center no-underline transition-colors duration-150",
+                  "text-label flex min-w-0 flex-1 items-center justify-center px-1 text-center [overflow-wrap:anywhere] hyphens-auto no-underline transition-colors duration-150",
                   noCabecalho ? "min-h-11 border-b-2 px-4" : "-mt-px min-h-[60px] border-t-2",
                   ativo
                     ? "border-rubric text-rubric"
