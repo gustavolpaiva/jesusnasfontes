@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const ROTAS = ["/", "/rota-que-nao-existe"] as const;
+const ROTAS = ["/entrar", "/rota-que-nao-existe"] as const;
 
 for (const rota of ROTAS) {
   test(`@varredura sem rolagem horizontal em ${rota}`, async ({ page }) => {
@@ -37,7 +37,7 @@ test("o primeiro Tab foca o link de salto e ele leva ao conteúdo", async ({
     browserName === "webkit",
     "o Tab do Safari só percorre controles com a opção do sistema ligada",
   );
-  await page.goto("/");
+  await page.goto("/entrar");
   await page.keyboard.press("Tab");
   const salto = page.getByRole("link", { name: "Pular para o conteúdo" });
   await expect(salto).toBeFocused();
@@ -47,20 +47,20 @@ test("o primeiro Tab foca o link de salto e ele leva ao conteúdo", async ({
 });
 
 test("@varredura o botão de Menu tem pelo menos 44 por 44 px", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/entrar");
   const caixa = await page.getByRole("button", { name: "Abrir menu" }).boundingBox();
   expect(caixa?.width ?? 0).toBeGreaterThanOrEqual(44);
   expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(44);
 });
 
 test("com o cookie tema=escuro o HTML inicial já traz data-tema=escuro", async ({ request }) => {
-  const com = await request.get("/", { headers: { cookie: "tema=escuro" } });
+  const com = await request.get("/entrar", { headers: { cookie: "tema=escuro" } });
   const html = await com.text();
   expect(html).toMatch(/<html[^>]*data-tema="escuro"/);
-  const sem = await request.get("/");
+  const sem = await request.get("/entrar");
   expect(await sem.text()).not.toMatch(/<html[^>]*data-tema=/);
   // Valor fora da lista não entra no HTML.
-  const ruim = await request.get("/", { headers: { cookie: 'tema=" onload=x' } });
+  const ruim = await request.get("/entrar", { headers: { cookie: 'tema=" onload=x' } });
   expect(await ruim.text()).not.toMatch(/<html[^>]*data-tema=/);
 });
 
@@ -68,7 +68,7 @@ test("@varredura o tema escuro por preferência e por escolha pintam o mesmo fun
   page,
   browser,
 }) => {
-  await page.goto("/");
+  await page.goto("/entrar");
   const fundo = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   const esquema = await page.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches);
   expect(fundo).toBe(esquema ? "rgb(21, 22, 26)" : "rgb(250, 250, 247)");
@@ -78,7 +78,7 @@ test("@varredura o tema escuro por preferência e por escolha pintam o mesmo fun
   });
   await contexto.addCookies([{ name: "tema", value: "escuro", url: page.url() }]);
   const outra = await contexto.newPage();
-  await outra.goto("/");
+  await outra.goto("/entrar");
   expect(await outra.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
     "rgb(21, 22, 26)",
   );
@@ -98,7 +98,7 @@ test("as fontes são do próprio site e carregam de verdade", async ({ page }) =
       externos.push(url);
     }
   });
-  await page.goto("/");
+  await page.goto("/entrar");
   await page.evaluate(() => document.fonts.ready);
   const medido = await page.evaluate(async () => {
     await document.fonts.load('600 38px "Cormorant Garamond"').catch(() => []);
@@ -121,7 +121,7 @@ test("as fontes são do próprio site e carregam de verdade", async ({ page }) =
 });
 
 test("@varredura axe sem violações", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/entrar");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   const resultado = await new AxeBuilder({ page }).analyze();
   expect(resultado.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);

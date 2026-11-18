@@ -41,6 +41,8 @@ async function main(): Promise<number> {
         DATABASE_URL_OWNER: banco.url,
         PORTA_E2E: String(porta),
         NEXT_DIST_DIR: distDir,
+        // Segredo da biblioteca de entrada: aleatório por execução, nunca o do cofre.
+        BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
         MAIL_TRANSPORT: "arquivo",
         MAIL_DIR: `test-results/correio-${id}`,
         // Saída do servidor, lida pelos testes que provam que texto privado não vai a registro.
