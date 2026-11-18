@@ -349,5 +349,40 @@ cd "$D" || exit 2
 esperar "gitleaksignore-no-diretorio-de-execucao" vaza "$R"
 cd "$AQUI" || exit 2
 
+# --- o resultado não pode depender do diretório de onde o portão é chamado
+graft_oculta() { # repo: o commit com o vazamento some do histórico lido pelo git
+  echo "token=$SEG2" > "$1/config.txt"; commitar "$1" "feat: config"
+  echo "fim" > "$1/fim.txt"; commitar "$1" "feat: fim"
+  echo "$(git -C "$1" rev-parse HEAD) $(git -C "$1" rev-parse HEAD~2)" > "$1/.git/info/grafts"
+}
+
+R=$(novo_repo grafts-fora); base_limpa "$R"; graft_oculta "$R"
+esperar "grafts-ocultando-commit" indeterminado "$R"
+
+R=$(novo_repo grafts-dentro); base_limpa "$R"; graft_oculta "$R"
+cd "$R" || exit 2
+esperar "grafts-ocultando-commit-chamado-de-dentro" indeterminado "$R"
+cd "$AQUI" || exit 2
+
+R=$(novo_repo relativo); base_limpa "$R"
+echo "token=$SEG2" > "$R/config.txt"; commitar "$R" "feat: config"
+cd "$RAIZ_TMP" || exit 2
+esperar "repo-passado-como-caminho-relativo" vaza "relativo"
+cd "$R" || exit 2
+esperar "repo-passado-como-ponto" vaza "."
+cd "$AQUI" || exit 2
+
+# diff que o git mostra não é o conteúdo: textconv e driver externo escondem o vazamento do `git log -p` comum
+R=$(novo_repo textconv); base_limpa "$R"
+echo "*.txt diff=oculta" > "$R/.gitattributes"
+git -C "$R" config diff.oculta.textconv "echo limpo #"
+echo "fale com $PESSOAL" > "$R/contato.txt"; commitar "$R" "docs: contato"
+esperar "textconv-escondendo-vazamento" vaza "$R"
+
+R=$(novo_repo diff-externo); base_limpa "$R"
+git -C "$R" config diff.external "true"
+echo "fale com $PESSOAL" > "$R/contato.txt"; commitar "$R" "docs: contato"
+esperar "diff-externo-escondendo-vazamento" vaza "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0

@@ -19,12 +19,15 @@ AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CONFIG_PADRAO="$AQUI/../../.gitleaks.toml"
 CAMINHOS_PADRAO="$AQUI/caminhos-proibidos.txt"
 
+# Variáveis do git herdadas (hook, outro repo) redirecionariam toda leitura: o alvo é só o caminho passado.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE
+
 indisponivel() { echo "INSTRUMENTO INDISPONIVEL: $1" >&2; exit 2; }
 
 REPO="${1:-}"
 [ -n "$REPO" ] || indisponivel "uso: check-public-ready.sh <repo>"
 git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || indisponivel "não é um repositório git: $REPO"
-REPO="$(git -C "$REPO" rev-parse --show-toplevel)"
+REPO="$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null)" && [ -n "$REPO" ] || indisponivel "sem árvore de trabalho (repositório nu?)"
 command -v gitleaks >/dev/null 2>&1 || indisponivel "gitleaks não instalado"
 command -v perl >/dev/null 2>&1 || indisponivel "perl não instalado"
 git -C "$REPO" rev-parse --verify HEAD >/dev/null 2>&1 || indisponivel "repositório sem commits: $REPO"
@@ -38,7 +41,9 @@ if git -C "$REPO" config --get extensions.partialclone >/dev/null 2>&1 \
    || git -C "$REPO" rev-list --all --objects --missing=print 2>/dev/null | grep -q '^?'; then
   indisponivel "clone parcial ou objetos ausentes: bytes do histórico não estão disponíveis"
 fi
-[ ! -e "$(git -C "$REPO" rev-parse --git-path info/grafts)" ] || indisponivel "grafts presentes: histórico lido seria outro"
+GRAFTS="$(git -C "$REPO" rev-parse --path-format=absolute --git-path info/grafts 2>/dev/null)" \
+  && [ -n "$GRAFTS" ] || indisponivel "não resolveu o caminho de info/grafts"
+[ ! -e "$GRAFTS" ] || indisponivel "grafts presentes: histórico lido seria outro"
 # Objetos de substituição (git replace) escondem o que será publicado: toda leitura usa os objetos reais.
 export GIT_NO_REPLACE_OBJECTS=1
 
