@@ -1,0 +1,233 @@
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+/* Animações dos componentes do shadcn (sheet e acordeão usam classes de entrada e saída). */
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* claro (padrão) */
+  --paper: #FAFAF7;
+  --paper-soft: #F0F0EA;
+  --ink: #1B1D22;
+  --ink-muted: #5A5C63;
+  --rule: #D9D9D2;
+  --rule-strong: #7F8085;
+  --rubric: #9B1C1C;
+  --rubric-hover: #6F1212;
+  --rubric-ink: #FFFFFF;
+  --signal-error: #A4400A;
+  --signal-error-ink: #FFFFFF;
+  --signal-success: #1F6B3A;
+  --signal-warning: #7A5200;
+  --overlay: rgb(27 29 34 / 0.55);
+  --escala-texto: 1;
+  --radius: 2px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema]) {
+    --paper: #15161A;
+    --paper-soft: #1E2026;
+    --ink: #ECE9E1;
+    --ink-muted: #A6A8B0;
+    --rule: #33353D;
+    --rule-strong: #7B7D86;
+    --rubric: #EE8A7A;
+    --rubric-hover: #F6A99C;
+    --rubric-ink: #1A0E0C;
+    --signal-error: #F0A06A;
+    --signal-error-ink: #1A0E0C;
+    --signal-success: #7FCB98;
+    --signal-warning: #E2B54A;
+    --overlay: rgb(0 0 0 / 0.65);
+    color-scheme: dark;
+  }
+}
+
+:root[data-tema="escuro"] {
+  --paper: #15161A;
+  --paper-soft: #1E2026;
+  --ink: #ECE9E1;
+  --ink-muted: #A6A8B0;
+  --rule: #33353D;
+  --rule-strong: #7B7D86;
+  --rubric: #EE8A7A;
+  --rubric-hover: #F6A99C;
+  --rubric-ink: #1A0E0C;
+  --signal-error: #F0A06A;
+  --signal-error-ink: #1A0E0C;
+  --signal-success: #7FCB98;
+  --signal-warning: #E2B54A;
+  --overlay: rgb(0 0 0 / 0.65);
+  color-scheme: dark;
+}
+
+/* Mapa para os nomes do shadcn. Valem nos dois temas porque leem os tokens acima. */
+:root {
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper);               /* card é proibido; fica igual ao fundo por segurança */
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--rubric);
+  --primary-foreground: var(--rubric-ink);
+  --secondary: var(--paper-soft);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-soft);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--paper-soft);        /* hover do shadcn, não o acento da marca */
+  --accent-foreground: var(--ink);
+  --destructive: var(--signal-error);
+  --destructive-foreground: var(--signal-error-ink);
+  --border: var(--rule);              /* filete decorativo */
+  --input: var(--rule-strong);        /* limite de controle */
+  --ring: var(--ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* nomes próprios do projeto: bg-paper, text-ink, text-rubric, border-rule-strong... */
+  --color-paper: var(--paper);
+  --color-paper-soft: var(--paper-soft);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-rubric: var(--rubric);
+  --color-rubric-hover: var(--rubric-hover);
+  --color-rubric-ink: var(--rubric-ink);
+  --color-signal-error: var(--signal-error);
+  --color-signal-success: var(--signal-success);
+  --color-signal-warning: var(--signal-warning);
+
+  /* cantos retos: todos os cinco raios do shadcn valem 2px */
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+  --radius-4xl: 2px;
+
+  /* fontes */
+  --font-sans: var(--font-corpo), Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-corpo), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-exibicao), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-corpo), Georgia, serif;   /* sem monoespaçada: o site é todo em serifa */
+
+  /* papéis tipográficos */
+  --text-display: 2.375rem;                                   /* 38px */
+  --text-heading: 1.5rem;                                     /* 24px */
+  --text-ui: 1.1875rem;                                       /* 19px, fixo */
+  --text-leitura: calc(1.1875rem * var(--escala-texto));      /* 19px x escala */
+  --text-label: 0.9375rem;                                    /* 15px */
+  --text-display--line-height: 1.1;
+  --text-heading--line-height: 1.2;
+  --text-ui--line-height: 1.55;
+  --text-leitura--line-height: 1.55;
+  --text-label--line-height: 1.4;
+
+  /* movimento */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --ease-leitura: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@theme {
+  --spacing: 4px;
+  --breakpoint-sm: 40rem;   /* 640px */
+  --breakpoint-md: 48rem;   /* 768px */
+  --breakpoint-lg: 64rem;   /* 1024px */
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-size: var(--text-ui);
+    line-height: 1.55;
+    font-variant-numeric: lining-nums proportional-nums;
+    -webkit-text-size-adjust: 100%;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection { background: var(--rubric); color: var(--rubric-ink); }
+  a { text-underline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Papéis tipográficos: o tamanho e a altura de linha vêm dos tokens --text-* acima; aqui ficam
+   família, peso e versalete. Só existem os pesos 400 e 600 e os quatro tamanhos do contrato. */
+@layer utilities {
+  .text-display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0;
+    text-wrap: balance;
+  }
+  .text-heading {
+    font-family: var(--font-display);
+    font-weight: 600;
+  }
+  .text-ui {
+    font-family: var(--font-sans);
+  }
+  .text-leitura {
+    font-family: var(--font-sans);
+    hyphens: auto;
+  }
+  .text-label {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-variant-caps: small-caps;
+    letter-spacing: 0.12em;
+  }
+  /* Variante "meta" do Rótulo: ajuda, data e estado; itálico 400, sem versalete. */
+  .text-meta {
+    font-family: var(--font-sans);
+    font-size: var(--text-label);
+    line-height: 1.5;
+    font-style: italic;
+    font-weight: 400;
+  }
+  /* Coluna de leitura: 65 caracteres, medida sobre o papel de leitura (acompanha a escala). */
+  .coluna-leitura {
+    max-width: calc(25.5 * var(--text-leitura));
+    margin-inline: auto;
+  }
+}
+
+:root {
+  --largura-ampla: 44rem;
+}

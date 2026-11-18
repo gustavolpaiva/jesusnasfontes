@@ -1,0 +1,35 @@
+# Registro das fontes tipográficas hospedadas pelo próprio site.
+# Lido por scripts/tipografia/gerar.sh e, adiante, pela página de créditos.
+commit: "5bd87dfc525c8a0d1d8529d3684716e00c3fc59a"
+repositorio: "https://github.com/google/fonts"
+fontes:
+  - familia: "EB Garamond"
+    papel: "texto e interface"
+    autores: "The EB Garamond Project Authors (Georg Duffner, Octavio Pardo)"
+    licenca: "SIL Open Font License 1.1"
+    origens:
+      - arquivo: ofl/ebgaramond/EBGaramond[wght].ttf
+        sha256: ef9512f92f6d579e5dc75af59a5a4b1b8b47d2eda89e00b954d44520e5369027
+      - arquivo: ofl/ebgaramond/EBGaramond-Italic[wght].ttf
+        sha256: bba2c4499c93c9612b90b9825d32b07da52fce2fe57562a1eb6b833553f93c4e
+      - arquivo: ofl/ebgaramond/OFL.txt
+        sha256: 0985066662eb755ed3683ae5482a81a9195b49ce3f7e165cc2388b3dbece7dd7
+    gerados:
+      - gerado: eb-garamond-400-600.woff2
+        sha256: 334e32d967ec6cb264bf0aebdb675aebd477f0f805e59b7f140a7a67232d23e6
+      - gerado: eb-garamond-italic-400.woff2
+        sha256: a357ad499f7ca7f5e0064c51afa1a235d8cc690270ebc9e8f1ddae36bff13fdc
+    alteracoes: "Eixo de peso limitado a 400 a 600 (romano) e fixado em 400 (itálico); subconjunto Latin-1 mais pontuação tipográfica; recursos OpenType mantidos: kern, liga, smcp, c2sc, lnum, onum, tnum, pnum, ccmp, locl, case, calt, frac; conversão para woff2."
+  - familia: "Cormorant Garamond"
+    papel: "exibição"
+    autores: "The Cormorant Project Authors (Christian Thalmann)"
+    licenca: "SIL Open Font License 1.1"
+    origens:
+      - arquivo: ofl/cormorantgaramond/CormorantGaramond[wght].ttf
+        sha256: b20b7d9626dd956b2c5e558692ad328b1f19e3275e2782db4fa07670d83f35e0
+      - arquivo: ofl/cormorantgaramond/OFL.txt
+        sha256: 60700d351cac4650c51f3f9db318d2a420f8b45052dba2715eb5fec41f0f6956
+    gerados:
+      - gerado: cormorant-garamond-600.woff2
+        sha256: 9c81df75b5d69d3521392613323d0a26c9006f7a2c3c922d68ea4d1966b3c601
+    alteracoes: "Peso fixado em 600; subconjunto Latin-1 mais pontuação tipográfica; mesmos recursos OpenType; conversão para woff2."
