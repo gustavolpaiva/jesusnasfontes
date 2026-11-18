@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { criarBancoDeExecucao, removerBancoDeExecucao } from "../../tests/support/banco-local";
 import { prepararBanco } from "../../tests/support/preparar-banco";
@@ -26,6 +26,7 @@ async function main(): Promise<number> {
   // O `next dev` acrescenta ao tsconfig.json as pastas de tipos do distDir desta execução;
   // o arquivo volta ao conteúdo original no fim para não sujar a árvore.
   const tsconfigOriginal = readFileSync("tsconfig.json", "utf8");
+  mkdirSync("test-results", { recursive: true });
   const banco = await criarBancoDeExecucao();
   const envBanco = await prepararBanco(banco);
   const porta = await portaLivre();
@@ -43,6 +44,8 @@ async function main(): Promise<number> {
         NEXT_DIST_DIR: distDir,
         MAIL_TRANSPORT: "arquivo",
         MAIL_DIR: `test-results/correio-${id}`,
+        // Saída do servidor, lida pelos testes que provam que texto privado não vai a registro.
+        JNF_LOG_SERVIDOR: `test-results/servidor-${id}.log`,
       },
     });
     for (const sinal of ["SIGINT", "SIGTERM"] as const) {

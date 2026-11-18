@@ -1,6 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
 const porta = process.env.PORTA_E2E ?? "3100";
+// Com JNF_LOG_SERVIDOR, a saída do servidor (stdout e stderr) vai para esse arquivo.
+const logServidor = process.env.JNF_LOG_SERVIDOR;
+const comandoServidor = logServidor
+  ? `exec pnpm dev --port ${porta} > "${logServidor}" 2>&1`
+  : `pnpm dev --port ${porta}`;
 
 type Esquema = "light" | "dark";
 
@@ -24,7 +29,7 @@ export default defineConfig({
   forbidOnly: true,
   use: { baseURL: `http://localhost:${porta}` },
   webServer: {
-    command: `pnpm dev --port ${porta}`,
+    command: comandoServidor,
     url: `http://localhost:${porta}`,
     reuseExistingServer: false,
     gracefulShutdown: { signal: "SIGTERM", timeout: 5000 },
