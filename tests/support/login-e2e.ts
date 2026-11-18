@@ -44,3 +44,36 @@ export async function entrarPorLink(page: Page, endereco: string): Promise<void>
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.getByRole("heading", { level: 1, name: "Trilhas" }).waitFor();
 }
+
+// Leitura de contagem direto no banco da execução (como dono; só para conferir o que ficou gravado).
+export async function contar(consulta: string, parametros: string[] = []): Promise<number> {
+  const { default: pg } = await import("pg");
+  const cliente = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await cliente.connect();
+  try {
+    const resultado = await cliente.query<{ n: string }>(consulta, parametros);
+    return Number(resultado.rows[0]?.n);
+  } finally {
+    await cliente.end();
+  }
+}
+
+export async function convidarVarios(enderecos: string[]): Promise<void> {
+  for (let i = 0; i < enderecos.length; i += 5) {
+    await Promise.all(enderecos.slice(i, i + 5).map((e) => convidarParaTeste(e)));
+  }
+}
+
+// Linhas que guardam algo daquele endereço: contas, convites e verificações (link e código).
+export async function linhasDe(endereco: string) {
+  const email = endereco.toLowerCase();
+  const verificacoes = await contar(
+    "select count(*) as n from auth.verification where identifier = $1 or value like $2",
+    [`sign-in-otp-${email}`, `%${email}%`],
+  );
+  const usuarios = await contar('select count(*) as n from auth."user" where email = $1', [email]);
+  const convites = await contar("select count(*) as n from admin.convite where email_norm = $1", [
+    email,
+  ]);
+  return { verificacoes, usuarios, convites };
+}

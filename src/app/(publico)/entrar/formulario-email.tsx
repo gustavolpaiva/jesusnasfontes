@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { type EstadoEntrada, pedirEntrada } from "@/modules/identidade/entrada";
+import { FormularioCodigo } from "./formulario-codigo";
 
 const INICIAL: EstadoEntrada = { etapa: "email", emailDigitado: "" };
 
@@ -41,13 +42,15 @@ function Passos({ aoTrocarEmail }: { aoTrocarEmail: () => void }) {
           Se este e-mail foi convidado, enviamos o acesso. Pode levar até um minuto para chegar.
         </p>
         <p className="text-leitura">
-          Você digitou <span className="[overflow-wrap:anywhere]">{estado.emailDigitado}</span>. Se
+          Você digitou{" "}
+          <span className="[overflow-wrap:anywhere] hyphens-none">{estado.emailDigitado}</span>. Se
           estiver errado, use outro e-mail.
         </p>
         <p className="text-leitura">Abra o e-mail e toque no link para entrar.</p>
         <p className="text-meta text-ink-muted">
           Não chegou? Olhe a caixa de spam e a de promoções.
         </p>
+        <FormularioCodigo email={estado.email} />
         <Button type="button" variant="ghost" onClick={aoTrocarEmail}>
           Usar outro e-mail
         </Button>

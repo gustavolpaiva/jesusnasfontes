@@ -48,6 +48,7 @@ test("o primeiro Tab foca o link de salto e ele leva ao conteúdo", async ({
 
 test("@varredura o botão de Menu tem pelo menos 44 por 44 px", async ({ page }) => {
   await page.goto("/entrar");
+  await expect(page.getByRole("button", { name: "Abrir menu" })).toBeVisible();
   const caixa = await page.getByRole("button", { name: "Abrir menu" }).boundingBox();
   expect(caixa?.width ?? 0).toBeGreaterThanOrEqual(44);
   expect(caixa?.height ?? 0).toBeGreaterThanOrEqual(44);
