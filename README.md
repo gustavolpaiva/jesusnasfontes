@@ -5,11 +5,29 @@ bíblico, Sessões, Anotações privadas e áudio. O acesso é por convite.
 
 ## Como rodar
 
-A aplicação ainda não foi iniciada neste repositório: por enquanto ele traz as licenças, a lista
-de pacotes e a verificação de publicação abaixo. As instruções de execução entram junto com o
-código da aplicação.
+Requisitos: Node.js 24 ou superior, pnpm e Docker (os testes de integração e de ponta a ponta
+usam um Postgres 17 local e descartável).
 
-Requisitos previstos: Node.js 24 ou superior e pnpm.
+```bash
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium webkit
+pnpm dev
+```
+
+A aplicação abre em `http://localhost:3000`. Variáveis de ambiente são lidas pelos módulos de
+`src/lib/env.ts`, que lista só os nomes quando algo falta.
+
+Scripts principais:
+
+| Script | O que faz |
+|--------|-----------|
+| `pnpm typecheck` | verificação de tipos |
+| `pnpm lint` | Biome |
+| `pnpm test` | testes de unidade |
+| `pnpm test:integration` | testes de integração em um banco local por execução |
+| `pnpm test:e2e` | testes de ponta a ponta com banco, porta e build próprios |
+| `pnpm gate:publico` | verificação de publicação (abaixo) |
+| `pnpm verify` | todos os anteriores, em sequência |
 
 ## Verificação de publicação
 

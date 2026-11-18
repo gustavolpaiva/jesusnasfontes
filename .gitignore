@@ -10,3 +10,13 @@ playwright-report/
 .venv*/
 coverage/
 .DS_Store
+next-env.d.ts
+*.tsbuildinfo
+
+# Arquivos de instrução de agentes que ferramentas de desenvolvimento podem gerar
+/AGENTS.md
+/CLAUDE.md
+/STATE.md
+/.claude/
+/.codex/
+/.cursor/
