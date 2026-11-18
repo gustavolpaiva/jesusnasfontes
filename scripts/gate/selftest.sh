@@ -216,5 +216,37 @@ R=$(novo_repo merge-limpo); base_limpa "$R"
 merge_com "$R" "resolvido sem dado sensivel"
 esperar "merge-limpo" limpo "$R"
 
+# --- exceção noreply: identidade aceita só o noreply do GitHub; fornecedor vale só como coautor em texto
+NR="no""reply"
+
+R=$(novo_repo noreply-pessoal-conteudo); base_limpa "$R"
+echo "contato $NR@gm""ail.com" > "$R/contato.md"; commitar "$R" "docs: contato"
+esperar "noreply-de-dominio-pessoal-no-conteudo" vaza "$R"
+
+R=$(novo_repo noreply-pessoal-autor); base_limpa "$R"
+echo "x" > "$R/a.txt"; git -C "$R" add -A
+git -C "$R" -c user.email="$NR@gm""ail.com" commit -q -m "feat: a"
+esperar "noreply-de-dominio-pessoal-como-autor" vaza "$R"
+
+R=$(novo_repo noreply-fornecedor-autor); base_limpa "$R"
+echo "x" > "$R/a.txt"; git -C "$R" add -A
+git -C "$R" -c user.email="$NR@anthro""pic.com" commit -q -m "feat: a"
+esperar "noreply-de-fornecedor-como-autor" vaza "$R"
+
+R=$(novo_repo noreply-github-autor); base_limpa "$R"
+echo "x" > "$R/a.txt"; git -C "$R" add -A
+git -C "$R" -c user.email="$NR@git""hub.com" commit -q -m "feat: a"
+esperar "noreply-do-github-como-committer" limpo "$R"
+
+R=$(novo_repo coautoria); base_limpa "$R"
+commitar "$R" "feat: x
+
+Co-Authored-By: Claude <$NR@anthro""pic.com>"
+esperar "coautoria-de-fornecedor-na-mensagem" limpo "$R"
+
+R=$(novo_repo noreply-sufixo); base_limpa "$R"
+echo "contato $NR@anthro""pic.com.empresa""real.com" > "$R/contato.md"; commitar "$R" "docs: contato"
+esperar "noreply-com-sufixo-enganoso" vaza "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0

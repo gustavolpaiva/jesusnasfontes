@@ -59,7 +59,11 @@ casar_regras() { # arquivo-de-regras
   ' "$1"
 }
 
-PERMITIDOS='(@users\.noreply\.github\.com|^noreply@.+|@([a-z0-9-]+\.)*example\.(com|org|net|test)|@([a-z0-9-]+\.)+(example|test|invalid|localhost))$'
+# Domínios de fornecedor aceitos como noreply@ só em TEXTO (linhas de coautoria de commit); nunca como identidade.
+NOREPLY_TEXTO='anthropic\.com|openai\.com|google\.com|github\.com'
+PERMITIDOS='(@users\.noreply\.github\.com$|^noreply@('"$NOREPLY_TEXTO"')$|@([a-z0-9-]+\.)*example\.(com|org|net|test)$|@([a-z0-9-]+\.)+(example|test|invalid|localhost)$)'
+# Identidade (autor, committer, tagger): só o noreply do GitHub.
+IDENTIDADE_OK='(@users\.noreply\.github\.com|^noreply@github\.com)$'
 CPF_RE='[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}'
 
 # CPF e e-mail fora da lista permitida em um texto; imprime o rótulo de cada achado. Exit 1 se houve.
@@ -97,7 +101,7 @@ git -C "$REPO" for-each-ref refs/tags --format='%(taggeremail)' | tr -d '<>' | g
 git -C "$REPO" for-each-ref refs/tags --format='%(taggername)' | grep -v '^$' >> "$TMP/nomes.txt"
 [ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "for-each-ref falhou"
 v2_ok=1
-if grep -Evi '(@users\.noreply\.github\.com|^noreply@[a-z0-9.-]+)$' "$TMP/emails.txt" | grep -q .; then
+if grep -Evi "$IDENTIDADE_OK" "$TMP/emails.txt" | grep -q .; then
   echo "verificacao 2: VAZAMENTO autor-ou-committer-com-email-fora-do-noreply"; v2_ok=0
 fi
 cat "$TMP/emails.txt" "$TMP/nomes.txt" | casar_regras "$TMP/regras.tsv" > "$TMP/hit.txt"
