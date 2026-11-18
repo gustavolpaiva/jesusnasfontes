@@ -44,6 +44,7 @@ forcar diff.renames false           # arquivo renomeado aparece inteiro como adi
 forcar core.quotePath false         # nomes com acento ou espaço sem escape octal
 forcar log.showSignature false      # saída de verificação de assinatura misturada ao texto
 forcar log.decorate no
+forcar log.showRoot true            # sem isso o commit raiz some de todo diff (e da contagem de controle)
 forcar log.mailmap false            # autor e committer como gravados, nunca reescritos por .mailmap
 forcar i18n.logOutputEncoding UTF-8
 forcar core.pager cat
@@ -137,12 +138,32 @@ checar_cpf_email() { # arquivo rotulo
 
 # Linhas adicionadas em qualquer commit alcançável, merges incluídos (-m: diff contra cada pai, pega o que nasce só na resolução).
 # --text: binário, atributo -diff e arquivo acima de core.bigFileThreshold também entregam os bytes; sem textconv nem driver externo.
-g log --all -m --text --no-color --no-renames --no-ext-diff --no-textconv -p --format= 2>/dev/null | grep -a '^+' > "$TMP/adicionadas.txt"
+g log --all --root -m --text --no-color --no-renames --no-ext-diff --no-textconv -p --format= 2>/dev/null | grep -a '^+' > "$TMP/adicionadas.txt"
 [ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "git log -p falhou"
 # Controle do extrator: o git diz quantas linhas foram adicionadas; extrair menos que isso é filtro cego, nunca "limpo".
-ESPERADAS=$(g log --all -m --text --no-color --no-renames --numstat --format= 2>/dev/null | awk '$1 ~ /^[0-9]+$/ { s += $1 } END { print s + 0 }')
+ESPERADAS=$(g log --all --root -m --text --no-color --no-renames --numstat --format= 2>/dev/null | awk '$1 ~ /^[0-9]+$/ { s += $1 } END { print s + 0 }')
 EXTRAIDAS=$(wc -l < "$TMP/adicionadas.txt" | tr -d ' ')
+# Fonte independente de opção de diff: toda linha de todo arquivo de um commit raiz é adição (git grep não depende de log.*).
+RAIZES=$(g rev-list --all --max-parents=0) || indisponivel "git rev-list falhou"
+LINHAS_RAIZ=0
+for raiz in $RAIZES; do
+  n=$(g grep -a -c '' "$raiz" -- 2>/dev/null | awk -F: '{ s += $NF } END { print s + 0 }')
+  LINHAS_RAIZ=$((LINHAS_RAIZ + n))
+done
+[ "$EXTRAIDAS" -ge "$LINHAS_RAIZ" ] || indisponivel "extração não contém as linhas do commit raiz ($EXTRAIDAS de $LINHAS_RAIZ)"
 [ "$EXTRAIDAS" -ge "$ESPERADAS" ] || indisponivel "extração de linhas adicionadas incompleta ($EXTRAIDAS de $ESPERADAS)"
+
+# Nomes de todo caminho tocado em qualquer ref (histórico inteiro, não só HEAD), delimitados por NUL: o git escapa
+# TAB, aspas, barra invertida e quebra de linha em saída com quebra de linha, mesmo com core.quotePath=false.
+g log --all --root -m --name-only -z --format= > "$TMP/nomes.nul" || indisponivel "git log falhou"
+g ls-files -z >> "$TMP/nomes.nul" || indisponivel "git ls-files falhou"
+perl -0ne 'chomp; next if $_ eq ""; if (/\n/) { $nl = 1; next } print "$_\n"; END { exit($nl ? 3 : 0) }' \
+  < "$TMP/nomes.nul" | sort -u > "$TMP/arquivos.txt"
+RC_PERL=${PIPESTATUS[0]}
+NOME_COM_QUEBRA=0
+case $RC_PERL in 0) ;; 3) NOME_COM_QUEBRA=1 ;; *) indisponivel "perl falhou ao ler nomes" ;; esac
+NARQ=$(g ls-files -z | tr -cd '\0' | wc -c | tr -d ' ')
+[ "$NOME_COM_QUEBRA" -eq 1 ] || [ "$(wc -l < "$TMP/arquivos.txt" | tr -d ' ')" -ge "$NARQ" ] || indisponivel "extração de nomes de arquivo incompleta"
 
 # --- Verificação 1
 v1_ok=1
@@ -193,8 +214,7 @@ if [ $? -eq 1 ]; then echo "verificacao 2: VAZAMENTO autor-casa-regra: $(paste -
   g for-each-ref refs/tags --format='%(contents)'
   g for-each-ref refs/tags --format='%(taggername) %(taggeremail)'
   g log --all --format='%an %ae%n%cn %ce'
-  g log --all -m --name-only --format=
-  g ls-files
+  cat "$TMP/arquivos.txt"
 } > "$TMP/textos.txt" 2>/dev/null || indisponivel "git log/for-each-ref falhou"
 # Controle dos extratores de metadado: cada commit rende ao menos uma linha de mensagem; contagem menor que isso é leitura cega.
 NCOMMITS=$(g rev-list --all --count 2>/dev/null) || indisponivel "git rev-list falhou"
@@ -222,12 +242,6 @@ done
 
 # --- Verificação 4: caminhos, CPF, e-mails na árvore, credencial em URL de remoto
 v4_ok=1
-# Histórico inteiro, não só HEAD: o que entrou e saiu continua público. Nomes de todo caminho tocado em qualquer ref.
-g log --all -m --name-only --format= > "$TMP/arquivos-bruto.txt" || indisponivel "git log falhou"
-g ls-files >> "$TMP/arquivos-bruto.txt" || indisponivel "git ls-files falhou"
-sort -u "$TMP/arquivos-bruto.txt" > "$TMP/arquivos.txt"
-NARQ=$(g ls-files | sort -u | wc -l | tr -d ' ')
-[ "$(wc -l < "$TMP/arquivos.txt" | tr -d ' ')" -ge "$NARQ" ] || indisponivel "extração de nomes de arquivo incompleta"
 [ -r "$CAMINHOS_PADRAO" ] || CAMINHOS_PADRAO="$REPO/scripts/gate/caminhos-proibidos.txt"
 [ -r "$CAMINHOS_PADRAO" ] || indisponivel "sem caminhos-proibidos.txt"
 grep -Ev '^\s*(#|$)' "$CAMINHOS_PADRAO" > "$TMP/caminhos.txt"
@@ -239,7 +253,7 @@ while IFS= read -r padrao; do
 done < "$TMP/caminhos.txt"
 
 # Conteúdo que não está no git: submódulo (gitlink) e Git LFS (ponteiro) deixam bytes fora do alcance do portão.
-g log --all -m --raw --no-abbrev --no-renames --format= > "$TMP/raw.txt" || indisponivel "git log --raw falhou"
+g log --all --root -m --raw --no-abbrev --no-renames --format= > "$TMP/raw.txt" || indisponivel "git log --raw falhou"
 if grep -Eq '^:(160000 [0-7]{6}|[0-7]{6} 160000) ' "$TMP/raw.txt"; then
   echo "verificacao 4: VAZAMENTO submodulo-no-historico (conteudo fora do git, nao examinado)"; v4_ok=0
 fi
@@ -258,9 +272,19 @@ if grep -Ei '(^|/)\.?gitleaks[^/]*\.toml$' "$TMP/arquivos.txt" | grep -Evx '\.gi
 fi
 VERIF=4
 checar_cpf_email "$TMP/adicionadas.txt" "no-historico" || v4_ok=0
-g config --get-regexp '^remote\..*\.url$' > "$TMP/remotos.txt" 2>/dev/null || true
-if grep -Eq '://[^/@[:space:]]+@' "$TMP/remotos.txt"; then
-  echo "verificacao 4: VAZAMENTO credencial-na-url-do-remoto"; v4_ok=0
+if [ "$NOME_COM_QUEBRA" -eq 1 ]; then
+  echo "verificacao 4: VAZAMENTO nome-de-arquivo-com-quebra-de-linha"; v4_ok=0
+fi
+# Credencial em qualquer chave da configuração local (url, pushurl, insteadOf, proxy, submódulo...), cabeçalho e helper em arquivo.
+g config --list > "$TMP/config-local.txt" 2>/dev/null || indisponivel "git config --list falhou"
+if grep -Ei '://[^/@[:space:]]+@' "$TMP/config-local.txt" | grep -Evi '://git@' | grep -q .; then
+  echo "verificacao 4: VAZAMENTO credencial-na-configuracao-local"; v4_ok=0
+fi
+if grep -Eiq '^http\..*extraheader=.*(authorization|bearer|basic|token)' "$TMP/config-local.txt"; then
+  echo "verificacao 4: VAZAMENTO cabecalho-de-autorizacao-na-configuracao-local"; v4_ok=0
+fi
+if grep -Eiq '^credential\..*helper=.*store' "$TMP/config-local.txt"; then
+  echo "verificacao 4: VAZAMENTO helper-de-credencial-em-arquivo"; v4_ok=0
 fi
 [ $v4_ok -eq 1 ] && echo "verificacao 4: limpo" || VAZOU=1
 

@@ -433,6 +433,65 @@ R=$(novo_repo fsmonitor); base_limpa "$R"
 printf '#!/bin/sh\ntouch "%s"\n' "$RAIZ_TMP/fsmonitor-executou" > "$RAIZ_TMP/hook-fsmonitor.sh"; chmod +x "$RAIZ_TMP/hook-fsmonitor.sh"
 git -C "$R" config core.fsmonitor "$RAIZ_TMP/hook-fsmonitor.sh"
 PUBLIC_GATE_EXTRA_CONFIG="$EXTRA_SELFTEST" bash "$GATE" "$R" >/dev/null 2>&1
+TAB="$(printf '\t')"
+NL="$(printf '\n_')"; NL="${NL%_}"
+USR="usu""ario"; PW="sen""ha"
+
+# commit raiz: o segredo só existe no primeiro commit, e log.showRoot=false o tira de todo diff
+R=$(novo_repo raiz); git -C "$R" config log.showRoot false
+echo "token=$SEG2" > "$R/config.txt"; commitar "$R" "chore: inicio"
+git -C "$R" rm -q config.txt; commitar "$R" "fix: remove config"
+esperar "segredo-so-no-commit-raiz-com-showroot-false" vaza "$R"
+
+# nomes com TAB e com quebra de linha: o git escapa o caminho mesmo com core.quotePath=false
+R=$(novo_repo nome-tab); base_limpa "$R"
+mkdir -p "$R/.claude"; echo "x" > "$R/.claude/a${TAB}b.md"; commitar "$R" "chore: config"
+esperar "caminho-proibido-com-tab-no-nome" vaza "$R"
+
+R=$(novo_repo nome-tab-apagado); base_limpa "$R"
+mkdir -p "$R/.claude"; echo "x" > "$R/.claude/a${TAB}b.md"; commitar "$R" "chore: config"
+git -C "$R" rm -q -r .claude; commitar "$R" "fix: remove config"
+esperar "caminho-proibido-com-tab-apagado-depois" vaza "$R"
+
+R=$(novo_repo nome-quebra); base_limpa "$R"
+echo "x" > "$R/a${NL}b.md"; commitar "$R" "docs: nome estranho"
+esperar "nome-de-arquivo-com-quebra-de-linha" vaza "$R"
+
+# credencial em configuração local, em qualquer chave
+R=$(novo_repo pushurl); base_limpa "$R"
+git -C "$R" remote add origin "https://servidor.example.com/x.git"
+git -C "$R" config remote.origin.pushurl "https://$USR:$PW@servidor.example.com/x.git"
+esperar "credencial-no-pushurl" vaza "$R"
+
+R=$(novo_repo insteadof); base_limpa "$R"
+git -C "$R" config "url.https://$USR:$PW@servidor.example.com/.insteadOf" "https://servidor.example.com/"
+esperar "credencial-em-insteadof" vaza "$R"
+
+R=$(novo_repo submodule-url); base_limpa "$R"
+git -C "$R" config submodule.externo.url "https://$USR:$PW@servidor.example.com/y.git"
+esperar "credencial-em-url-de-submodulo" vaza "$R"
+
+R=$(novo_repo extraheader); base_limpa "$R"
+git -C "$R" config "http.https://servidor.example.com/.extraHeader" "AUTHORIZATION: basic dXN1YXJpbzpzZW5oYQ=="
+esperar "credencial-em-extraheader" vaza "$R"
+
+R=$(novo_repo helper-store); base_limpa "$R"
+git -C "$R" config credential.helper "store --file=/caminho/qualquer"
+esperar "credencial-em-helper-store" vaza "$R"
+
+# a trava de extração: um git que devolve diff vazio tem de dar exit 2, nunca limpo
+R=$(novo_repo trava); base_limpa "$R"
+echo "titular $CPF" > "$R/dados.md"; commitar "$R" "docs: dados"
+GIT_REAL="$(command -v git)"
+mkdir -p "$RAIZ_TMP/fakebin"
+cat > "$RAIZ_TMP/fakebin/git" <<SH
+#!/bin/sh
+case " \$* " in *" log "*" -p "*) exit 0 ;; esac
+exec "$GIT_REAL" "\$@"
+SH
+chmod +x "$RAIZ_TMP/fakebin/git"
+PATH="$RAIZ_TMP/fakebin:$PATH" esperar "trava-de-extracao-dispara" indeterminado "$R"
+
 if [ ! -e "$RAIZ_TMP/fsmonitor-executou" ]; then echo "PASSOU config-local-nao-executa-programa"; else echo "FALHOU config-local-nao-executa-programa"; FALHAS=$((FALHAS+1)); fi
 
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
