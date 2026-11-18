@@ -91,7 +91,10 @@ export function AppearanceControls() {
         <h3 id="rotulo-tamanho" className="text-label text-ink-muted">
           Tamanho do texto
         </h3>
-        <div role="group" aria-labelledby="rotulo-tamanho" className="flex items-center gap-3">
+        <fieldset
+          aria-labelledby="rotulo-tamanho"
+          className="m-0 flex min-w-0 items-center gap-3 border-0 p-0"
+        >
           <Button
             variant="secondary"
             size="icon"
@@ -122,7 +125,7 @@ export function AppearanceControls() {
               A+
             </span>
           </Button>
-        </div>
+        </fieldset>
         <p className="text-leitura border-y border-border py-3" data-testid="amostra-de-texto">
           Assim fica o texto de leitura.
         </p>
