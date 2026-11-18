@@ -47,6 +47,8 @@ esperar() { # classe esperado(limpo|vaza) repo
   rc=$?
   if [ "$2" = limpo ]; then
     if [ $rc -eq 0 ]; then echo "PASSOU $1"; else echo "FALHOU $1 (esperava 0, veio $rc)"; FALHAS=$((FALHAS+1)); fi
+  elif [ "$2" = indeterminado ]; then
+    if [ $rc -eq 2 ]; then echo "PASSOU $1"; else echo "FALHOU $1 (esperava 2, veio $rc)"; FALHAS=$((FALHAS+1)); fi
   else
     if [ $rc -eq 1 ]; then echo "PASSOU $1"; else echo "FALHOU $1 (esperava 1, veio $rc)"; FALHAS=$((FALHAS+1)); fi
   fi
@@ -247,6 +249,68 @@ esperar "coautoria-de-fornecedor-na-mensagem" limpo "$R"
 R=$(novo_repo noreply-sufixo); base_limpa "$R"
 echo "contato $NR@anthro""pic.com.empresa""real.com" > "$R/contato.md"; commitar "$R" "docs: contato"
 esperar "noreply-com-sufixo-enganoso" vaza "$R"
+
+# --- o git deixa de mostrar ao portão bytes que serão públicos
+R=$(novo_repo binario-email); base_limpa "$R"
+printf 'x\000 fale com %s\n' "$PESSOAL" > "$R/anexo.bin"; commitar "$R" "docs: anexo"
+esperar "email-pessoal-em-arquivo-binario" vaza "$R"
+
+R=$(novo_repo binario-cpf); base_limpa "$R"
+printf 'x\000 titular %s\n' "$CPF" > "$R/anexo.bin"; commitar "$R" "docs: anexo"
+esperar "cpf-em-arquivo-binario" vaza "$R"
+
+R=$(novo_repo binario-segredo); base_limpa "$R"
+printf 'x\000 token=%s\n' "$SEG2" > "$R/anexo.bin"; commitar "$R" "docs: anexo"
+esperar "segredo-em-arquivo-binario" vaza "$R"
+
+R=$(novo_repo menos-diff); base_limpa "$R"
+echo "*.txt -di""ff" > "$R/.gitattributes"
+echo "fale com $PESSOAL" > "$R/contato.txt"; commitar "$R" "docs: contato"
+esperar "arquivo-com-atributo-menos-diff" vaza "$R"
+
+R=$(novo_repo arquivo-grande); base_limpa "$R"
+git -C "$R" config core.bigFileThreshold 10
+echo "fale com $PESSOAL e mais texto para passar do limite" > "$R/contato.txt"; commitar "$R" "docs: contato"
+esperar "arquivo-acima-do-limite-de-diff" vaza "$R"
+
+R=$(novo_repo gitleaks-allow); base_limpa "$R"
+echo "token=$SEG2 # gitleaks:""allow" > "$R/config.txt"; commitar "$R" "feat: config"
+esperar "segredo-com-comentario-de-permissao" vaza "$R"
+
+R=$(novo_repo raso-origem); base_limpa "$R"
+echo "fale com $PESSOAL" > "$R/contato.md"; commitar "$R" "docs: contato"
+git -C "$R" rm -q contato.md; commitar "$R" "fix: remove contato"
+git clone -q --depth 1 "file://$R" "$RAIZ_TMP/raso" 2>/dev/null
+esperar "repositorio-raso" indeterminado "$RAIZ_TMP/raso"
+
+R=$(novo_repo parcial-origem); base_limpa "$R"
+git -C "$R" config uploadpack.allowFilter true
+git -C "$R" config uploadpack.allowAnySHA1InWant true
+echo "outro arquivo" > "$R/b.md"; commitar "$R" "docs: b"
+git clone -q --no-checkout --filter=blob:none "file://$R" "$RAIZ_TMP/parcial" 2>/dev/null
+esperar "clone-parcial" indeterminado "$RAIZ_TMP/parcial"
+
+R=$(novo_repo substituido); base_limpa "$R"
+echo "token=$SEG2" > "$R/config.txt"; commitar "$R" "feat: config"
+VAZADO=$(git -C "$R" rev-parse HEAD)
+git -C "$R" rm -q config.txt; commitar "$R" "fix: remove config"
+git -C "$R" replace "$VAZADO" "$(git -C "$R" rev-parse "$VAZADO~1")"
+esperar "objeto-substituido-por-replace" vaza "$R"
+
+R=$(novo_repo submodulo); base_limpa "$R"
+git -C "$R" update-index --add --cacheinfo "160000,$(git -C "$R" rev-parse HEAD),externo"
+git -C "$R" commit -q -m "chore: adiciona externo"
+git -C "$R" rm -q --cached externo; git -C "$R" commit -q -m "chore: remove externo"
+esperar "submodulo-no-historico" vaza "$R"
+
+R=$(novo_repo lfs-atributo); base_limpa "$R"
+echo "*.bin fil""ter=lfs diff=lfs merge=lfs -text" > "$R/.gitattributes"; commitar "$R" "chore: lfs"
+esperar "atributo-de-lfs" vaza "$R"
+
+R=$(novo_repo lfs-ponteiro); base_limpa "$R"
+printf 'version https://git-lfs.git''hub.com/spec/v1\noid sha256:%s\nsize 10\n' "0000000000000000000000000000000000000000000000000000000000000000" > "$R/a.bin"
+commitar "$R" "docs: ponteiro"
+esperar "ponteiro-de-lfs" vaza "$R"
 
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0

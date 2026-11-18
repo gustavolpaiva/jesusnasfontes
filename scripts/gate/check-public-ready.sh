@@ -9,6 +9,10 @@
 #   2 autor, committer e tagger (e-mail e nome)
 #   3 mensagens de commit e de tag, nomes de branch e de tag e nomes de arquivo: todo padrão vale para todo metadado
 #   4 caminhos proibidos, CPF e e-mail pessoal em todo o histórico, credencial na URL de remoto
+#
+# Limites declarados: o gitleaks não lê objetos fora do git (submódulo, Git LFS: reprovam), e o portão recusa (exit 2)
+# repositório raso, clone parcial e grafts. Objetos de substituição são ignorados: lê-se sempre o histórico real.
+# Binário e atributo -diff são lidos como texto (--text) e passam ao gitleaks por stdin, pois ele não os lê em modo git.
 set -u
 
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -24,6 +28,19 @@ REPO="$(git -C "$REPO" rev-parse --show-toplevel)"
 command -v gitleaks >/dev/null 2>&1 || indisponivel "gitleaks não instalado"
 command -v perl >/dev/null 2>&1 || indisponivel "perl não instalado"
 git -C "$REPO" rev-parse --verify HEAD >/dev/null 2>&1 || indisponivel "repositório sem commits: $REPO"
+
+# O portão só aprova o que consegue ler por inteiro: histórico incompleto ou reescrito em leitura nunca é "limpo".
+[ "$(git -C "$REPO" rev-parse --is-shallow-repository 2>/dev/null)" = false ] \
+  || indisponivel "repositório raso: commits omitidos não foram examinados"
+export GIT_NO_LAZY_FETCH=1
+if git -C "$REPO" config --get extensions.partialclone >/dev/null 2>&1 \
+   || git -C "$REPO" config --get-regexp '^remote\..*\.promisor$' 2>/dev/null | grep -q true \
+   || git -C "$REPO" rev-list --all --objects --missing=print 2>/dev/null | grep -q '^?'; then
+  indisponivel "clone parcial ou objetos ausentes: bytes do histórico não estão disponíveis"
+fi
+[ ! -e "$(git -C "$REPO" rev-parse --git-path info/grafts)" ] || indisponivel "grafts presentes: histórico lido seria outro"
+# Objetos de substituição (git replace) escondem o que será publicado: toda leitura usa os objetos reais.
+export GIT_NO_REPLACE_OBJECTS=1
 
 CONFIG="$REPO/.gitleaks.toml"
 [ -s "$CONFIG" ] || CONFIG="$CONFIG_PADRAO"
@@ -78,16 +95,32 @@ checar_cpf_email() { # arquivo rotulo
   return $achou
 }
 
+# Linhas adicionadas em qualquer commit alcançável, merges incluídos (-m: diff contra cada pai, pega o que nasce só na resolução).
+# --text: binário, atributo -diff e arquivo acima de core.bigFileThreshold também entregam os bytes; sem textconv nem driver externo.
+git -C "$REPO" log --all -m --text --no-ext-diff --no-textconv -p --format= 2>/dev/null | grep -a '^+' > "$TMP/adicionadas.txt"
+[ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "git log -p falhou"
+
 # --- Verificação 1
 v1_ok=1
 for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
-  gitleaks git "$REPO" --config "$cfg" --log-opts="--all -m" --redact --no-banner \
+  gitleaks git "$REPO" --config "$cfg" --log-opts="--all -m" --ignore-gitleaks-allow --redact --no-banner \
     --no-color --exit-code 1 >/dev/null 2>&1
   rc=$?
   case $rc in
     0) ;;
     1) v1_ok=0 ;;
     *) indisponivel "gitleaks saiu com $rc (config: $(basename "$cfg"))" ;;
+  esac
+done
+# O gitleaks git não lê conteúdo binário nem arquivo com -diff; o mesmo texto bruto passa por ele via stdin.
+for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
+  gitleaks stdin --config "$cfg" --ignore-gitleaks-allow --redact --no-banner --no-color --exit-code 1 \
+    < "$TMP/adicionadas.txt" >/dev/null 2>&1
+  rc=$?
+  case $rc in
+    0) ;;
+    1) v1_ok=0 ;;
+    *) indisponivel "gitleaks stdin saiu com $rc (config: $(basename "$cfg"))" ;;
   esac
 done
 if [ $v1_ok -eq 1 ]; then echo "verificacao 1: limpo"
@@ -129,7 +162,7 @@ fi
 checar_cpf_email "$TMP/textos.txt" "em-metadado" || v3_ok=0
 # O gitleaks varre diffs; os detectores padrão não veem metadado. O mesmo texto passa por ele via stdin.
 for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
-  gitleaks stdin --config "$cfg" --redact --no-banner --no-color --exit-code 1 \
+  gitleaks stdin --config "$cfg" --ignore-gitleaks-allow --redact --no-banner --no-color --exit-code 1 \
     < "$TMP/textos.txt" >/dev/null 2>&1
   rc=$?
   case $rc in
@@ -146,9 +179,6 @@ v4_ok=1
 git -C "$REPO" -c core.quotepath=false log --all -m --name-only --format= > "$TMP/arquivos-bruto.txt" || indisponivel "git log falhou"
 git -C "$REPO" ls-files >> "$TMP/arquivos-bruto.txt" || indisponivel "git ls-files falhou"
 sort -u "$TMP/arquivos-bruto.txt" > "$TMP/arquivos.txt"
-# Linhas adicionadas em qualquer commit alcançável, merges incluídos (-m: diff contra cada pai, pega o que nasce só na resolução).
-git -C "$REPO" log --all -m --no-ext-diff --no-textconv -p --format= 2>/dev/null | grep -a '^+' > "$TMP/adicionadas.txt"
-[ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "git log -p falhou"
 [ -r "$CAMINHOS_PADRAO" ] || CAMINHOS_PADRAO="$REPO/scripts/gate/caminhos-proibidos.txt"
 [ -r "$CAMINHOS_PADRAO" ] || indisponivel "sem caminhos-proibidos.txt"
 grep -Ev '^\s*(#|$)' "$CAMINHOS_PADRAO" > "$TMP/caminhos.txt"
@@ -159,6 +189,14 @@ while IFS= read -r padrao; do
   if grep -Eq -e "$padrao" "$TMP/arquivos.txt"; then echo "verificacao 4: VAZAMENTO caminho-proibido-versionado"; v4_ok=0; break; fi
 done < "$TMP/caminhos.txt"
 
+# Conteúdo que não está no git: submódulo (gitlink) e Git LFS (ponteiro) deixam bytes fora do alcance do portão.
+git -C "$REPO" log --all -m --raw --no-abbrev --no-renames --format= > "$TMP/raw.txt" || indisponivel "git log --raw falhou"
+if grep -Eq '^:(160000 [0-7]{6}|[0-7]{6} 160000) ' "$TMP/raw.txt"; then
+  echo "verificacao 4: VAZAMENTO submodulo-no-historico (conteudo fora do git, nao examinado)"; v4_ok=0
+fi
+if grep -aEq 'filter[=]lfs|git-lfs[.]github[.]com/spec' "$TMP/adicionadas.txt"; then
+  echo "verificacao 4: VAZAMENTO git-lfs-no-historico (conteudo fora do git, nao examinado)"; v4_ok=0
+fi
 VERIF=4
 checar_cpf_email "$TMP/adicionadas.txt" "no-historico" || v4_ok=0
 git -C "$REPO" config --get-regexp '^remote\..*\.url$' > "$TMP/remotos.txt" 2>/dev/null || true
