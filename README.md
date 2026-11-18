@@ -5,12 +5,11 @@ bíblico, Sessões, Anotações privadas e áudio. O acesso é por convite.
 
 ## Como rodar
 
-Requisitos: Node.js 24 ou superior e pnpm.
+A aplicação ainda não foi iniciada neste repositório: por enquanto ele traz as licenças, a lista
+de pacotes e a verificação de publicação abaixo. As instruções de execução entram junto com o
+código da aplicação.
 
-```bash
-pnpm install
-pnpm dev
-```
+Requisitos previstos: Node.js 24 ou superior e pnpm.
 
 ## Verificação de publicação
 
