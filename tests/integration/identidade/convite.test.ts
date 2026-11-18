@@ -6,6 +6,7 @@ import { convite, verificacao } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
 import {
   aceitarConvite,
+  apagarCodigoDe,
   ConviteDuplicado,
   convidar,
   conviteAtivo,
@@ -102,5 +103,44 @@ describe("convite", () => {
       .from(verificacao)
       .where(inArray(verificacao.identifier, [`sign-in-otp-${email}`, `sign-in-otp-${outro}`]));
     expect(restam.map((l) => l.identifier)).toEqual([`sign-in-otp-${outro}`]);
+  });
+
+  it("esgotar o código apaga só o código daquele endereço: link dele e tudo do outro ficam", async () => {
+    const a = novo("esgota");
+    const b = novo("outro");
+    const expira = new Date(Date.now() + 600_000);
+    const link = (e: string) => JSON.stringify({ type: "magic-link", email: e });
+    await obterDb()
+      .insert(verificacao)
+      .values([
+        { identifier: `sign-in-otp-${a}`, value: "x:0", expiresAt: expira },
+        { identifier: `magic-link:h-${a}`, value: link(a), expiresAt: expira },
+        { identifier: `sign-in-otp-${b}`, value: "x:0", expiresAt: expira },
+        { identifier: `magic-link:h-${b}`, value: link(b), expiresAt: expira },
+      ]);
+    await apagarCodigoDe(a);
+    const restam = await obterDb()
+      .select()
+      .from(verificacao)
+      .where(
+        inArray(verificacao.identifier, [
+          `sign-in-otp-${a}`,
+          `magic-link:h-${a}`,
+          `sign-in-otp-${b}`,
+          `magic-link:h-${b}`,
+        ]),
+      );
+    expect(restam.map((l) => l.identifier).sort()).toEqual(
+      [`magic-link:h-${a}`, `sign-in-otp-${b}`, `magic-link:h-${b}`].sort(),
+    );
+    await obterDb()
+      .delete(verificacao)
+      .where(
+        inArray(verificacao.identifier, [
+          `magic-link:h-${a}`,
+          `sign-in-otp-${b}`,
+          `magic-link:h-${b}`,
+        ]),
+      );
   });
 });

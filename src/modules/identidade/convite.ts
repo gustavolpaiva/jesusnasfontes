@@ -87,3 +87,12 @@ export async function apagarVerificacoesDe(emailNorm: string): Promise<void> {
       ),
     );
 }
+
+// Esgotamento do código: remove SÓ o código daquele endereço (identificador exato, parametrizado).
+// Os links pendentes do mesmo endereço e tudo de outros endereços ficam: quem só conhece o e-mail
+// não pode, errando o código, cancelar a entrada de quem recebeu o link.
+export async function apagarCodigoDe(emailNorm: string): Promise<void> {
+  await obterDb()
+    .delete(verificacao)
+    .where(eq(verificacao.identifier, `sign-in-otp-${normalizarEmail(emailNorm)}`));
+}

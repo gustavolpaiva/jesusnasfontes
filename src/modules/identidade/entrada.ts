@@ -6,7 +6,7 @@ import { obterDb } from "@/db/cliente";
 import { verificacao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
-import { aceitarConvite, apagarVerificacoesDe, conviteAtivo } from "./convite";
+import { aceitarConvite, apagarCodigoDe, conviteAtivo } from "./convite";
 import { chaveDe, consumirLimite, ipDe, LIMITES, lerContagem, zerarLimite } from "./limite";
 import { lerEmail } from "./normalizar-email";
 
@@ -151,7 +151,7 @@ export async function entrarComCodigo(
     } catch {
       const falha = await consumirLimite(chave, maximo, janela);
       if (falha.contagem >= maximo) {
-        await apagarVerificacoesDe(email); // o código atual esgotou
+        await apagarCodigoDe(email); // só o código esgotou; os links pendentes ficam
         return { ...base, resultado: "codigo-esgotado" };
       }
       return { ...base, resultado: "codigo-invalido" };

@@ -123,3 +123,45 @@ test("os limites de pedido mostram a mesma mensagem para qualquer e-mail", async
     await isolarIp(page);
   }
 });
+
+test("um terceiro que só sabe o e-mail esgota o código mas não cancela o link da vítima nem o de outro endereço", async ({
+  page,
+  browser,
+}) => {
+  const vitima = emailDeTeste();
+  const outro = emailDeTeste("outro");
+  await convidarParaTeste(vitima);
+  await convidarParaTeste(outro);
+  await isolarIp(page);
+  await pedirAcesso(page, vitima);
+  const primeiro = await ultimoEmailPara(vitima);
+  const doOutro = await browser.newContext();
+  const paginaOutro = await doOutro.newPage();
+  await isolarIp(paginaOutro);
+  await pedirAcesso(paginaOutro, outro);
+  const emailOutro = await ultimoEmailPara(outro);
+
+  // O terceiro pede acesso para o e-mail da vítima e erra o código três vezes.
+  const terceiro = await browser.newContext();
+  const t = await terceiro.newPage();
+  await isolarIp(t);
+  await pedirAcesso(t, vitima);
+  await ultimoEmailPara(vitima, { depoisDe: 1 });
+  const errado = primeiro.codigo === "000000" ? "111111" : "000000";
+  for (let i = 0; i < 3; i++) await digitarCodigo(t, errado);
+  await expect(t.getByText("Você errou o código muitas vezes.")).toBeVisible();
+  // O código esgotado continua esgotado, até o certo.
+  await digitarCodigo(t, primeiro.codigo as string);
+  await expect(t.getByText("Você errou o código muitas vezes.")).toBeVisible();
+  // A resposta é a mesma de um endereço não convidado (ver teste anterior de endereço desconhecido).
+
+  // O link que a vítima recebeu primeiro continua valendo, e o do outro endereço também.
+  await page.goto(primeiro.link as string);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  await paginaOutro.goto(emailOutro.link as string);
+  await paginaOutro.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(paginaOutro.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  await terceiro.close();
+  await doOutro.close();
+});
