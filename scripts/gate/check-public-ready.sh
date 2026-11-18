@@ -21,27 +21,58 @@ CAMINHOS_PADRAO="$AQUI/caminhos-proibidos.txt"
 
 # Variáveis do git herdadas (hook, outro repo) redirecionariam toda leitura: o alvo é só o caminho passado.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR GIT_NAMESPACE
+unset GIT_CONFIG_PARAMETERS GIT_CONFIG GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_ATTR_SOURCE
+
+# Configuração ambiente não pode mudar o que o portão lê. Global e de sistema são anuladas; a local do repo
+# (que quem prepara o repo controla) é sobreposta por variáveis de linha de comando, que valem também para
+# o git que o gitleaks chama por conta própria. Toda leitura do git passa por g().
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0
+GIT_CONFIG_COUNT=0
+forcar() { # chave valor
+  export "GIT_CONFIG_KEY_$GIT_CONFIG_COUNT=$1" "GIT_CONFIG_VALUE_$GIT_CONFIG_COUNT=$2"
+  GIT_CONFIG_COUNT=$((GIT_CONFIG_COUNT+1))
+}
+forcar color.ui never               # ANSI antes do "+" faria o filtro de linhas adicionadas descartar tudo
+forcar color.diff never
+forcar diff.wsErrorHighlight none
+forcar diff.colorMoved no
+forcar diff.noprefix false          # prefixos de caminho e de lado do diff: formato fixo
+forcar diff.mnemonicPrefix false
+forcar diff.srcPrefix a/
+forcar diff.dstPrefix b/
+forcar diff.renames false           # arquivo renomeado aparece inteiro como adicionado
+forcar core.quotePath false         # nomes com acento ou espaço sem escape octal
+forcar log.showSignature false      # saída de verificação de assinatura misturada ao texto
+forcar log.decorate no
+forcar log.mailmap false            # autor e committer como gravados, nunca reescritos por .mailmap
+forcar i18n.logOutputEncoding UTF-8
+forcar core.pager cat
+forcar core.fsmonitor false         # a config local não executa programa nenhum durante a leitura
+export GIT_CONFIG_COUNT
+g() { git -C "$REPO" "$@"; }
 
 indisponivel() { echo "INSTRUMENTO INDISPONIVEL: $1" >&2; exit 2; }
 
 REPO="${1:-}"
 [ -n "$REPO" ] || indisponivel "uso: check-public-ready.sh <repo>"
-git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || indisponivel "não é um repositório git: $REPO"
-REPO="$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null)" && [ -n "$REPO" ] || indisponivel "sem árvore de trabalho (repositório nu?)"
+g rev-parse --git-dir >/dev/null 2>&1 || indisponivel "não é um repositório git: $REPO"
+REPO="$(g rev-parse --show-toplevel 2>/dev/null)" && [ -n "$REPO" ] || indisponivel "sem árvore de trabalho (repositório nu?)"
 command -v gitleaks >/dev/null 2>&1 || indisponivel "gitleaks não instalado"
 command -v perl >/dev/null 2>&1 || indisponivel "perl não instalado"
-git -C "$REPO" rev-parse --verify HEAD >/dev/null 2>&1 || indisponivel "repositório sem commits: $REPO"
+g rev-parse --verify HEAD >/dev/null 2>&1 || indisponivel "repositório sem commits: $REPO"
+[ "$(g config --get color.ui 2>/dev/null)" = never ] \
+  || indisponivel "git não aplicou a configuração forçada (GIT_CONFIG_COUNT exige git 2.31 ou mais novo)"
 
 # O portão só aprova o que consegue ler por inteiro: histórico incompleto ou reescrito em leitura nunca é "limpo".
-[ "$(git -C "$REPO" rev-parse --is-shallow-repository 2>/dev/null)" = false ] \
+[ "$(g rev-parse --is-shallow-repository 2>/dev/null)" = false ] \
   || indisponivel "repositório raso: commits omitidos não foram examinados"
 export GIT_NO_LAZY_FETCH=1
-if git -C "$REPO" config --get extensions.partialclone >/dev/null 2>&1 \
-   || git -C "$REPO" config --get-regexp '^remote\..*\.promisor$' 2>/dev/null | grep -q true \
-   || git -C "$REPO" rev-list --all --objects --missing=print 2>/dev/null | grep -q '^?'; then
+if g config --get extensions.partialclone >/dev/null 2>&1 \
+   || g config --get-regexp '^remote\..*\.promisor$' 2>/dev/null | grep -q true \
+   || g rev-list --all --objects --missing=print 2>/dev/null | grep -q '^?'; then
   indisponivel "clone parcial ou objetos ausentes: bytes do histórico não estão disponíveis"
 fi
-GRAFTS="$(git -C "$REPO" rev-parse --path-format=absolute --git-path info/grafts 2>/dev/null)" \
+GRAFTS="$(g rev-parse --path-format=absolute --git-path info/grafts 2>/dev/null)" \
   && [ -n "$GRAFTS" ] || indisponivel "não resolveu o caminho de info/grafts"
 [ ! -e "$GRAFTS" ] || indisponivel "grafts presentes: histórico lido seria outro"
 # Objetos de substituição (git replace) escondem o que será publicado: toda leitura usa os objetos reais.
@@ -106,8 +137,12 @@ checar_cpf_email() { # arquivo rotulo
 
 # Linhas adicionadas em qualquer commit alcançável, merges incluídos (-m: diff contra cada pai, pega o que nasce só na resolução).
 # --text: binário, atributo -diff e arquivo acima de core.bigFileThreshold também entregam os bytes; sem textconv nem driver externo.
-git -C "$REPO" log --all -m --text --no-ext-diff --no-textconv -p --format= 2>/dev/null | grep -a '^+' > "$TMP/adicionadas.txt"
+g log --all -m --text --no-color --no-renames --no-ext-diff --no-textconv -p --format= 2>/dev/null | grep -a '^+' > "$TMP/adicionadas.txt"
 [ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "git log -p falhou"
+# Controle do extrator: o git diz quantas linhas foram adicionadas; extrair menos que isso é filtro cego, nunca "limpo".
+ESPERADAS=$(g log --all -m --text --no-color --no-renames --numstat --format= 2>/dev/null | awk '$1 ~ /^[0-9]+$/ { s += $1 } END { print s + 0 }')
+EXTRAIDAS=$(wc -l < "$TMP/adicionadas.txt" | tr -d ' ')
+[ "$EXTRAIDAS" -ge "$ESPERADAS" ] || indisponivel "extração de linhas adicionadas incompleta ($EXTRAIDAS de $ESPERADAS)"
 
 # --- Verificação 1
 v1_ok=1
@@ -136,11 +171,11 @@ if [ $v1_ok -eq 1 ]; then echo "verificacao 1: limpo"
 else echo "verificacao 1: VAZAMENTO segredo-ou-termo-no-diff-de-algum-commit (detalhe: gitleaks com --redact)"; VAZOU=1; fi
 
 # --- Verificação 2: autoria
-git -C "$REPO" log --all --format='%ae%n%ce' > "$TMP/emails.txt" || indisponivel "git log falhou"
-git -C "$REPO" log --all --format='%an%n%cn' > "$TMP/nomes.txt" || indisponivel "git log falhou"
-git -C "$REPO" for-each-ref refs/tags --format='%(taggeremail)' | tr -d '<>' | grep -v '^$' >> "$TMP/emails.txt"
+g log --all --format='%ae%n%ce' > "$TMP/emails.txt" || indisponivel "git log falhou"
+g log --all --format='%an%n%cn' > "$TMP/nomes.txt" || indisponivel "git log falhou"
+g for-each-ref refs/tags --format='%(taggeremail)' | tr -d '<>' | grep -v '^$' >> "$TMP/emails.txt"
 [ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "for-each-ref falhou"
-git -C "$REPO" for-each-ref refs/tags --format='%(taggername)' | grep -v '^$' >> "$TMP/nomes.txt"
+g for-each-ref refs/tags --format='%(taggername)' | grep -v '^$' >> "$TMP/nomes.txt"
 [ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "for-each-ref falhou"
 v2_ok=1
 if grep -Evi "$IDENTIDADE_OK" "$TMP/emails.txt" | grep -q .; then
@@ -153,14 +188,17 @@ if [ $? -eq 1 ]; then echo "verificacao 2: VAZAMENTO autor-casa-regra: $(paste -
 # --- Verificação 3: metadados — mensagens, conteúdo de tags, nomes de ref, autor/committer/tagger e nomes de arquivo.
 # Todo padrão (regras de texto, detectores padrão do gitleaks, CPF, e-mail fora da lista) vale para todo esse texto.
 {
-  git -C "$REPO" log --all --format=%B
-  git -C "$REPO" for-each-ref --format='%(refname)'
-  git -C "$REPO" for-each-ref refs/tags --format='%(contents)'
-  git -C "$REPO" for-each-ref refs/tags --format='%(taggername) %(taggeremail)'
-  git -C "$REPO" log --all --format='%an %ae%n%cn %ce'
-  git -C "$REPO" -c core.quotepath=false log --all -m --name-only --format=
-  git -C "$REPO" ls-files
+  g log --all --format=%B
+  g for-each-ref --format='%(refname)'
+  g for-each-ref refs/tags --format='%(contents)'
+  g for-each-ref refs/tags --format='%(taggername) %(taggeremail)'
+  g log --all --format='%an %ae%n%cn %ce'
+  g log --all -m --name-only --format=
+  g ls-files
 } > "$TMP/textos.txt" 2>/dev/null || indisponivel "git log/for-each-ref falhou"
+# Controle dos extratores de metadado: cada commit rende ao menos uma linha de mensagem; contagem menor que isso é leitura cega.
+NCOMMITS=$(g rev-list --all --count 2>/dev/null) || indisponivel "git rev-list falhou"
+[ "$(wc -l < "$TMP/textos.txt" | tr -d ' ')" -ge "$NCOMMITS" ] || indisponivel "extração de metadados incompleta"
 casar_regras "$TMP/regras.tsv" < "$TMP/textos.txt" > "$TMP/hit.txt"
 rc=$?
 v3_ok=1
@@ -185,9 +223,11 @@ done
 # --- Verificação 4: caminhos, CPF, e-mails na árvore, credencial em URL de remoto
 v4_ok=1
 # Histórico inteiro, não só HEAD: o que entrou e saiu continua público. Nomes de todo caminho tocado em qualquer ref.
-git -C "$REPO" -c core.quotepath=false log --all -m --name-only --format= > "$TMP/arquivos-bruto.txt" || indisponivel "git log falhou"
-git -C "$REPO" ls-files >> "$TMP/arquivos-bruto.txt" || indisponivel "git ls-files falhou"
+g log --all -m --name-only --format= > "$TMP/arquivos-bruto.txt" || indisponivel "git log falhou"
+g ls-files >> "$TMP/arquivos-bruto.txt" || indisponivel "git ls-files falhou"
 sort -u "$TMP/arquivos-bruto.txt" > "$TMP/arquivos.txt"
+NARQ=$(g ls-files | sort -u | wc -l | tr -d ' ')
+[ "$(wc -l < "$TMP/arquivos.txt" | tr -d ' ')" -ge "$NARQ" ] || indisponivel "extração de nomes de arquivo incompleta"
 [ -r "$CAMINHOS_PADRAO" ] || CAMINHOS_PADRAO="$REPO/scripts/gate/caminhos-proibidos.txt"
 [ -r "$CAMINHOS_PADRAO" ] || indisponivel "sem caminhos-proibidos.txt"
 grep -Ev '^\s*(#|$)' "$CAMINHOS_PADRAO" > "$TMP/caminhos.txt"
@@ -199,7 +239,7 @@ while IFS= read -r padrao; do
 done < "$TMP/caminhos.txt"
 
 # Conteúdo que não está no git: submódulo (gitlink) e Git LFS (ponteiro) deixam bytes fora do alcance do portão.
-git -C "$REPO" log --all -m --raw --no-abbrev --no-renames --format= > "$TMP/raw.txt" || indisponivel "git log --raw falhou"
+g log --all -m --raw --no-abbrev --no-renames --format= > "$TMP/raw.txt" || indisponivel "git log --raw falhou"
 if grep -Eq '^:(160000 [0-7]{6}|[0-7]{6} 160000) ' "$TMP/raw.txt"; then
   echo "verificacao 4: VAZAMENTO submodulo-no-historico (conteudo fora do git, nao examinado)"; v4_ok=0
 fi
@@ -218,7 +258,7 @@ if grep -Ei '(^|/)\.?gitleaks[^/]*\.toml$' "$TMP/arquivos.txt" | grep -Evx '\.gi
 fi
 VERIF=4
 checar_cpf_email "$TMP/adicionadas.txt" "no-historico" || v4_ok=0
-git -C "$REPO" config --get-regexp '^remote\..*\.url$' > "$TMP/remotos.txt" 2>/dev/null || true
+g config --get-regexp '^remote\..*\.url$' > "$TMP/remotos.txt" 2>/dev/null || true
 if grep -Eq '://[^/@[:space:]]+@' "$TMP/remotos.txt"; then
   echo "verificacao 4: VAZAMENTO credencial-na-url-do-remoto"; v4_ok=0
 fi

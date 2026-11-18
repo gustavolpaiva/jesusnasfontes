@@ -39,6 +39,10 @@ cat > "$EXTRA_SELFTEST" <<'TOML'
 [[rules]]
 id = "termo-fficticio"
 regex = '''(?i)xyzzy[f]oo'''
+
+caminhos = [
+  '^pasta-proibida-á/',
+]
 TOML
 
 esperar() { # classe esperado(limpo|vaza) repo
@@ -383,6 +387,53 @@ R=$(novo_repo diff-externo); base_limpa "$R"
 git -C "$R" config diff.external "true"
 echo "fale com $PESSOAL" > "$R/contato.txt"; commitar "$R" "docs: contato"
 esperar "diff-externo-escondendo-vazamento" vaza "$R"
+
+# --- configuração ambiente do git (global, local do repo, variáveis) não pode mudar o que o portão lê
+GCFG="$RAIZ_TMP/gitconfig-global"
+
+R=$(novo_repo cor-local); base_limpa "$R"
+echo "titular $CPF" > "$R/dados.md"; commitar "$R" "docs: dados"
+git -C "$R" config color.ui always
+esperar "cpf-com-color-ui-always-local" vaza "$R"
+
+R=$(novo_repo cor-global); base_limpa "$R"
+echo "titular $CPF" > "$R/dados.md"; commitar "$R" "docs: dados"
+printf '[color]\n\tui = always\n' > "$GCFG"
+GIT_CONFIG_GLOBAL="$GCFG" esperar "cpf-com-color-ui-always-global" vaza "$R"
+
+R=$(novo_repo cor-diff-local); base_limpa "$R"
+echo "fale com $PESSOAL" > "$R/contato.md"; commitar "$R" "docs: contato"
+git -C "$R" config color.diff always
+esperar "email-com-color-diff-always-local" vaza "$R"
+
+R=$(novo_repo noprefix); base_limpa "$R"
+echo "fale com $PESSOAL" > "$R/contato.md"; commitar "$R" "docs: contato"
+git -C "$R" config diff.noprefix true
+esperar "email-com-diff-noprefix" vaza "$R"
+
+R=$(novo_repo mailmap); base_limpa "$R"
+echo "x" > "$R/a.txt"; git -C "$R" add -A
+git -C "$R" -c user.email="fulano""@redeide""ia.com.br" commit -q -m "feat: a"
+echo "Teste <$EMAIL_LIMPO> <fulano""@redeide""ia.com.br>" > "$R/.mailmap"
+git -C "$R" config log.mailmap true
+esperar "autor-reescrito-por-mailmap" vaza "$R"
+
+R=$(novo_repo quotepath); base_limpa "$R"
+mkdir -p "$R/pasta-proibida-á"; echo "x" > "$R/pasta-proibida-á/a.txt"; commitar "$R" "chore: pasta"
+git -C "$R" rm -q -r "pasta-proibida-á"; commitar "$R" "chore: remove pasta"
+git -C "$R" config core.quotePath true
+esperar "nome-de-arquivo-com-acento-proibido" vaza "$R"
+
+R=$(novo_repo info-attributes); base_limpa "$R"
+echo "*.txt -di""ff" > "$R/.git/info/attributes"
+echo "titular $CPF" > "$R/dados.txt"; commitar "$R" "docs: dados"
+esperar "atributo-em-info-attributes" vaza "$R"
+
+R=$(novo_repo fsmonitor); base_limpa "$R"
+printf '#!/bin/sh\ntouch "%s"\n' "$RAIZ_TMP/fsmonitor-executou" > "$RAIZ_TMP/hook-fsmonitor.sh"; chmod +x "$RAIZ_TMP/hook-fsmonitor.sh"
+git -C "$R" config core.fsmonitor "$RAIZ_TMP/hook-fsmonitor.sh"
+PUBLIC_GATE_EXTRA_CONFIG="$EXTRA_SELFTEST" bash "$GATE" "$R" >/dev/null 2>&1
+if [ ! -e "$RAIZ_TMP/fsmonitor-executou" ]; then echo "PASSOU config-local-nao-executa-programa"; else echo "FALHOU config-local-nao-executa-programa"; FALHAS=$((FALHAS+1)); fi
 
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0
