@@ -8,7 +8,7 @@ import { sessao, verificacao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
 import { aceitarConvite, apagarCodigoDe, conviteAtivo } from "./convite";
-import { chaveDe, consumirLimite, ipDe, LIMITES, lerContagem, zerarLimite } from "./limite";
+import { chaveDe, consumirLimite, ipDe, LIMITES, reservarPalpite, zerarLimite } from "./limite";
 import { lerEmail } from "./normalizar-email";
 
 // A porta única de entrada. Server Actions: o que o navegador consegue chamar.
@@ -136,12 +136,11 @@ export async function entrarComCodigo(
     if (!porIp.permitido) return { ...base, resultado: "limite" };
 
     const chave = chaveFalhasDoCodigo(email);
-    const { maximo, janela } = LIMITES.falhasDoCodigo;
-    // Teto atingido: o caminho do código fecha para o endereço (o link segue valendo) e a
-    // resposta é a mesma de um código errado, para endereço convidado ou não.
-    if ((await lerContagem(chave, janela)) >= maximo) {
-      return { ...base, resultado: "codigo-invalido" };
-    }
+    // A tentativa é reservada ANTES da comparação, atomicamente: com várias requisições
+    // simultâneas, só (teto − falhas atuais) chegam a comparar. Teto atingido: o caminho do código
+    // fecha para o endereço (o link segue valendo), com a mesma resposta de um código errado.
+    const reserva = await reservarPalpite(chave);
+    if (!reserva.concedido) return { ...base, resultado: "codigo-invalido" };
     let usuarioEmail: string | undefined;
     let resposta: unknown;
     try {
@@ -151,9 +150,8 @@ export async function entrarComCodigo(
       });
       usuarioEmail = (resposta as { user?: { email?: string } } | null)?.user?.email;
     } catch {
-      const falha = await consumirLimite(chave, maximo, janela);
-      // No teto, o código atual morre (só ele; os links pendentes ficam).
-      if (falha.contagem >= maximo) await apagarCodigoDe(email);
+      // No último palpite do teto, o código atual morre (só ele; os links pendentes ficam).
+      if (reserva.ultimo) await apagarCodigoDe(email);
       return { ...base, resultado: "codigo-invalido" };
     }
     if (usuarioEmail && (await conviteAtivo(usuarioEmail))) {

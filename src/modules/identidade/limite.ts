@@ -42,16 +42,19 @@ export async function consumirLimite(
   return { permitido: contagem <= maximo, contagem };
 }
 
-// Quantas tentativas já houve na janela corrente, sem contar mais uma.
-export async function lerContagem(chave: string, janelaSegundos: number): Promise<number> {
-  const resultado = await obterDb().execute<{ contagem: number }>(sql`
-    select contagem from admin.tentativa
-    where chave = ${chave}
-      and janela_inicio = to_timestamp(floor(extract(epoch from now()) / ${janelaSegundos}::int) * ${janelaSegundos}::int)`);
-  return Number(resultado.rows[0]?.contagem ?? 0);
-}
-
 // Zera a contagem da própria chave (usada quando um novo acesso é pedido ou a entrada dá certo).
 export async function zerarLimite(chave: string): Promise<void> {
   await obterDb().execute(sql`delete from admin.tentativa where chave = ${chave}`);
+}
+
+// Reserva um palpite de código ANTES de compará-lo, numa única instrução atômica no banco
+// (INSERT … ON CONFLICT DO UPDATE … RETURNING: a linha é travada, então N requisições simultâneas
+// recebem contagens distintas). Só quem fica dentro do teto chega à comparação. A reserva vale
+// também se o palpite acertar; a entrada bem-sucedida zera a chave (`zerarLimite`).
+export async function reservarPalpite(
+  chave: string,
+): Promise<{ concedido: boolean; contagem: number; ultimo: boolean }> {
+  const { maximo, janela } = LIMITES.falhasDoCodigo;
+  const { permitido, contagem } = await consumirLimite(chave, maximo, janela);
+  return { concedido: permitido, contagem, ultimo: contagem === maximo };
 }
