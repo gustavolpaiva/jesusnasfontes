@@ -1,0 +1,12 @@
+# Caminhos que nunca podem estar versionados (regex ERE sobre `git ls-files`), um por linha.
+# Só nomes genéricos. A lista interna fica fora do repositório (PUBLIC_GATE_EXTRA_CONFIG).
+^\.claude/
+^\.codex/
+^\.cursor/
+^\.planning/
+^AGENTS\.md$
+^CLAUDE\.md$
+^STATE\.md$
+^\.env$
+^\.env\.(local|production|development|test)
+(^|/)\.env$
