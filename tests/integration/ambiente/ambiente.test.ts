@@ -142,24 +142,96 @@ describe.skipIf(inject("alvoBanco") === "neon")("remoção de banco descartável
     await expect(removerBancoDeExecucao("neondb")).rejects.toThrow(/criado por esta execução/);
   });
 
-  it("(b) recusa conexão que não seja o contêiner local, antes de conectar", async () => {
+  it("(b) recusa destino fora do contêiner local, sem nunca conectar", async () => {
     const banco = await criarBancoDeExecucao();
+    const conectar = vi.spyOn(pg.Client.prototype, "connect");
     try {
-      const alvos = [
-        "postgres://neondb_owner@ep-exemplo.sa-east-1.aws.invalid/neondb", // modo neon: host reservado
-        `postgres://postgres@127.0.0.1.exemplo.test:${PORTA_BANCO_LOCAL}/postgres`, // prefixo enganoso
-        "postgres://postgres@127.0.0.1:5432/postgres", // porta diferente da constante
-        "isto não é uma url",
+      const local = `127.0.0.1:${PORTA_BANCO_LOCAL}`;
+      const alvos: [string, string][] = [
+        [
+          "modo neon, host reservado",
+          "postgres://neondb_owner@ep-exemplo.sa-east-1.aws.invalid/neondb",
+        ],
+        [
+          "prefixo enganoso",
+          `postgres://postgres@127.0.0.1.exemplo.test:${PORTA_BANCO_LOCAL}/postgres`,
+        ],
+        ["porta diferente", "postgres://postgres@127.0.0.1:5432/postgres"],
+        [
+          "?host= e ?port= sobrescrevem o destino",
+          `postgres://postgres@${local}/postgres?host=db.exemplo.test&port=5432`,
+        ],
+        ["?hostaddr=", `postgres://postgres@${local}/postgres?hostaddr=10.0.0.1`],
+        ["?service=", `postgres://postgres@${local}/postgres?service=x`],
+        ["fragmento", `postgres://postgres@${local}/postgres#x`],
+        ["socket de domínio unix", "postgres://postgres@%2Ftmp/postgres"],
+        ["socket por ?host=/", `postgres://postgres@${local}/postgres?host=/tmp`],
+        ["texto ilegível", "isto não é uma url"],
       ];
-      for (const alvo of alvos) {
-        expect(() => assegurarConexaoLocal(alvo), alvo).toThrow(/Recusado/);
-        await expect(removerBancoDeExecucao(banco.nome, alvo), alvo).rejects.toThrow(/Recusado/);
+      for (const [rotulo, alvo] of alvos) {
+        expect(() => assegurarConexaoLocal(alvo), rotulo).toThrow(/Recusado/);
+        await expect(removerBancoDeExecucao(banco.nome, alvo), rotulo).rejects.toThrow(/Recusado/);
       }
+      // Sem host na URL o driver usaria PGHOST/PGPORT do ambiente: o destino efetivo é refutado.
+      vi.stubEnv("PGHOST", "db.exemplo.invalid");
+      vi.stubEnv("PGPORT", "5432");
+      expect(() => assegurarConexaoLocal("postgres:///postgres"), "PGHOST herdado").toThrow(
+        /Recusado/,
+      );
+      vi.unstubAllEnvs();
+      expect(conectar).not.toHaveBeenCalled();
       expect(await existe(banco.nome)).toBe(true); // nada foi apagado
     } finally {
+      conectar.mockRestore();
       await removerBancoDeExecucao(banco.nome);
     }
     expect(await existe(banco.nome)).toBe(false);
+  });
+
+  it("positivo: configuração local legítima cria e remove, mesmo com PGHOST/PGPORT apontando para fora", async () => {
+    expect(() =>
+      assegurarConexaoLocal(`postgres://postgres@127.0.0.1:${PORTA_BANCO_LOCAL}/postgres`),
+    ).not.toThrow();
+    // Campos explícitos vencem o ambiente: se PGHOST/PGPORT valessem, isto não conectaria.
+    vi.stubEnv("PGHOST", "db.exemplo.invalid");
+    vi.stubEnv("PGPORT", "5432");
+    vi.stubEnv("PGHOSTADDR", "10.255.255.1");
+    try {
+      const banco = await criarBancoDeExecucao();
+      expect(await existe(banco.nome)).toBe(true);
+      await removerBancoDeExecucao(banco.nome);
+      expect(await existe(banco.nome)).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("URL do papel: host só com nome e porta, e 'local' só para o nome exato", () => {
+    const base = {
+      NEON_DATABASE: "neondb",
+      JNF_APP_PASSWORD: "a",
+      JNF_MIGRA_PASSWORD: "b",
+      JNF_CARGA_PASSWORD: "c",
+      JNF_ASSISTENTE_PASSWORD: "d",
+    };
+    for (const ruim of [
+      "db.exemplo.test?host=x",
+      "a@b.test",
+      "db.exemplo.test/x",
+      "db.exemplo.test#",
+    ]) {
+      expect(
+        () => urlDoPapel("app", { agrupada: false }, { ...base, NEON_HOST: ruim }),
+        ruim,
+      ).toThrow(/inválido/);
+    }
+    // Prefixo enganoso não é local: mantém TLS obrigatório.
+    expect(
+      urlDoPapel("app", { agrupada: false }, { ...base, NEON_HOST: "127.0.0.1.exemplo.test" }),
+    ).toContain("sslmode=require");
+    expect(
+      urlDoPapel("app", { agrupada: false }, { ...base, NEON_HOST: "127.0.0.1:54331" }),
+    ).not.toContain("sslmode");
   });
 
   it("falha na preparação remove o banco recém-criado (nenhum teste_* órfão)", async () => {

@@ -13,8 +13,14 @@ const SENHA_DO_PAPEL = {
 
 // Banco local de teste: o host vem com a porta ("127.0.0.1:54331"), não há agrupador nem TLS.
 function ehLocal(host: string): boolean {
-  return host.startsWith("127.0.0.1") || host.startsWith("localhost");
+  const nome = host.split(":")[0];
+  return nome === "127.0.0.1" || nome === "localhost";
 }
+
+// O host entra no meio de uma URL: só nome com pontos e porta opcional. Qualquer outro caractere
+// (?, /, @, #) permitiria parâmetros que o driver aplicaria no lugar do destino validado.
+const HOST_VALIDO = /^[A-Za-z0-9.-]+(:\d{1,5})?$/;
+const BANCO_VALIDO = /^[A-Za-z0-9_-]+$/;
 
 // Host do agrupador do Neon: NEON_POOLER_HOST, ou NEON_HOST com "-pooler" no primeiro rótulo.
 function hostAgrupado(host: string, explicito: string | undefined): string {
@@ -32,6 +38,11 @@ export function urlDoPapel(
 ): string {
   const env = envBanco(fonte);
   const senha = env[SENHA_DO_PAPEL[papel]];
+  for (const h of [env.NEON_HOST, env.NEON_POOLER_HOST]) {
+    if (h !== undefined && !HOST_VALIDO.test(h))
+      throw new Error("Host do banco inválido no ambiente.");
+  }
+  if (!BANCO_VALIDO.test(env.NEON_DATABASE)) throw new Error("Nome do banco inválido no ambiente.");
   const local = ehLocal(env.NEON_HOST);
   const host =
     !local && opcoes.agrupada ? hostAgrupado(env.NEON_HOST, env.NEON_POOLER_HOST) : env.NEON_HOST;

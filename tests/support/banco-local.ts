@@ -10,7 +10,9 @@ const CONTEINER = "jnf-pg17";
 // Porta única do Postgres local de teste (a 54329 costuma estar ocupada por encaminhamento de portas).
 export const PORTA_BANCO_LOCAL = 54331;
 const PORTA = PORTA_BANCO_LOCAL;
-const ADMIN_URL = `postgres://postgres@127.0.0.1:${PORTA}/postgres`;
+// Conexão administrativa montada como OBJETO, nunca derivada de texto: o destino é fixo e não
+// pode ser alterado por parâmetro de URL nem por PGHOST/PGPORT (campos explícitos vencem o ambiente).
+const ADMIN_CONFIG = { host: "127.0.0.1", port: PORTA, user: "postgres", database: "postgres" };
 
 function docker(...args: string[]): string {
   return execFileSync("docker", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -31,7 +33,7 @@ async function aguardarPronto(limiteMs = 90_000): Promise<void> {
   const inicio = Date.now();
   let ultimoErro = "";
   while (Date.now() - inicio < limiteMs) {
-    const cliente = new pg.Client({ connectionString: ADMIN_URL });
+    const cliente = clienteAdmin();
     try {
       await cliente.connect();
       await cliente.query("select 1");
@@ -76,26 +78,53 @@ export type BancoDeExecucao = { nome: string; url: string };
 // Nomes de banco criados POR ESTE processo. Só eles podem ser removidos.
 const criadosNestaExecucao = new Set<string>();
 
-// Trava: operações destrutivas só contra o contêiner local (host e porta da constante), seja qual
-// for a configuração do ambiente (ALVO_BANCO, DATABASE_URL_OWNER do cofre). Falha antes de conectar.
-export function assegurarConexaoLocal(urlAdmin: string): void {
-  let alvo: URL;
-  try {
-    alvo = new URL(urlAdmin);
-  } catch {
-    throw new Error("Recusado: conexão administrativa ilegível; só o contêiner local é aceito.");
-  }
-  const hostLocal = alvo.hostname === "127.0.0.1" || alvo.hostname === "localhost";
-  if (!hostLocal || Number(alvo.port) !== PORTA_BANCO_LOCAL) {
+// Destino EFETIVO de um cliente, como o próprio driver o interpretou (sem conectar).
+function destinoEfetivo(cliente: pg.Client) {
+  const params = (cliente as unknown as { connectionParameters?: { isDomainSocket?: boolean } })
+    .connectionParameters;
+  return {
+    host: String((cliente as unknown as { host?: unknown }).host),
+    port: Number((cliente as unknown as { port?: unknown }).port),
+    socket: params?.isDomainSocket === true,
+  };
+}
+
+// Trava de profundidade: recusa se o destino efetivo do cliente não é o contêiner local.
+function assegurarClienteLocal(cliente: pg.Client): void {
+  const d = destinoEfetivo(cliente);
+  const hostLocal = d.host === "127.0.0.1" || d.host === "localhost";
+  if (d.socket || !hostLocal || d.port !== PORTA_BANCO_LOCAL) {
     throw new Error("Recusado: operação destrutiva apenas no contêiner local de teste.");
   }
 }
 
+// Cliente administrativo do contêiner local. O destino sai do objeto fixo e é conferido de novo
+// no próprio cliente, antes de qualquer conexão.
+function clienteAdmin(): pg.Client {
+  const cliente = new pg.Client({ ...ADMIN_CONFIG });
+  assegurarClienteLocal(cliente);
+  return cliente;
+}
+
+// Valida um texto de conexão com o MESMO interpretador do driver (pg), sem conectar. Recusa
+// query string e fragmento (host, port, hostaddr, service etc.) e qualquer destino efetivo não local.
+export function assegurarConexaoLocal(urlAdmin: string): void {
+  if (/[?#]/.test(urlAdmin)) {
+    throw new Error("Recusado: conexão administrativa não aceita parâmetros na URL.");
+  }
+  let sonda: pg.Client;
+  try {
+    sonda = new pg.Client({ connectionString: urlAdmin });
+  } catch {
+    throw new Error("Recusado: conexão administrativa ilegível; só o contêiner local é aceito.");
+  }
+  assegurarClienteLocal(sonda);
+}
+
 export async function criarBancoDeExecucao(): Promise<BancoDeExecucao> {
-  assegurarConexaoLocal(ADMIN_URL);
   await garantirConteiner();
   const nome = `teste_${process.pid}_${randomBytes(4).toString("hex")}`;
-  const admin = new pg.Client({ connectionString: ADMIN_URL });
+  const admin = clienteAdmin();
   await admin.connect();
   try {
     await admin.query(`create database "${nome}"`);
@@ -106,17 +135,15 @@ export async function criarBancoDeExecucao(): Promise<BancoDeExecucao> {
   return { nome, url: `postgres://postgres@127.0.0.1:${PORTA}/${nome}` };
 }
 
-export async function removerBancoDeExecucao(
-  nome: string,
-  urlAdmin: string = ADMIN_URL,
-): Promise<void> {
-  assegurarConexaoLocal(urlAdmin);
+export async function removerBancoDeExecucao(nome: string, urlAdmin?: string): Promise<void> {
+  // O texto só é validado (quando dado); a conexão sai sempre do objeto fixo.
+  if (urlAdmin !== undefined) assegurarConexaoLocal(urlAdmin);
   if (!/^teste_\d+_[0-9a-f]{8}$/.test(nome) || !criadosNestaExecucao.has(nome)) {
     throw new Error(
       "Recusado: só se remove banco criado por esta execução de criarBancoDeExecucao",
     );
   }
-  const admin = new pg.Client({ connectionString: urlAdmin });
+  const admin = clienteAdmin();
   await admin.connect();
   try {
     await admin.query(`drop database if exists "${nome}" with (force)`);

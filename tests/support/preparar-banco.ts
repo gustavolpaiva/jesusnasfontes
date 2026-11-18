@@ -15,6 +15,14 @@ export async function prepararBanco(
   banco: BancoPreparavel,
   ambiente: Ambiente = "dev",
 ): Promise<Record<string, string>> {
+  // O banco preparável é sempre o descartável local: sem parâmetros de URL e destino efetivo local.
+  const sonda = new pg.Client({ connectionString: banco.url });
+  if (
+    /[?#]/.test(banco.url) ||
+    !["127.0.0.1", "localhost"].includes(String((sonda as { host?: unknown }).host))
+  ) {
+    throw new Error("Recusado: prepararBanco só aceita o banco descartável local.");
+  }
   const endereco = new URL(banco.url);
   const senha = () => randomBytes(18).toString("hex");
   const env: Record<string, string> = {
