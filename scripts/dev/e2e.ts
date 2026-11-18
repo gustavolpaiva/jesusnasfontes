@@ -2,8 +2,7 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
-import { criarBancoDeExecucao, removerBancoDeExecucao } from "../../tests/support/banco-local";
-import { prepararBanco } from "../../tests/support/preparar-banco";
+import { criarBancoPreparado, removerBancoDeExecucao } from "../../tests/support/banco-local";
 
 // Executor de e2e isolado: cada execução tem banco, porta e diretório de build próprios,
 // então duas execuções ao mesmo tempo não se atrapalham.
@@ -27,12 +26,12 @@ async function main(): Promise<number> {
   // o arquivo volta ao conteúdo original no fim para não sujar a árvore.
   const tsconfigOriginal = readFileSync("tsconfig.json", "utf8");
   mkdirSync("test-results", { recursive: true });
-  const banco = await criarBancoDeExecucao();
-  const envBanco = await prepararBanco(banco);
-  const porta = await portaLivre();
+  // Cria e prepara; se a preparação falhar o banco já foi removido e o erro sobe.
+  const { banco, env: envBanco } = await criarBancoPreparado();
 
   let codigo = 1;
   try {
+    const porta = await portaLivre();
     const filho = spawn("pnpm", ["exec", "playwright", "test", ...process.argv.slice(2)], {
       stdio: "inherit",
       env: {

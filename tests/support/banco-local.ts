@@ -73,29 +73,70 @@ export async function garantirConteiner(): Promise<void> {
 
 export type BancoDeExecucao = { nome: string; url: string };
 
+// Nomes de banco criados POR ESTE processo. Só eles podem ser removidos.
+const criadosNestaExecucao = new Set<string>();
+
+// Trava: operações destrutivas só contra o contêiner local (host e porta da constante), seja qual
+// for a configuração do ambiente (ALVO_BANCO, DATABASE_URL_OWNER do cofre). Falha antes de conectar.
+export function assegurarConexaoLocal(urlAdmin: string): void {
+  let alvo: URL;
+  try {
+    alvo = new URL(urlAdmin);
+  } catch {
+    throw new Error("Recusado: conexão administrativa ilegível; só o contêiner local é aceito.");
+  }
+  const hostLocal = alvo.hostname === "127.0.0.1" || alvo.hostname === "localhost";
+  if (!hostLocal || Number(alvo.port) !== PORTA_BANCO_LOCAL) {
+    throw new Error("Recusado: operação destrutiva apenas no contêiner local de teste.");
+  }
+}
+
 export async function criarBancoDeExecucao(): Promise<BancoDeExecucao> {
+  assegurarConexaoLocal(ADMIN_URL);
   await garantirConteiner();
   const nome = `teste_${process.pid}_${randomBytes(4).toString("hex")}`;
   const admin = new pg.Client({ connectionString: ADMIN_URL });
   await admin.connect();
   try {
     await admin.query(`create database "${nome}"`);
+    criadosNestaExecucao.add(nome);
   } finally {
     await admin.end();
   }
   return { nome, url: `postgres://postgres@127.0.0.1:${PORTA}/${nome}` };
 }
 
-export async function removerBancoDeExecucao(nome: string): Promise<void> {
-  if (!/^teste_\d+_[0-9a-f]{8}$/.test(nome)) {
-    throw new Error("Recusado: só se remove banco criado por criarBancoDeExecucao");
+export async function removerBancoDeExecucao(
+  nome: string,
+  urlAdmin: string = ADMIN_URL,
+): Promise<void> {
+  assegurarConexaoLocal(urlAdmin);
+  if (!/^teste_\d+_[0-9a-f]{8}$/.test(nome) || !criadosNestaExecucao.has(nome)) {
+    throw new Error(
+      "Recusado: só se remove banco criado por esta execução de criarBancoDeExecucao",
+    );
   }
-  const admin = new pg.Client({ connectionString: ADMIN_URL });
+  const admin = new pg.Client({ connectionString: urlAdmin });
   await admin.connect();
   try {
     await admin.query(`drop database if exists "${nome}" with (force)`);
+    criadosNestaExecucao.delete(nome);
   } finally {
     await admin.end();
+  }
+}
+
+// Cria e prepara o banco da execução. Se a preparação falhar, o banco recém-criado é removido
+// antes de propagar o erro: nenhum banco teste_* órfão.
+export async function criarBancoPreparado(
+  preparar: (banco: BancoDeExecucao) => Promise<Record<string, string>> = prepararBanco,
+): Promise<{ banco: BancoDeExecucao; env: Record<string, string> }> {
+  const banco = await criarBancoDeExecucao();
+  try {
+    return { banco, env: await preparar(banco) };
+  } catch (erro) {
+    await removerBancoDeExecucao(banco.nome).catch(() => {});
+    throw erro;
   }
 }
 
@@ -110,9 +151,8 @@ export async function setup(projeto: {
     projeto.provide("envBancoExecucao", "{}");
     return;
   }
-  const banco = await criarBancoDeExecucao();
+  const { banco, env } = await criarBancoPreparado();
   nomeCriado = banco.nome;
-  const env = await prepararBanco(banco);
   projeto.provide("urlBancoExecucao", banco.url);
   projeto.provide("envBancoExecucao", JSON.stringify(env));
 }

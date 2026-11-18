@@ -10,7 +10,13 @@ import { comAcervo } from "@/db/com-acervo";
 import { comEstudante } from "@/db/com-estudante";
 import { urlDoPapel } from "@/db/url";
 import { executarMigracoes } from "../../../scripts/db/migrar";
-import { criarBancoDeExecucao, removerBancoDeExecucao } from "../../support/banco-local";
+import {
+  assegurarConexaoLocal,
+  criarBancoDeExecucao,
+  criarBancoPreparado,
+  PORTA_BANCO_LOCAL,
+  removerBancoDeExecucao,
+} from "../../support/banco-local";
 import { aplicarEnvDeTeste, prepararBanco } from "../../support/preparar-banco";
 
 beforeAll(() => aplicarEnvDeTeste());
@@ -115,3 +121,57 @@ describe.skipIf(inject("alvoBanco") === "neon")(
     });
   },
 );
+
+describe.skipIf(inject("alvoBanco") === "neon")("remoção de banco descartável: travas", () => {
+  const existe = async (nome: string) => {
+    const c = new pg.Client({
+      connectionString: `postgres://postgres@127.0.0.1:${PORTA_BANCO_LOCAL}/postgres`,
+    });
+    await c.connect();
+    try {
+      return (await c.query("select 1 from pg_database where datname = $1", [nome])).rowCount === 1;
+    } finally {
+      await c.end();
+    }
+  };
+
+  it("(a) recusa nome que casa o padrão mas não foi criado por esta execução", async () => {
+    await expect(removerBancoDeExecucao("teste_1_deadbeef")).rejects.toThrow(
+      /criado por esta execução/,
+    );
+    await expect(removerBancoDeExecucao("neondb")).rejects.toThrow(/criado por esta execução/);
+  });
+
+  it("(b) recusa conexão que não seja o contêiner local, antes de conectar", async () => {
+    const banco = await criarBancoDeExecucao();
+    try {
+      const alvos = [
+        "postgres://neondb_owner@ep-exemplo.sa-east-1.aws.invalid/neondb", // modo neon: host reservado
+        `postgres://postgres@127.0.0.1.exemplo.test:${PORTA_BANCO_LOCAL}/postgres`, // prefixo enganoso
+        "postgres://postgres@127.0.0.1:5432/postgres", // porta diferente da constante
+        "isto não é uma url",
+      ];
+      for (const alvo of alvos) {
+        expect(() => assegurarConexaoLocal(alvo), alvo).toThrow(/Recusado/);
+        await expect(removerBancoDeExecucao(banco.nome, alvo), alvo).rejects.toThrow(/Recusado/);
+      }
+      expect(await existe(banco.nome)).toBe(true); // nada foi apagado
+    } finally {
+      await removerBancoDeExecucao(banco.nome);
+    }
+    expect(await existe(banco.nome)).toBe(false);
+  });
+
+  it("falha na preparação remove o banco recém-criado (nenhum teste_* órfão)", async () => {
+    let visto = "";
+    await expect(
+      criarBancoPreparado(async (banco) => {
+        visto = banco.nome;
+        expect(await existe(visto)).toBe(true);
+        throw new Error("falha proposital");
+      }),
+    ).rejects.toThrow(/falha proposital/);
+    expect(visto).toMatch(/^teste_/);
+    expect(await existe(visto)).toBe(false);
+  });
+});
