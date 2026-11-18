@@ -101,7 +101,7 @@ esperar "cpf-na-arvore" vaza "$R"
 
 # --- credencial na URL do remoto
 R=$(novo_repo remoto); base_limpa "$R"
-git -C "$R" remote add origin "https://usuario:senha""falsa@host.example/x.git"
+git -C "$R" remote add origin "https://usuario:senha""falsa@servidor.example.com/x.git"
 esperar "credencial-na-url-do-remoto" vaza "$R"
 
 # --- e-mail pessoal comum
