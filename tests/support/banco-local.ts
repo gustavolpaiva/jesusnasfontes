@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import pg from "pg";
+import { prepararBanco } from "./preparar-banco";
 
 // Postgres 17 local e descartável. Cada execução cria um banco próprio dentro do mesmo contêiner,
 // para que execuções simultâneas (de planos diferentes) não compartilhem estado.
@@ -100,17 +101,20 @@ export async function removerBancoDeExecucao(nome: string): Promise<void> {
 
 // Ponto de entrada do globalSetup do Vitest (projeto de integração).
 export async function setup(projeto: {
-  provide: (chave: "urlBancoExecucao" | "alvoBanco", valor: string) => void;
+  provide: (chave: "urlBancoExecucao" | "alvoBanco" | "envBancoExecucao", valor: string) => void;
 }) {
   const alvo = process.env.ALVO_BANCO === "neon" ? "neon" : "local";
   projeto.provide("alvoBanco", alvo);
   if (alvo === "neon") {
     projeto.provide("urlBancoExecucao", "");
+    projeto.provide("envBancoExecucao", "{}");
     return;
   }
   const banco = await criarBancoDeExecucao();
   nomeCriado = banco.nome;
+  const env = await prepararBanco(banco);
   projeto.provide("urlBancoExecucao", banco.url);
+  projeto.provide("envBancoExecucao", JSON.stringify(env));
 }
 
 let nomeCriado: string | undefined;
@@ -122,6 +126,7 @@ export async function teardown() {
 declare module "vitest" {
   export interface ProvidedContext {
     urlBancoExecucao: string;
+    envBancoExecucao: string;
     alvoBanco: "local" | "neon";
   }
 }

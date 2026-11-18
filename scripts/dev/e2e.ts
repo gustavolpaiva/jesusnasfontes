@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { criarBancoDeExecucao, removerBancoDeExecucao } from "../../tests/support/banco-local";
+import { prepararBanco } from "../../tests/support/preparar-banco";
 
 // Executor de e2e isolado: cada execução tem banco, porta e diretório de build próprios,
 // então duas execuções ao mesmo tempo não se atrapalham.
@@ -26,6 +27,7 @@ async function main(): Promise<number> {
   // o arquivo volta ao conteúdo original no fim para não sujar a árvore.
   const tsconfigOriginal = readFileSync("tsconfig.json", "utf8");
   const banco = await criarBancoDeExecucao();
+  const envBanco = await prepararBanco(banco);
   const porta = await portaLivre();
 
   let codigo = 1;
@@ -34,6 +36,7 @@ async function main(): Promise<number> {
       stdio: "inherit",
       env: {
         ...process.env,
+        ...envBanco,
         ALVO_BANCO: "local",
         DATABASE_URL_OWNER: banco.url,
         PORTA_E2E: String(porta),
