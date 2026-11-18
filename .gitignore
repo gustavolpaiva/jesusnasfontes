@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.next*
+.env
+.env.*
+!.env.example
+data/raw/
+test-results/
+playwright-report/
+.venv*/
+coverage/
+.DS_Store

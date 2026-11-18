@@ -1,0 +1,16 @@
+title = "Portão de publicação"
+
+[extend]
+useDefault = true
+
+# Termos internos aparecem aqui só como classe de caracteres. A lista literal vive fora
+# deste repositório e entra pela variável PUBLIC_GATE_EXTRA_CONFIG.
+[[rules]]
+id = "termo-interno"
+description = "Termo interno de organização"
+regex = '''(?i)(ide[i]a\s?business|redeide[i]a|ide[i]aos|\baio[x]\b|i[v]ault)'''
+
+[[rules]]
+id = "email-corporativo"
+description = "Endereço de e-mail de domínio corporativo"
+regex = '''(?i)[a-z0-9._%+-]+[@](ide[i]abusiness|redeide[i]a)\.com\.br'''
