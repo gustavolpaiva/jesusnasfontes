@@ -1,9 +1,10 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { obterDb } from "@/db/cliente";
-import { verificacao } from "@/db/schema/entrada";
+import { sessao, verificacao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
 import { aceitarConvite, apagarCodigoDe, conviteAtivo } from "./convite";
@@ -142,8 +143,9 @@ export async function entrarComCodigo(
       return { ...base, resultado: "codigo-invalido" };
     }
     let usuarioEmail: string | undefined;
+    let resposta: unknown;
     try {
-      const resposta = await obterAuth().api.signInEmailOTP({
+      resposta = await obterAuth().api.signInEmailOTP({
         body: { email, otp: codigo },
         headers: await headers(),
       });
@@ -158,7 +160,7 @@ export async function entrarComCodigo(
       await aceitarConvite(usuarioEmail);
       await zerarLimite(chave);
     } else {
-      await obterAuth().api.signOut({ headers: await headers() });
+      await revogarSessaoCriada(resposta);
       return { ...base, resultado: "codigo-invalido" };
     }
   } catch (erro) {
@@ -184,7 +186,9 @@ export async function confirmarEntrada(formData: FormData): Promise<void> {
           await aceitarConvite(email);
           destino = "/trilhas";
         } else {
-          await obterAuth().api.signOut({ headers: await headers() });
+          // Segunda linha (o gancho de criação já deveria ter impedido): desfaz exatamente a
+          // sessão que a chamada devolveu, nunca a do navegador de quem fez a requisição.
+          await revogarSessaoCriada(resposta);
         }
       }
     } catch (erro) {
@@ -194,6 +198,12 @@ export async function confirmarEntrada(formData: FormData): Promise<void> {
     }
   }
   redirect(destino);
+}
+
+// Remove a sessão que a própria chamada de entrada devolveu (pelo token dela).
+async function revogarSessaoCriada(resposta: unknown): Promise<void> {
+  const token = (resposta as { token?: string } | null)?.token;
+  if (token) await obterDb().delete(sessao).where(eq(sessao.token, token));
 }
 
 export async function sair(): Promise<void> {

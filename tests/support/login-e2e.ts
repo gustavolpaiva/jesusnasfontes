@@ -77,3 +77,24 @@ export async function linhasDe(endereco: string) {
   ]);
   return { verificacoes, usuarios, convites };
 }
+
+export async function revogarConviteNoBanco(endereco: string): Promise<void> {
+  const { default: pg } = await import("pg");
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await c.connect();
+  try {
+    await c.query(
+      "update admin.convite set estado = 'revogado', revogado_em = now() where email_norm = $1",
+      [endereco.toLowerCase()],
+    );
+  } finally {
+    await c.end();
+  }
+}
+
+// Linhas de sessão que existem no banco para aquele endereço.
+export const sessoesDe = (endereco: string) =>
+  contar(
+    'select count(*) as n from auth.session s join auth."user" u on u.id = s.user_id where u.email = $1',
+    [endereco.toLowerCase()],
+  );

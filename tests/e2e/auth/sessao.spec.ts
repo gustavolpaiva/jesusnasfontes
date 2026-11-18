@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/login-e2e";
+import { ultimoEmailPara } from "../../support/caixa-de-email";
+import {
+  convidarParaTeste,
+  emailDeTeste,
+  entrarPorLink,
+  pedirAcesso,
+  revogarConviteNoBanco,
+  sessoesDe,
+} from "../../support/login-e2e";
 
 test("a sessão persiste num contexto novo com o estado salvo, e Sair a encerra", async ({
   page,
@@ -40,3 +48,54 @@ test("a sessão persiste num contexto novo com o estado salvo, e Sair a encerra"
   await expect(page).toHaveURL(/\/entrar\?motivo=sessao/);
   await reaberto.close();
 });
+
+// Convite revogado depois de o link e o código serem pedidos: nenhuma sessão nasce para quem foi
+// revogado, e quem já estava autenticado no mesmo navegador continua autenticado.
+for (const via of ["link", "codigo"] as const) {
+  test(`convite revogado, entrada por ${via}: nenhuma sessão é criada e a pessoa já autenticada fica`, async ({
+    page,
+    browser,
+  }) => {
+    const a = emailDeTeste("a");
+    const b = emailDeTeste("b");
+    await convidarParaTeste(a);
+    await convidarParaTeste(b);
+    await entrarPorLink(page, a);
+    const sessoesA = await sessoesDe(a);
+    expect(sessoesA).toBe(1);
+
+    // Controle positivo: com o convite ativo, a entrada de B cria exatamente uma sessão.
+    const c = emailDeTeste("c");
+    await convidarParaTeste(c);
+    const ctxOk = await browser.newContext();
+    await entrarPorLink(await ctxOk.newPage(), c);
+    expect(await sessoesDe(c)).toBe(1);
+    await ctxOk.close();
+
+    // B pede acesso no navegador de A (A está autenticado lá).
+    await pedirAcesso(page, b);
+    const email = await ultimoEmailPara(b);
+    await revogarConviteNoBanco(b);
+
+    if (via === "link") {
+      await page.goto(email.link as string);
+      await page.getByRole("button", { name: "Entrar", exact: true }).click();
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Este link não vale mais" }),
+      ).toBeVisible();
+    } else {
+      await page.getByLabel("Código de 6 dígitos").fill(email.codigo as string);
+      await page.getByRole("button", { name: "Entrar com o código" }).click();
+      await expect(page.getByText("Código inválido ou vencido.")).toBeVisible();
+    }
+
+    expect(await sessoesDe(b)).toBe(0);
+    const cookies = await page.context().cookies();
+    const sessaoNoCookie = cookies.find((c) => c.name.includes("session_token"));
+    // O cookie continua sendo o de A: a sessão de A segue viva no banco e vale no navegador.
+    expect(sessaoNoCookie).toBeDefined();
+    expect(await sessoesDe(a)).toBe(sessoesA);
+    await page.goto("/trilhas");
+    await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  });
+}

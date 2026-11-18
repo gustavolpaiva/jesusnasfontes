@@ -4,8 +4,10 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { emailOTP, magicLink, twoFactor } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { obterDb } from "@/db/cliente";
 import { esquemaAuth } from "@/db/schema/entrada";
+import { usuario } from "@/db/schema/fundacao";
 import { apagarCodigoDe, conviteAtivo } from "@/modules/identidade/convite";
 import { normalizarEmail } from "@/modules/identidade/normalizar-email";
 import { enviarEmail, modeloEntrada } from "./email";
@@ -71,6 +73,23 @@ function criarAuth() {
       },
     },
     // nextCookies precisa ser o último plugin.
+    // Primeira linha: sem convite ativo a sessão nem chega a ser criada (o gancho aborta a criação).
+    // Assim nada é desfeito depois com base no navegador de quem fez a requisição.
+    databaseHooks: {
+      session: {
+        create: {
+          before: async (sessao) => {
+            const dono = await obterDb()
+              .select({ email: usuario.email })
+              .from(usuario)
+              .where(eq(usuario.id, sessao.userId))
+              .limit(1);
+            const email = dono[0]?.email;
+            return email !== undefined && (await conviteAtivo(email));
+          },
+        },
+      },
+    },
     plugins: [...acessos(), nextCookies()],
   });
 }
