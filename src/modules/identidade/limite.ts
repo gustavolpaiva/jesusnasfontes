@@ -9,7 +9,9 @@ export const LIMITES = {
   pedidoPorIp: { maximo: 5, janela: 60 },
   pedidoPorEmail: { maximo: 3, janela: 600 },
   codigoPorIp: { maximo: 10, janela: 600 },
-  falhasDoCodigo: { maximo: 3, janela: 600 },
+  // Teto acumulado por endereço, que pedido novo NÃO zera (só entrada bem-sucedida ou o fim da
+  // janela): 10 palpites por dia contra um código de 6 dígitos.
+  falhasDoCodigo: { maximo: 10, janela: 86400 },
 } as const;
 
 export function chaveDe(prefixo: string, valor: string): string {

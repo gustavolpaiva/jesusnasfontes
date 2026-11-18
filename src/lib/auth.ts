@@ -6,7 +6,7 @@ import { nextCookies } from "better-auth/next-js";
 import { emailOTP, magicLink, twoFactor } from "better-auth/plugins";
 import { obterDb } from "@/db/cliente";
 import { esquemaAuth } from "@/db/schema/entrada";
-import { conviteAtivo } from "@/modules/identidade/convite";
+import { apagarCodigoDe, conviteAtivo } from "@/modules/identidade/convite";
 import { normalizarEmail } from "@/modules/identidade/normalizar-email";
 import { enviarEmail, modeloEntrada } from "./email";
 import { envAuth, urlBase } from "./env";
@@ -27,6 +27,8 @@ function acessos() {
         const emailNorm = normalizarEmail(email);
         // Defesa em profundidade: sem convite ativo, nada é enviado.
         if (!(await conviteAtivo(emailNorm))) return;
+        // Um código por endereço: o novo invalida o anterior (só o código; os links ficam).
+        await apagarCodigoDe(emailNorm);
         const codigo = await obterAuth().api.createVerificationOTP({
           body: { email: emailNorm, type: "sign-in" },
         });

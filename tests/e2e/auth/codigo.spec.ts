@@ -1,6 +1,13 @@
-import { expect, test } from "@playwright/test";
-import { ultimoEmailPara } from "../../support/caixa-de-email";
-import { convidarParaTeste, emailDeTeste, isolarIp, pedirAcesso } from "../../support/login-e2e";
+import { createHash } from "node:crypto";
+import { expect, type Page, test } from "@playwright/test";
+import { type EmailLido, emailsPara, ultimoEmailPara } from "../../support/caixa-de-email";
+import {
+  contar,
+  convidarParaTeste,
+  emailDeTeste,
+  isolarIp,
+  pedirAcesso,
+} from "../../support/login-e2e";
 
 async function digitarCodigo(page: import("@playwright/test").Page, codigo: string) {
   await page.getByLabel("Código de 6 dígitos").fill(codigo);
@@ -22,7 +29,123 @@ test("um contexto novo, sem cookie nenhum, entra com o código do e-mail", async
   await contexto.close();
 });
 
-test("três códigos errados esgotam o código; o certo, depois, também é recusado", async ({
+const INVALIDO = "Código inválido ou vencido. Confira os 6 dígitos ou peça um novo acesso.";
+
+const chaveFalhas = (email: string) =>
+  `codigo-falhas:${createHash("sha256").update(email).digest("hex").slice(0, 32)}`;
+
+// Põe o contador de falhas do endereço em `n` na janela corrente (como se já houvesse n palpites).
+async function semearFalhas(endereco: string, n: number) {
+  const { default: pg } = await import("pg");
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await c.connect();
+  try {
+    await c.query(
+      `insert into admin.tentativa (chave, janela_inicio, contagem)
+       values ($1, to_timestamp(floor(extract(epoch from now()) / 86400) * 86400), $2)
+       on conflict (chave, janela_inicio) do update set contagem = $2`,
+      [chaveFalhas(endereco), n],
+    );
+  } finally {
+    await c.end();
+  }
+}
+
+const falhasGravadas = (endereco: string) =>
+  contar("select coalesce(sum(contagem), 0) as n from admin.tentativa where chave = $1", [
+    chaveFalhas(endereco),
+  ]);
+
+async function textoDoErro(page: Page) {
+  const alerta = page.getByRole("alert").filter({ hasText: "Erro." });
+  await expect(alerta).toBeVisible();
+  return ((await alerta.textContent()) ?? "").replace(/\s+/g, " ").trim();
+}
+
+// Roteiro: pede acesso, tem 9 falhas acumuladas, pede acesso DE NOVO (o contador não pode zerar),
+// erra uma vez (10, o teto) e tenta o código que seria o certo. Devolve as mensagens.
+async function roteiro(page: Page, endereco: string, certo: () => Promise<string>) {
+  await isolarIp(page);
+  await pedirAcesso(page, endereco);
+  await semearFalhas(endereco, 9);
+  await page.getByRole("button", { name: "Usar outro e-mail" }).click();
+  await pedirAcesso(page, endereco);
+  const aposPedido = await falhasGravadas(endereco);
+  await digitarCodigo(page, "000000");
+  const m1 = await textoDoErro(page);
+  await isolarIp(page);
+  await digitarCodigo(page, await certo());
+  const m2 = await textoDoErro(page);
+  return { aposPedido, mensagens: [m1, m2] };
+}
+
+test("pedido repetido não devolve palpites; no teto o código CERTO é recusado, o link entra e o não convidado recebe as mesmas respostas", async ({
+  page,
+  browser,
+}) => {
+  const vitima = emailDeTeste();
+  const desconhecido = emailDeTeste("fora");
+  await convidarParaTeste(vitima);
+  const a = await roteiro(page, vitima, async () => {
+    const m = await ultimoEmailPara(vitima, { depoisDe: 1 });
+    return m.codigo as string;
+  });
+  // O pedido novo não zerou o contador (controle: ele estava em 9 antes).
+  expect(a.aposPedido).toBe(9);
+  expect(await falhasGravadas(vitima)).toBeGreaterThanOrEqual(10);
+  expect(a.mensagens[1]).toContain("Código inválido ou vencido.");
+  await expect(page.getByRole("heading", { level: 1, name: "Verifique seu e-mail" })).toBeVisible();
+
+  // O link do primeiro e-mail não passa por esse contador e entra.
+  const primeiro = emailsPara(vitima).filter((m) => /acesso/i.test(m.assunto))[0] as EmailLido;
+  const ctx = await browser.newContext();
+  const aba = await ctx.newPage();
+  await aba.goto(primeiro.link as string);
+  await aba.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(aba.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  await ctx.close();
+
+  // Endereço não convidado: a mesma sequência de mensagens, comparada diretamente.
+  const outra = await browser.newContext();
+  const b = await roteiro(await outra.newPage(), desconhecido, async () => "123456");
+  await outra.close();
+  expect(b.aposPedido).toBe(9);
+  expect(b.mensagens).toEqual(a.mensagens);
+});
+
+test("um código novo invalida o anterior; o link anterior continua valendo", async ({
+  page,
+  browser,
+}) => {
+  const endereco = emailDeTeste();
+  await convidarParaTeste(endereco);
+  await isolarIp(page);
+  await pedirAcesso(page, endereco);
+  const antigo = await ultimoEmailPara(endereco);
+  await page.getByRole("button", { name: "Usar outro e-mail" }).click();
+  await pedirAcesso(page, endereco);
+  const novo = await ultimoEmailPara(endereco, { depoisDe: 1 });
+  test.skip(antigo.codigo === novo.codigo, "códigos iguais por acaso (1 em 1 milhão)");
+  // Um código por endereço, medido no banco: o pedido novo não deixa o anterior para trás.
+  expect(
+    await contar("select count(*) as n from auth.verification where identifier = $1", [
+      `sign-in-otp-${endereco}`,
+    ]),
+  ).toBe(1);
+
+  await digitarCodigo(page, antigo.codigo as string);
+  await expect(page.getByText("Código inválido ou vencido.")).toBeVisible();
+
+  // O link do primeiro e-mail ainda entra (controle positivo de que só o código foi invalidado).
+  const ctx = await browser.newContext();
+  const aba = await ctx.newPage();
+  await aba.goto(antigo.link as string);
+  await aba.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(aba.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  await ctx.close();
+});
+
+test("o código do pedido mais novo entra, e a entrada zera o contador de falhas", async ({
   page,
 }) => {
   const endereco = emailDeTeste();
@@ -31,41 +154,20 @@ test("três códigos errados esgotam o código; o certo, depois, também é recu
   await pedirAcesso(page, endereco);
   const { codigo } = await ultimoEmailPara(endereco);
   const errado = codigo === "000000" ? "111111" : "000000";
-
   await digitarCodigo(page, errado);
-  const invalido = page.getByText("Código inválido ou vencido.");
-  await expect(invalido).toBeVisible();
-  // O que foi digitado continua no campo.
-  await expect(page.getByLabel("Código de 6 dígitos")).toHaveValue(errado);
-  await digitarCodigo(page, errado);
-  await expect(invalido).toBeVisible();
-  await digitarCodigo(page, errado);
-  await expect(page.getByText("Você errou o código muitas vezes.")).toBeVisible();
-
+  await expect(page.getByText("Código inválido ou vencido.")).toBeVisible();
+  expect(
+    await contar("select count(*) as n from admin.tentativa where chave = $1", [
+      chaveFalhas(endereco),
+    ]),
+  ).toBe(1);
   await digitarCodigo(page, codigo as string);
-  await expect(page.getByText("Você errou o código muitas vezes.")).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1, name: "Verifique seu e-mail" })).toBeVisible();
-
-  // Controle positivo: um novo acesso do mesmo endereço traz um código que funciona.
-  await page.getByRole("button", { name: "Usar outro e-mail" }).click();
-  await pedirAcesso(page, endereco);
-  const novo = await ultimoEmailPara(endereco, { depoisDe: 1 });
-  await digitarCodigo(page, novo.codigo as string);
   await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
-});
-
-test("a mensagem de código errado é igual para e-mail não convidado, inclusive ao esgotar", async ({
-  page,
-}) => {
-  const desconhecido = emailDeTeste("fora");
-  await isolarIp(page);
-  await pedirAcesso(page, desconhecido);
-  await digitarCodigo(page, "123456");
-  await expect(page.getByText("Código inválido ou vencido.")).toBeVisible();
-  await digitarCodigo(page, "123456");
-  await expect(page.getByText("Código inválido ou vencido.")).toBeVisible();
-  await digitarCodigo(page, "123456");
-  await expect(page.getByText("Você errou o código muitas vezes.")).toBeVisible();
+  expect(
+    await contar("select count(*) as n from admin.tentativa where chave = $1", [
+      chaveFalhas(endereco),
+    ]),
+  ).toBe(0);
 });
 
 test("o reenvio fica desabilitado por 60 s com contagem visível e depois envia de novo", async ({
@@ -149,10 +251,10 @@ test("um terceiro que só sabe o e-mail esgota o código mas não cancela o link
   await ultimoEmailPara(vitima, { depoisDe: 1 });
   const errado = primeiro.codigo === "000000" ? "111111" : "000000";
   for (let i = 0; i < 3; i++) await digitarCodigo(t, errado);
-  await expect(t.getByText("Você errou o código muitas vezes.")).toBeVisible();
-  // O código esgotado continua esgotado, até o certo.
+  await expect(t.getByText("Código inválido ou vencido.")).toBeVisible();
+  // O código com as 3 tentativas gastas continua recusado, até o certo.
   await digitarCodigo(t, primeiro.codigo as string);
-  await expect(t.getByText("Você errou o código muitas vezes.")).toBeVisible();
+  await expect(t.getByText("Código inválido ou vencido.")).toBeVisible();
   // A resposta é a mesma de um endereço não convidado (ver teste anterior de endereço desconhecido).
 
   // O link que a vítima recebeu primeiro continua valendo, e o do outro endereço também.

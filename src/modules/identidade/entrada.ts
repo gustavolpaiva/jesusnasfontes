@@ -18,7 +18,7 @@ export type EstadoEntrada =
 
 export type ResultadoCodigo = {
   codigoDigitado: string;
-  resultado?: "codigo-invalido" | "codigo-esgotado" | "limite" | "falha";
+  resultado?: "codigo-invalido" | "limite" | "falha";
 };
 
 export type ResultadoReenvio = { rodada: number; resultado?: "reenviado" | "limite" | "falha" };
@@ -81,8 +81,8 @@ export async function pedirEntrada(
 
 const chaveFalhasDoCodigo = (email: string) => chaveDe("codigo-falhas", email);
 
-// Pedir acesso conta nos dois limites (IP e e-mail), igual para convidado ou não. Um pedido novo
-// zera as falhas de código daquele endereço (o código antigo deixa de existir).
+// Pedir acesso conta nos dois limites (IP e e-mail), igual para convidado ou não. Pedido novo NÃO
+// zera as falhas de código: senão cada pedido daria palpites novos a quem só sabe o e-mail.
 async function pedidoPermitido(email: string): Promise<boolean> {
   const ip = ipDe(await headers());
   const porIp = await consumirLimite(
@@ -95,9 +95,7 @@ async function pedidoPermitido(email: string): Promise<boolean> {
     LIMITES.pedidoPorEmail.maximo,
     LIMITES.pedidoPorEmail.janela,
   );
-  if (!porIp.permitido || !porEmail.permitido) return false;
-  await zerarLimite(chaveFalhasDoCodigo(email));
-  return true;
+  return porIp.permitido && porEmail.permitido;
 }
 
 // Mesmo caminho do primeiro pedido; responde com a mensagem do contrato.
@@ -138,8 +136,10 @@ export async function entrarComCodigo(
 
     const chave = chaveFalhasDoCodigo(email);
     const { maximo, janela } = LIMITES.falhasDoCodigo;
+    // Teto atingido: o caminho do código fecha para o endereço (o link segue valendo) e a
+    // resposta é a mesma de um código errado, para endereço convidado ou não.
     if ((await lerContagem(chave, janela)) >= maximo) {
-      return { ...base, resultado: "codigo-esgotado" };
+      return { ...base, resultado: "codigo-invalido" };
     }
     let usuarioEmail: string | undefined;
     try {
@@ -150,10 +150,8 @@ export async function entrarComCodigo(
       usuarioEmail = (resposta as { user?: { email?: string } } | null)?.user?.email;
     } catch {
       const falha = await consumirLimite(chave, maximo, janela);
-      if (falha.contagem >= maximo) {
-        await apagarCodigoDe(email); // só o código esgotou; os links pendentes ficam
-        return { ...base, resultado: "codigo-esgotado" };
-      }
+      // No teto, o código atual morre (só ele; os links pendentes ficam).
+      if (falha.contagem >= maximo) await apagarCodigoDe(email);
       return { ...base, resultado: "codigo-invalido" };
     }
     if (usuarioEmail && (await conviteAtivo(usuarioEmail))) {

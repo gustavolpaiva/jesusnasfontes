@@ -16,7 +16,6 @@ const ESPERA_SEGUNDOS = 60;
 
 const ERROS_DO_CODIGO = {
   "codigo-invalido": "Código inválido ou vencido. Confira os 6 dígitos ou peça um novo acesso.",
-  "codigo-esgotado": "Você errou o código muitas vezes. Peça um novo acesso.",
   limite: "Muitas tentativas em pouco tempo. Espere um minuto e tente de novo.",
   falha: "Não conseguimos entrar agora. Confira sua conexão e tente de novo.",
 } as const;
