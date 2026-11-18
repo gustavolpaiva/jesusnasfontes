@@ -134,7 +134,7 @@ if grep -aEq '[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}' "$TMP/adicionadas.txt"; the
 fi
 grep -aoE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$TMP/adicionadas.txt" > "$TMP/emails-arvore.txt"
 [ $? -le 1 ] || indisponivel "grep de e-mails falhou"
-if grep -Evi '(@users\.noreply\.github\.com|^noreply@.+|@([a-z0-9-]+\.)*example\.(com|org|net|test))$' "$TMP/emails-arvore.txt" | grep -q .; then
+if grep -Evi '(@users\.noreply\.github\.com|^noreply@.+|@([a-z0-9-]+\.)*example\.(com|org|net|test)|@([a-z0-9-]+\.)+(example|test|invalid|localhost))$' "$TMP/emails-arvore.txt" | grep -q .; then
   echo "verificacao 4: VAZAMENTO email-fora-da-lista-permitida-no-historico"; v4_ok=0
 fi
 git -C "$REPO" config --get-regexp '^remote\..*\.url$' > "$TMP/remotos.txt" 2>/dev/null || true

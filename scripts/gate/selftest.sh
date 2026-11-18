@@ -136,5 +136,13 @@ mkdir -p "$R/.claude"; echo "x" > "$R/.claude/regra.md"; commitar "$R" "chore: c
 git -C "$R" rm -q -r .claude; commitar "$R" "fix: remove config"
 esperar "caminho-proibido-apagado-depois" vaza "$R"
 
+R=$(novo_repo email-tld-reservado); base_limpa "$R"
+echo "contato: fulano""@host.exam""ple e outro""@api.te""st" > "$R/contato.md"; commitar "$R" "docs: contato"
+esperar "email-tld-reservado-aprovado" limpo "$R"
+
+R=$(novo_repo email-example-no-meio); base_limpa "$R"
+echo "fale com fulano""@mail.exam""ple.empresa""real.com" > "$R/contato.md"; commitar "$R" "docs: contato"
+esperar "email-example-no-meio-reprovado" vaza "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0
