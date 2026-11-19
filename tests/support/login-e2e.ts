@@ -98,3 +98,24 @@ export const sessoesDe = (endereco: string) =>
     'select count(*) as n from auth.session s join auth."user" u on u.id = s.user_id where u.email = $1',
     [endereco.toLowerCase()],
   );
+
+// Convida muitos endereços de uma vez direto no banco (mesmo efeito de `convidar`, sem e-mail de
+// convite): só para as medições de tempo, que precisam de centenas de endereços convidados.
+export async function convidarEmLote(enderecos: string[]): Promise<void> {
+  const { default: pg } = await import("pg");
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await c.connect();
+  try {
+    const emails = enderecos.map((e) => e.toLowerCase());
+    await c.query(
+      "insert into auth.\"user\" (email, role) select unnest($1::text[]), 'estudante' on conflict do nothing",
+      [emails],
+    );
+    await c.query(
+      "insert into admin.convite (email_norm, estado) select unnest($1::text[]), 'pendente' on conflict do nothing",
+      [emails],
+    );
+  } finally {
+    await c.end();
+  }
+}

@@ -2,8 +2,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { emailsPara, ultimoEmailPara } from "../../support/caixa-de-email";
 import {
+  convidarEmLote,
   convidarParaTeste,
-  convidarVarios,
   emailDeTeste,
   isolarIp,
   linhasDe,
@@ -57,39 +57,85 @@ test("e-mail não convidado recebe a mesma tela, sem e-mail, sem conta e sem ver
   expect(telaDesconhecido).toContain("Se este e-mail foi convidado, enviamos o acesso.");
 });
 
-test("o tempo percebido do pedido é comparável para convidado e não convidado", async ({
+// Mediana e intervalo de 95% (bootstrap simples) da mediana das diferenças pareadas.
+function mediana(v: number[]): number {
+  const o = [...v].sort((x, y) => x - y);
+  const m = Math.floor(o.length / 2);
+  return o.length % 2 ? (o[m] as number) : ((o[m - 1] as number) + (o[m] as number)) / 2;
+}
+
+function intervalo(v: number[]): [number, number] {
+  const medias = Array.from({ length: 1000 }, () =>
+    mediana(
+      Array.from({ length: v.length }, () => v[Math.floor(Math.random() * v.length)] as number),
+    ),
+  ).sort((x, y) => x - y);
+  return [medias[25] as number, medias[974] as number];
+}
+
+// Limite da diferença pareada mediana: o maior entre 20 ms e 25% da mediana do caminho não
+// convidado. Justificativa: em 200 pares por caminho (JNF_PARES=200), duas execuções com a máquina
+// quieta deram diferença mediana de 1,6 ms (IC 95% de 1,3 a 2,4 ms e de 1,1 a 2,2 ms) e três
+// execuções de 60 pares com 4 processos de carga deram de 1,8 a 2,4 ms; as medianas dos caminhos
+// ficam entre 19 e 24 ms. 20 ms é cerca de 8 vezes o maior valor medido e fica no patamar em que
+// uma diferença já seria um achado real. A parte relativa existe porque a carga da máquina estica
+// as duas durações na mesma proporção, e o gate não pode reprovar por isso. A propriedade
+// estrutural (mesmas operações) é provada, sem tempo, em tests/integration/identidade/
+// equivalencia.test.ts. A medição de produção, que é a prova do tempo percebido, é o SP-2 do plano
+// 01-11.
+const LIMITE_MS = 20;
+const LIMITE_RELATIVO = 0.25;
+const PARES = Number(process.env.JNF_PARES ?? 60);
+const DESCARTADOS = 5;
+
+test("tempo percebido: a diferença pareada mediana entre convidado e não convidado é pequena", async ({
   page,
 }, info) => {
-  test.skip(
-    info.project.name !== "computador",
-    "uma medição só: no Chromium, sem concorrência de dois projetos",
-  );
-  test.setTimeout(240_000);
-  const N = 20;
-  const convidados = Array.from({ length: N }, () => emailDeTeste());
-  await convidarVarios(convidados);
-  const desconhecidos = Array.from({ length: N }, () => emailDeTeste("fora"));
+  test.skip(info.project.name !== "computador", "uma medição só: no Chromium");
+  test.setTimeout(300_000 + PARES * 4_000);
+  const total = PARES + DESCARTADOS;
+  const convidados = Array.from({ length: total }, () => emailDeTeste());
+  const desconhecidos = Array.from({ length: total }, () => emailDeTeste("fora"));
+  await convidarEmLote(convidados);
 
-  const tempoConvidado: number[] = [];
-  const tempoDesconhecido: number[] = [];
-  for (let i = 0; i < N; i++) {
-    // Intercala para o ruído da máquina cair nos dois lados.
-    tempoDesconhecido.push(await pedir(page, desconhecidos[i] as string));
-    tempoConvidado.push(await pedir(page, convidados[i] as string));
-  }
-  const p95 = (valores: number[]) => {
-    const ordenado = [...valores].sort((a, b) => a - b);
-    return ordenado[Math.min(ordenado.length - 1, Math.ceil(0.95 * ordenado.length) - 1)] as number;
+  // Duração da resposta do pedido (a ação do servidor), na mesma página já aquecida.
+  const um = async (endereco: string): Promise<number> => {
+    await isolarIp(page);
+    await page.goto("/entrar");
+    await page.getByLabel("E-mail").fill(endereco);
+    const [resposta] = await Promise.all([
+      page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/entrar")),
+      page.getByRole("button", { name: "Enviar acesso" }).click(),
+    ]);
+    await page.getByRole("heading", { level: 1, name: "Verifique seu e-mail" }).waitFor();
+    const t = resposta.request().timing();
+    return t.responseEnd - t.requestStart;
   };
+
+  const convidado: number[] = [];
+  const naoConvidado: number[] = [];
+  for (let i = 0; i < total; i++) {
+    // Intercalado, alternando quem vai primeiro para o efeito de ordem se cancelar.
+    const convPrimeiro = i % 2 === 0;
+    const primeiro = await um((convPrimeiro ? convidados : desconhecidos)[i] as string);
+    const segundo = await um((convPrimeiro ? desconhecidos : convidados)[i] as string);
+    if (i < DESCARTADOS) continue;
+    convidado.push(convPrimeiro ? primeiro : segundo);
+    naoConvidado.push(convPrimeiro ? segundo : primeiro);
+  }
+  const diferencas = convidado.map((c, i) => c - (naoConvidado[i] as number));
   const resultado = {
     projeto: info.project.name,
-    n: N,
-    p95_convidado_ms: p95(tempoConvidado),
-    p95_nao_convidado_ms: p95(tempoDesconhecido),
+    pares: PARES,
+    mediana_convidado_ms: mediana(convidado),
+    mediana_nao_convidado_ms: mediana(naoConvidado),
+    mediana_da_diferenca_pareada_ms: mediana(diferencas),
+    intervalo95_da_mediana_ms: intervalo(diferencas),
+    limite_ms: Math.max(LIMITE_MS, LIMITE_RELATIVO * mediana(naoConvidado)),
     medido_em: new Date().toISOString(),
-    nota: "medido no navegador, do toque ao título da etapa 2, contra o servidor de desenvolvimento local",
+    nota: "duração da resposta da ação do servidor, medida no navegador, pares intercalados na mesma página aquecida, contra o servidor de desenvolvimento local",
   };
   mkdirSync("test-results", { recursive: true });
   writeFileSync("test-results/sp2-tempo-local.json", JSON.stringify(resultado, null, 2));
-  expect(Math.abs(resultado.p95_convidado_ms - resultado.p95_nao_convidado_ms)).toBeLessThan(250);
+  expect(Math.abs(resultado.mediana_da_diferenca_pareada_ms)).toBeLessThan(resultado.limite_ms);
 });
