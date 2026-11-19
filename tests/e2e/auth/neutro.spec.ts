@@ -94,54 +94,61 @@ const LIMITE_RELATIVO = 0.25;
 const PARES = Number(process.env.JNF_PARES ?? 60);
 const DESCARTADOS = 5;
 
-test("tempo percebido: a diferença pareada mediana entre convidado e não convidado é pequena", async ({
-  page,
-}, info) => {
-  test.skip(info.project.name !== "computador", "uma medição só: no Chromium");
-  test.setTimeout(300_000 + PARES * 4_000);
-  const total = PARES + DESCARTADOS;
-  const convidados = Array.from({ length: total }, () => emailDeTeste());
-  const desconhecidos = Array.from({ length: total }, () => emailDeTeste("fora"));
-  await convidarEmLote(convidados);
+// MEDIÇÃO, não portão: leva de 1 a 1,5 minuto (60 pares). Fica fora do `pnpm verify` e roda sozinha por
+// `pnpm medir:tempo` (projeto `medicao-tempo`); o portão guarda a propriedade ESTRUTURAL (mesmas
+// operações), em equivalencia.test.ts.
+test(
+  "tempo percebido: a diferença pareada mediana entre convidado e não convidado é pequena",
+  {
+    tag: "@medicao-tempo",
+  },
+  async ({ page }, info) => {
+    test.skip(info.project.name !== "medicao-tempo", "só no projeto de medição");
+    test.setTimeout(300_000 + PARES * 4_000);
+    const total = PARES + DESCARTADOS;
+    const convidados = Array.from({ length: total }, () => emailDeTeste());
+    const desconhecidos = Array.from({ length: total }, () => emailDeTeste("fora"));
+    await convidarEmLote(convidados);
 
-  // Duração da resposta do pedido (a ação do servidor), na mesma página já aquecida.
-  const um = async (endereco: string): Promise<number> => {
-    await isolarIp(page);
-    await page.goto("/entrar");
-    await page.getByLabel("E-mail").fill(endereco);
-    const [resposta] = await Promise.all([
-      page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/entrar")),
-      page.getByRole("button", { name: "Enviar acesso" }).click(),
-    ]);
-    await page.getByRole("heading", { level: 1, name: "Verifique seu e-mail" }).waitFor();
-    const t = resposta.request().timing();
-    return t.responseEnd - t.requestStart;
-  };
+    // Duração da resposta do pedido (a ação do servidor), na mesma página já aquecida.
+    const um = async (endereco: string): Promise<number> => {
+      await isolarIp(page);
+      await page.goto("/entrar");
+      await page.getByLabel("E-mail").fill(endereco);
+      const [resposta] = await Promise.all([
+        page.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/entrar")),
+        page.getByRole("button", { name: "Enviar acesso" }).click(),
+      ]);
+      await page.getByRole("heading", { level: 1, name: "Verifique seu e-mail" }).waitFor();
+      const t = resposta.request().timing();
+      return t.responseEnd - t.requestStart;
+    };
 
-  const convidado: number[] = [];
-  const naoConvidado: number[] = [];
-  for (let i = 0; i < total; i++) {
-    // Intercalado, alternando quem vai primeiro para o efeito de ordem se cancelar.
-    const convPrimeiro = i % 2 === 0;
-    const primeiro = await um((convPrimeiro ? convidados : desconhecidos)[i] as string);
-    const segundo = await um((convPrimeiro ? desconhecidos : convidados)[i] as string);
-    if (i < DESCARTADOS) continue;
-    convidado.push(convPrimeiro ? primeiro : segundo);
-    naoConvidado.push(convPrimeiro ? segundo : primeiro);
-  }
-  const diferencas = convidado.map((c, i) => c - (naoConvidado[i] as number));
-  const resultado = {
-    projeto: info.project.name,
-    pares: PARES,
-    mediana_convidado_ms: mediana(convidado),
-    mediana_nao_convidado_ms: mediana(naoConvidado),
-    mediana_da_diferenca_pareada_ms: mediana(diferencas),
-    intervalo95_da_mediana_ms: intervalo(diferencas),
-    limite_ms: Math.max(LIMITE_MS, LIMITE_RELATIVO * mediana(naoConvidado)),
-    medido_em: new Date().toISOString(),
-    nota: "duração da resposta da ação do servidor, medida no navegador, pares intercalados na mesma página aquecida, contra o servidor de desenvolvimento local",
-  };
-  mkdirSync("test-results", { recursive: true });
-  writeFileSync("test-results/sp2-tempo-local.json", JSON.stringify(resultado, null, 2));
-  expect(Math.abs(resultado.mediana_da_diferenca_pareada_ms)).toBeLessThan(resultado.limite_ms);
-});
+    const convidado: number[] = [];
+    const naoConvidado: number[] = [];
+    for (let i = 0; i < total; i++) {
+      // Intercalado, alternando quem vai primeiro para o efeito de ordem se cancelar.
+      const convPrimeiro = i % 2 === 0;
+      const primeiro = await um((convPrimeiro ? convidados : desconhecidos)[i] as string);
+      const segundo = await um((convPrimeiro ? desconhecidos : convidados)[i] as string);
+      if (i < DESCARTADOS) continue;
+      convidado.push(convPrimeiro ? primeiro : segundo);
+      naoConvidado.push(convPrimeiro ? segundo : primeiro);
+    }
+    const diferencas = convidado.map((c, i) => c - (naoConvidado[i] as number));
+    const resultado = {
+      projeto: info.project.name,
+      pares: PARES,
+      mediana_convidado_ms: mediana(convidado),
+      mediana_nao_convidado_ms: mediana(naoConvidado),
+      mediana_da_diferenca_pareada_ms: mediana(diferencas),
+      intervalo95_da_mediana_ms: intervalo(diferencas),
+      limite_ms: Math.max(LIMITE_MS, LIMITE_RELATIVO * mediana(naoConvidado)),
+      medido_em: new Date().toISOString(),
+      nota: "duração da resposta da ação do servidor, medida no navegador, pares intercalados na mesma página aquecida, contra o servidor de desenvolvimento local",
+    };
+    mkdirSync("test-results", { recursive: true });
+    writeFileSync("test-results/sp2-tempo-local.json", JSON.stringify(resultado, null, 2));
+    expect(Math.abs(resultado.mediana_da_diferenca_pareada_ms)).toBeLessThan(resultado.limite_ms);
+  },
+);

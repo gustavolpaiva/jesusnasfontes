@@ -73,6 +73,7 @@
     "tipografia:gerar": "bash scripts/tipografia/gerar.sh",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:integration && pnpm test:e2e && pnpm gate:publico",
     "conferir:entrada": "tsx scripts/dev/conferir-entrada.ts",
-    "canario": "tsx scripts/dev/canario.ts"
+    "canario": "tsx scripts/dev/canario.ts",
+    "medir:tempo": "JNF_MEDIR_TEMPO=1 tsx scripts/dev/e2e.ts --project medicao-tempo"
   }
 }

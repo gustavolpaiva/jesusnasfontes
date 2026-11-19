@@ -1,6 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
 const porta = process.env.PORTA_E2E ?? "3100";
+// Fumaça contra uma pré-visualização implantada: com PREVIEW_URL a configuração é só do projeto
+// `preview` (sem servidor local, sem aquecimento, sem banco de execução). Sem PREVIEW_URL o projeto
+// `preview` não existe, e os testes de `tests/e2e/preview` ficam fora dos demais.
+const urlPreview = process.env.PREVIEW_URL;
+// Quando a proteção de implantação está ligada, o segredo de automação libera as requisições.
+const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 // Com JNF_LOG_SERVIDOR, a saída do servidor (stdout e stderr) vai para esse arquivo.
 const logServidor = process.env.JNF_LOG_SERVIDOR;
 const comandoServidor = logServidor
@@ -21,8 +27,31 @@ function varredura(nome: string, largura: number, altura: number, colorScheme: E
   };
 }
 
-export default defineConfig({
+const configPreview = defineConfig({
+  testDir: "tests/e2e/preview",
+  outputDir: "test-results/e2e-preview",
+  reporter: "list",
+  // Um processo: as medições de tempo não competem entre si.
+  workers: 1,
+  fullyParallel: false,
+  forbidOnly: true,
+  use: {
+    baseURL: urlPreview,
+    ...(bypass
+      ? {
+          extraHTTPHeaders: {
+            "x-vercel-protection-bypass": bypass,
+            "x-vercel-set-bypass-cookie": "true",
+          },
+        }
+      : {}),
+  },
+  projects: [{ name: "preview", use: { browserName: "chromium" as const } }],
+});
+
+const configLocal = defineConfig({
   testDir: "tests/e2e",
+  testIgnore: /preview\//,
   outputDir: `test-results/e2e-${porta}`,
   reporter: "list",
   fullyParallel: true,
@@ -45,7 +74,7 @@ export default defineConfig({
   projects: [
     {
       name: "celular",
-      grepInvert: /@varredura/,
+      grepInvert: /@varredura|@medicao-tempo/,
       use: {
         browserName: "webkit",
         viewport: { width: 390, height: 844 },
@@ -56,13 +85,28 @@ export default defineConfig({
     },
     {
       name: "computador",
-      grepInvert: /@varredura/,
+      grepInvert: /@varredura|@medicao-tempo/,
       use: {
         browserName: "chromium",
         viewport: { width: 1280, height: 800 },
         colorScheme: "light",
       },
     },
+    // A medição de tempo percebido (60 pares, de 1 a 1,5 minuto) não é portão: o projeto só existe com
+    // JNF_MEDIR_TEMPO=1, que o `pnpm medir:tempo` define. Sem isso `pnpm test:e2e` nem a enxerga.
+    ...(process.env.JNF_MEDIR_TEMPO
+      ? [
+          {
+            name: "medicao-tempo",
+            grep: /@medicao-tempo/,
+            use: {
+              browserName: "chromium" as const,
+              viewport: { width: 1280, height: 800 },
+              colorScheme: "light" as const,
+            },
+          },
+        ]
+      : []),
     varredura("varredura-320-claro", 320, 640, "light"),
     varredura("varredura-320-escuro", 320, 640, "dark"),
     varredura("varredura-360-claro", 360, 800, "light"),
@@ -71,3 +115,5 @@ export default defineConfig({
     varredura("varredura-1280-escuro", 1280, 800, "dark"),
   ],
 });
+
+export default urlPreview ? configPreview : configLocal;
