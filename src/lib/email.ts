@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Resend } from "resend";
 import { envEmail } from "./env";
@@ -18,7 +18,10 @@ export async function enviarEmail(mensagem: Mensagem): Promise<boolean> {
       await mkdir(env.MAIL_DIR, { recursive: true });
       const destino = createHash("sha256").update(mensagem.para).digest("hex").slice(0, 16);
       const nome = `${Date.now()}-${destino}-${randomBytes(4).toString("hex")}.json`;
-      await writeFile(join(env.MAIL_DIR, nome), JSON.stringify(mensagem), { mode: 0o600 });
+      // Grava com outro nome e renomeia: quem lê a pasta nunca vê a mensagem pela metade.
+      const parcial = join(env.MAIL_DIR, `${nome}.parcial`);
+      await writeFile(parcial, JSON.stringify(mensagem), { mode: 0o600 });
+      await rename(parcial, join(env.MAIL_DIR, nome));
       return true;
     }
     const resultado = await new Resend(env.RESEND_API_KEY).emails.send({

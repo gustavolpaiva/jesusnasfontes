@@ -1,8 +1,36 @@
 import { attachDatabasePool } from "@vercel/functions";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle, NodePgSession } from "drizzle-orm/node-postgres";
+import { PgPreparedQuery } from "drizzle-orm/pg-core";
 import pg from "pg";
 import { registrarErro } from "@/lib/registro";
+import { sanitizarErroDeBanco } from "./erro-banco";
 import { urlDoPapel } from "./url";
+
+// O Drizzle embrulha toda falha de consulta num erro com a consulta e os parâmetros (e põe os
+// parâmetros na própria mensagem). Para nada disso sair da camada de banco, a execução de consulta
+// e a abertura de transação passam por `sanitizarErroDeBanco`: sai um ErroDeBanco só com o código
+// SQLSTATE e o nome da restrição. Erros do nosso código (lançados dentro de uma transação) passam
+// intactos. Aplicado uma vez por processo.
+const MARCA = Symbol.for("jnf.erro-banco-sanitizado");
+type Protegivel = Record<string | symbol, unknown>;
+
+function proteger(prototipo: object, metodo: string): void {
+  const alvo = prototipo as Protegivel;
+  const original = alvo[metodo] as (this: unknown, ...a: unknown[]) => Promise<unknown>;
+  alvo[metodo] = async function (this: unknown, ...argumentos: unknown[]) {
+    try {
+      return await original.apply(this, argumentos);
+    } catch (erro) {
+      throw sanitizarErroDeBanco(erro);
+    }
+  };
+}
+
+if (!(PgPreparedQuery.prototype as unknown as Protegivel)[MARCA]) {
+  proteger(PgPreparedQuery.prototype, "queryWithCache");
+  proteger(NodePgSession.prototype, "transaction");
+  (PgPreparedQuery.prototype as unknown as Protegivel)[MARCA] = true;
+}
 
 export type Cliente = { pool: pg.Pool; db: ReturnType<typeof criarDb> };
 

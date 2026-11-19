@@ -117,9 +117,12 @@ describe("texto privado fora dos registros", () => {
       );
     });
 
-    // O vetor de vazamento é real: o texto do erro do Drizzle/driver carrega o marcador.
+    // Os dois erros de banco chegam sanitizados (sem o texto do Drizzle/driver); o vetor segue real
+    // para o erro genérico, lançado pelo nosso código com o texto na mensagem, que só o
+    // `registrarErro` contém.
     const textos = erros.map((e) => String((e as Error)?.message ?? ""));
-    expect(textos.filter((t) => t.includes(marcador)).length).toBeGreaterThanOrEqual(2);
+    expect(textos.filter((t) => t.includes(marcador))).toHaveLength(1);
+    expect(textos[2]).toContain(marcador);
 
     // Controle positivo: os três registros foram escritos, só com contexto, código e nome.
     const linhas = capturado
