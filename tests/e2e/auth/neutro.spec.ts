@@ -9,10 +9,16 @@ import {
   linhasDe,
 } from "../../support/login-e2e";
 
-// Troca o endereço digitado por um marcador: o eco do digitado é a única diferença legítima.
+// Troca o endereço digitado por um marcador: o eco do digitado é a única diferença legítima. Tira
+// também os atributos de seleção que a biblioteca do campo de código escreve no DOM quando o foco
+// chega (data-input-otp-mss/-mse): são estado de interação, aparecem ou não conforme o instante em
+// que o HTML é lido, e não fazem parte do conteúdo da resposta.
 async function telaDaEtapa2(page: import("@playwright/test").Page, endereco: string) {
   const html = await page.locator("main").innerHTML();
-  return html.split(endereco).join("[EMAIL]");
+  return html
+    .replace(/ data-input-otp-ms[se]="\d+"/g, "")
+    .split(endereco)
+    .join("[EMAIL]");
 }
 
 async function pedir(page: import("@playwright/test").Page, endereco: string): Promise<number> {
