@@ -141,6 +141,56 @@ describe("nenhum caminho de verificação deixa segredo, código ou token em reg
     for (const s of sensiveis) expect(tudo, "vazou um segredo").not.toContain(s);
   });
 
+  it("falha de banco depois de ler os códigos de recuperação (ativação): nenhum código em registro nem em erro", async () => {
+    const { obterAuth } = await import("@/lib/auth");
+    const { conferirCodigo } = await import("@/modules/identidade/conferencia");
+    const { sql } = await import("drizzle-orm");
+    const a = await criarAdminComSessao();
+    const criado = (await obterAuth().api.enableTwoFactor({
+      body: {},
+      headers: a.cabecalhos,
+    })) as { totpURI: string; backupCodes: string[] };
+    const segredoEmClaro = new URL(criado.totpURI).searchParams.get("secret") as string;
+    const sensiveis = [...criado.backupCodes, segredoEmClaro, a.token];
+    const sessaoId = (
+      await obterDb().execute<{ id: string }>(
+        sql`select id from auth.session where token = ${a.token}`,
+      )
+    ).rows[0]?.id as string;
+    saida = [];
+    const solta = capturar();
+    let erro: unknown;
+    try {
+      await conferirCodigo({
+        api: {
+          viewBackupCodes: obterAuth().api.viewBackupCodes,
+          verifyTOTP: async () => undefined,
+          verifyBackupCode: async () => undefined,
+        } as never,
+        alvo: "aplicativo",
+        codigo: "135790",
+        usuarioId: a.id,
+        sessaoAtualId: sessaoId,
+        geracao: 0,
+        estado: "pendente",
+        cabecalhos: a.cabecalhos,
+        sessaoQueVale: async (id) => id,
+        conceder: async () => {
+          await obterDb().execute(sql`select 1/0`);
+          return true;
+        },
+      });
+    } catch (e) {
+      erro = e;
+      console.error(e);
+    } finally {
+      solta();
+    }
+    const tudo = `${saida.join("\n")}\n${tudoDe(erro)}`;
+    expect(tudo).toContain("22012"); // controle: houve erro de banco, e ele está no que se imprime
+    for (const c of sensiveis) expect(tudo, "vazou um segredo").not.toContain(c);
+  });
+
   it("o logger da biblioteca nunca imprime o que recebe (segredo de aplicativo e código de recuperação)", async () => {
     const { obterAuth } = await import("@/lib/auth");
     const contexto = await obterAuth().$context;

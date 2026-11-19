@@ -7,12 +7,11 @@ import { obterDb } from "@/db/cliente";
 import { sessao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
+import { conferirCodigo } from "./conferencia";
 import { exigirPrimeiroFatorDeAdmin } from "./sessao";
 import {
-  concederSegundoFator,
   estadoDoCadastro,
   geracaoDoSegundoFator,
-  reivindicarCodigoDeAplicativo,
   reservarTentativaDaConta,
   reservarTentativaDaSessao,
   TENTATIVAS_POR_SESSAO,
@@ -24,7 +23,8 @@ import {
 // Ordem de toda conferência, e por quê:
 //   1. guarda: Admin com a sessão de primeiro fator (quem não é Admin recebe a 404);
 //   2. reserva da tentativa da sessão e da conta, ANTES de comparar, em instrução atômica;
-//   3. a biblioteca compara; falha de qualquer tipo gasta a tentativa já reservada;
+//   3. a biblioteca compara (`conferencia.ts`; no cadastro pendente os códigos de recuperação são lidos
+//      ANTES de qualquer escrita); falha de qualquer tipo gasta a tentativa já reservada;
 //   4. código de aplicativo: só vale a primeira vez (a biblioteca não lembra do que já viu);
 //   5. só então a sessão (a que a operação deixou valendo) é marcada como verificada, por uma
 //      instrução condicional à geração do segundo fator lida no começo (uma recuperação no meio
@@ -93,39 +93,22 @@ async function conferir(
     if (!formatoOk || estado === "sem-linha" || (alvo === "recuperacao" && estado !== "ativo")) {
       return await erradoOuFim();
     }
-    const cabecalhos = await headers();
-    const auth = obterAuth();
-    try {
-      if (alvo === "aplicativo") {
-        await auth.api.verifyTOTP({ body: { code: codigo }, headers: cabecalhos });
-      } else {
-        await auth.api.verifyBackupCode({
-          body: { code: codigo, disableSession: true },
-          headers: cabecalhos,
-        });
-      }
-    } catch (erro) {
-      // Código recusado, ou corrida perdida no código de recuperação (a biblioteca troca o conjunto
-      // de códigos de forma condicional e a perdedora recebe conflito): as duas gastam a tentativa.
-      const nome = erro instanceof Error ? erro.name : "";
-      if (nome === "APIError") return await erradoOuFim();
-      throw erro;
-    }
-    if (alvo === "aplicativo" && !(await reivindicarCodigoDeAplicativo(atual.usuario.id, codigo))) {
-      return await erradoOuFim();
-    }
-    const idValido = await sessaoQueValeDepois(atual.sessao.id);
-    if (!(await concederSegundoFator(atual.usuario.id, idValido, geracao))) {
-      // Uma recuperação do segundo fator terminou no meio da conferência: nada vale. Encerra a
-      // sessão que a biblioteca acabou de criar e volta à entrada.
-      return encerrarEVoltar(idValido);
-    }
-    if (estado === "pendente") {
-      const { backupCodes } = (await auth.api.viewBackupCodes({
-        body: { userId: atual.usuario.id },
-      })) as { backupCodes: string[] };
-      return { codigos: backupCodes };
-    }
+    const r = await conferirCodigo({
+      api: obterAuth().api,
+      alvo,
+      codigo,
+      usuarioId: atual.usuario.id,
+      sessaoAtualId: atual.sessao.id,
+      geracao,
+      estado,
+      cabecalhos: await headers(),
+      sessaoQueVale: sessaoQueValeDepois,
+    });
+    if (r.tipo === "recusado") return await erradoOuFim();
+    // Uma recuperação do segundo fator terminou no meio da conferência: nada vale. Encerra a sessão
+    // que a biblioteca acabou de criar e volta à entrada.
+    if (r.tipo === "perdida") return encerrarEVoltar(r.sessaoId);
+    if (r.codigos) return { codigos: r.codigos };
   } catch (erro) {
     // Redirecionamentos e "não encontrado" do Next passam adiante; o resto é falha nossa.
     if (erro instanceof Error && "digest" in erro) throw erro;

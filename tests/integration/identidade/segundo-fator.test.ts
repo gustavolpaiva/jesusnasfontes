@@ -6,9 +6,11 @@ import { obterDb, obterPool } from "@/db/cliente";
 import { sessao } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
 import { urlDoPapel } from "@/db/url";
+import { conferirCodigo } from "@/modules/identidade/conferencia";
 import { zerarLimite } from "@/modules/identidade/limite";
 import {
   concederSegundoFator,
+  estadoDoCadastro,
   geracaoDoSegundoFator,
   LIMITE_POR_CONTA,
   reivindicarCodigoDeAplicativo,
@@ -229,5 +231,102 @@ describe("ativação que retoma depois de uma recuperação (corrida entre dois 
     const atual = await geracaoDoSegundoFator(a.id);
     expect(await concederSegundoFator(a.id, sessaoTardia, atual)).toBe(true);
     expect(await sessaoVerificada(sessaoTardia)).toBe(true);
+  });
+});
+
+describe("a pessoa sai da ativação com fator ativo E códigos na mão, ou sem nada ativado", () => {
+  // A biblioteca de teste não consegue criar a sessão nova fora do Next; o passo de ativar dela
+  // (liga o usuário e marca a linha) é emulado por uma função com as duas escritas dela.
+  async function preparar() {
+    const { obterAuth } = await import("@/lib/auth");
+    const a = await criarAdminComSessao();
+    await obterAuth().api.enableTwoFactor({ body: {}, headers: a.cabecalhos });
+    const real = obterAuth().api;
+    const ativou: string[] = [];
+    const ativarComoABiblioteca = async () => {
+      ativou.push("sim");
+      await obterDb().execute(
+        sql`update auth.two_factor set verified = true where user_id = ${a.id}`,
+      );
+      await obterDb().execute(
+        sql`update auth."user" set two_factor_enabled = true where id = ${a.id}`,
+      );
+    };
+    const entrada = (api: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+      api: api as never,
+      alvo: "aplicativo" as const,
+      codigo: "123456",
+      usuarioId: a.id,
+      sessaoAtualId: a.sessaoId,
+      geracao: 0,
+      estado: "pendente" as const,
+      cabecalhos: a.cabecalhos,
+      sessaoQueVale: async (id: string) => id,
+      ...extra,
+    });
+    return { a, real, ativou, ativarComoABiblioteca, entrada };
+  }
+  const estadoDaConta = async (id: string) => ({
+    ativo: (await obterDb().select().from(usuario).where(eq(usuario.id, id)))[0]?.twoFactorEnabled,
+    cadastro: await estadoDoCadastro(id),
+  });
+
+  it("falha de banco na leitura dos códigos: nada ativado, sessão não verificada; repetir entrega os códigos", async () => {
+    const { a, real, ativou, ativarComoABiblioteca, entrada } = await preparar();
+    const falha = {
+      viewBackupCodes: async () => {
+        await obterDb().execute(sql`select 1/0`); // falha de banco de verdade (SQLSTATE 22012)
+      },
+      verifyTOTP: ativarComoABiblioteca,
+      verifyBackupCode: async () => undefined,
+    };
+    await expect(conferirCodigo(entrada(falha))).rejects.toMatchObject({ code: "22012" });
+    expect(ativou).toHaveLength(0);
+    expect(await estadoDaConta(a.id)).toEqual({ ativo: false, cadastro: "pendente" });
+    expect(await sessaoVerificada(a.sessaoId)).toBe(false);
+
+    // Controle positivo: sem a falha, ativa e entrega os códigos, e a sessão passa a valer.
+    const certo = {
+      viewBackupCodes: real.viewBackupCodes,
+      verifyTOTP: ativarComoABiblioteca,
+      verifyBackupCode: async () => undefined,
+    };
+    const r = await conferirCodigo(entrada(certo, { codigo: "654321" }));
+    expect(r).toMatchObject({ tipo: "concedido" });
+    expect((r as { codigos: string[] }).codigos.length).toBeGreaterThan(0);
+    expect(await estadoDaConta(a.id)).toEqual({ ativo: true, cadastro: "ativo" });
+    expect(await sessaoVerificada(a.sessaoId)).toBe(true);
+  });
+
+  it("falha de banco depois de a biblioteca ativar e antes da concessão: a ativação é desfeita", async () => {
+    const { a, real, ativarComoABiblioteca, entrada } = await preparar();
+    const api = {
+      viewBackupCodes: real.viewBackupCodes,
+      verifyTOTP: ativarComoABiblioteca,
+      verifyBackupCode: async () => undefined,
+    };
+    const conceder = async () => {
+      await obterDb().execute(sql`select 1/0`);
+      return true;
+    };
+    await expect(conferirCodigo(entrada(api, { conceder }))).rejects.toMatchObject({
+      code: "22012",
+    });
+    expect(await estadoDaConta(a.id)).toEqual({ ativo: false, cadastro: "pendente" });
+    expect(await sessaoVerificada(a.sessaoId)).toBe(false);
+    // Nova tentativa do começo funciona e entrega os códigos.
+    // (o código da tentativa que falhou já foi marcado como usado; a pessoa digita o do passo seguinte)
+    const r = await conferirCodigo(entrada(api, { codigo: "246810" }));
+    expect(r).toMatchObject({ tipo: "concedido" });
+    expect((r as { codigos: string[] }).codigos.length).toBeGreaterThan(0);
+  });
+
+  it("desfazer nunca derruba um fator que uma sessão já verificou", async () => {
+    const { a, ativarComoABiblioteca } = await preparar();
+    await ativarComoABiblioteca();
+    expect(await concederSegundoFator(a.id, a.sessaoId, 0)).toBe(true);
+    const { desfazerAtivacao } = await import("@/modules/identidade/sessao-mfa");
+    await desfazerAtivacao(a.id);
+    expect(await estadoDaConta(a.id)).toEqual({ ativo: true, cadastro: "ativo" });
   });
 });

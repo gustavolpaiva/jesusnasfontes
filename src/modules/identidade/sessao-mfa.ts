@@ -70,6 +70,21 @@ export async function concederSegundoFator(
   return false;
 }
 
+// Desfaz uma ativação que a biblioteca fez mas que não chegou a ser concedida nem entregue com os
+// códigos (falha de banco no meio): volta o cadastro a "pendente", para a pessoa tentar do começo
+// com o mesmo segredo. Por id da conta, e só se nenhuma sessão dela já está verificada na geração
+// atual (nunca desfaz um fator que alguém já usou com sucesso).
+export async function desfazerAtivacao(userId: string): Promise<void> {
+  await obterDb().transaction(async (tx) => {
+    const emUso = await tx.execute(sql`
+      select 1 from admin.sessao_mfa m join auth.session s on s.id = m.session_id
+      where s.user_id = ${userId} and m.geracao = ${GERACAO_ATUAL(userId)} limit 1`);
+    if (emUso.rows.length > 0) return;
+    await tx.execute(sql`update auth.two_factor set verified = false where user_id = ${userId}`);
+    await tx.execute(sql`update auth."user" set two_factor_enabled = false where id = ${userId}`);
+  });
+}
+
 // Reserva UMA tentativa da sessão, antes de comparar nada, numa única instrução atômica (a linha é
 // travada pelo upsert, então requisições simultâneas recebem contagens distintas). Só quem fica
 // dentro do teto chega à comparação. A reserva vale também se o código acertar.
