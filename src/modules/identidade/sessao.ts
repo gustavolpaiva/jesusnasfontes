@@ -10,7 +10,8 @@ export { sair } from "./entrada";
 export type SessaoLida = {
   usuario: { id: string; email: string; papel: "estudante" | "admin" };
   sessao: { id: string; criadaEm: Date };
-  // Só o Admin precisa do segundo fator; para os demais o valor é sempre true.
+  // Só o Admin precisa do segundo fator (linha da sessão em admin.sessao_mfa); para os demais o valor
+  // é sempre true.
   segundoFatorVerificado: boolean;
 };
 
