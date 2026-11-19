@@ -9,7 +9,14 @@ import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
 import { darAcesso } from "./acesso";
 import { aceitarConvite, apagarCodigoDe, conviteAtivo } from "./convite";
-import { chaveDe, consumirLimite, ipDe, LIMITES, reservarPalpite, zerarLimite } from "./limite";
+import {
+  chaveDe,
+  chaveFalhasDoCodigo,
+  consumirLimite,
+  ipDe,
+  LIMITES,
+  reservarPalpite,
+} from "./limite";
 import { lerEmail } from "./normalizar-email";
 
 // A porta única de entrada. Server Actions: o que o navegador consegue chamar.
@@ -44,8 +51,6 @@ export async function pedirEntrada(
   }
   return { etapa: "verifique", emailDigitado: digitado, email };
 }
-
-const chaveFalhasDoCodigo = (email: string) => chaveDe("codigo-falhas", email);
 
 // Pedir acesso conta nos dois limites (IP e e-mail), igual para convidado ou não. Pedido novo NÃO
 // zera as falhas de código: senão cada pedido daria palpites novos a quem só sabe o e-mail.
@@ -121,7 +126,6 @@ export async function entrarComCodigo(
     }
     if (usuarioEmail && (await conviteAtivo(usuarioEmail))) {
       await aceitarConvite(usuarioEmail);
-      await zerarLimite(chave);
     } else {
       await revogarSessaoCriada(resposta);
       return { ...base, resultado: "codigo-invalido" };

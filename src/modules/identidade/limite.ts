@@ -19,6 +19,9 @@ export function chaveDe(prefixo: string, valor: string): string {
   return `${prefixo}:${createHash("sha256").update(valor).digest("hex").slice(0, 32)}`;
 }
 
+// Chave do contador de falhas do código de um endereço (já normalizado).
+export const chaveFalhasDoCodigo = (email: string) => chaveDe("codigo-falhas", email);
+
 // O IP vem de cabeçalho que a Vercel define e substitui (x-real-ip, ou x-vercel-forwarded-for).
 // Nunca do primeiro valor de x-forwarded-for: esse o cliente consegue enviar.
 export function ipDe(cabecalhos: Pick<Headers, "get">): string {

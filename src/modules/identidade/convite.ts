@@ -4,6 +4,7 @@ import { convite, verificacao } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
 import { enviarEmail, modeloConvite } from "@/lib/email";
 import { urlBase } from "@/lib/env";
+import { chaveFalhasDoCodigo, zerarLimite } from "./limite";
 import { normalizarEmail } from "./normalizar-email";
 
 // Sem `server-only`: o comando `pnpm convidar` também usa este módulo.
@@ -62,7 +63,10 @@ export async function convidar(
 }
 
 // Marca o convite como aceito e apaga as verificações que sobraram daquele endereço (links e
-// códigos ainda não usados), para nada que foi pedido antes valer depois da entrada.
+// códigos ainda não usados), para nada que foi pedido antes valer depois da entrada. É o ponto único
+// por onde passa toda entrada bem-sucedida (link e código): aqui também zeram as falhas do código
+// do endereço. Só aqui: pedido de acesso, reenvio e saída nunca zeram (um terceiro sem credencial
+// não pode ganhar palpites).
 export async function aceitarConvite(email: string): Promise<void> {
   const emailNorm = normalizarEmail(email);
   const db = obterDb();
@@ -71,6 +75,7 @@ export async function aceitarConvite(email: string): Promise<void> {
     .set({ estado: "aceito", aceitoEm: sql`now()` })
     .where(and(eq(convite.emailNorm, emailNorm), eq(convite.estado, "pendente")));
   await apagarVerificacoesDe(emailNorm);
+  await zerarLimite(chaveFalhasDoCodigo(emailNorm));
 }
 
 // Código de 6 dígitos: identificador `sign-in-otp-<e-mail>`. Link: o valor guarda o e-mail em JSON.
