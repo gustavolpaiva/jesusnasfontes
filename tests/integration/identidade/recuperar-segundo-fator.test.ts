@@ -59,7 +59,7 @@ async function foto(id: string) {
       (select count(*) from auth.session where user_id = ${id})::int as sessoes,
       (select count(*) from admin.sessao_mfa m join auth.session s on s.id = m.session_id where s.user_id = ${id})::int as marcas,
       (select count(*) from admin.tentativa where chave in (${chaveSegundoFatorDaConta(id)}, ${chaveDaCriacaoDoSegundoFator(id)}))::int as limites,
-      (select count(*) from admin.segundo_fator_geracao where user_id = ${id})::int as geracoes`);
+      (select count(*) from admin.segundo_fator_geracao where user_id = ${id} and geracao > 0)::int as geracoes`);
   return r.rows[0];
 }
 

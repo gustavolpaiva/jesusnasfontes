@@ -55,6 +55,8 @@ export async function prepararCadastro(userId: string): Promise<MaterialDoCadast
     const lido = (await obterAuth().api.getTOTPURI({ body: {}, headers: await headers() })) as {
       totpURI?: string;
     };
+    // Releitura depois de pedir o segredo: se o fator foi ativado nesse meio tempo, não se mostra.
+    if ((await estadoDoCadastro(userId)) !== "pendente") return null;
     return lido.totpURI ? materialDe(lido.totpURI) : null;
   } catch (erro) {
     registrarErro("segundo-fator-cadastro-ler", erro);

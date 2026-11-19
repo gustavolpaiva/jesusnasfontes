@@ -3,7 +3,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { obterDb, obterPool } from "@/db/cliente";
-import { sessao } from "@/db/schema/entrada";
+import { doisFatores, sessao } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
 import { urlDoPapel } from "@/db/url";
 import { conferirCodigo } from "@/modules/identidade/conferencia";
@@ -234,6 +234,9 @@ describe("ativação que retoma depois de uma recuperação (corrida entre dois 
     expect(await sessaoVerificada(sessaoTardia)).toBe(false);
     // controle positivo: na geração atual, a concessão funciona e a sessão conta.
     const atual = await geracaoDoSegundoFator(a.id);
+    // Sem fator ativo (a recuperação o apagou), nada é concedido nem na geração atual.
+    expect(await concederSegundoFator(a.id, sessaoTardia, atual)).toBe(false);
+    await obterDb().insert(doisFatores).values({ secret: "s", backupCodes: "c", userId: a.id });
     expect(await concederSegundoFator(a.id, sessaoTardia, atual)).toBe(true);
     expect(await sessaoVerificada(sessaoTardia)).toBe(true);
   });

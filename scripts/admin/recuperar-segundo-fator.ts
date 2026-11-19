@@ -115,6 +115,14 @@ export async function recuperarSegundoFator(
           "IdDiferente: o id informado não é o da conta deste endereço; nada foi alterado.",
         );
       }
+      // Primeiro a trava de geração (a mesma ordem de `sobTravaDaConta`: geração, depois usuário):
+      // concessão e compensação em andamento terminam antes, e as seguintes veem a geração nova.
+      await tx.execute(sql`
+        insert into admin.segundo_fator_geracao (user_id, geracao) values (${alvo.id}, 0)
+        on conflict (user_id) do nothing`);
+      await tx.execute(
+        sql`select geracao from admin.segundo_fator_geracao where user_id = ${alvo.id} for update`,
+      );
       // Trava a linha da conta e a relê por id: daqui até o fim da transação ninguém muda a conta.
       const travada = (
         await tx.execute<Conta>(

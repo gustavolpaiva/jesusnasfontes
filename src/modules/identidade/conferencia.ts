@@ -55,6 +55,7 @@ export async function conferirCodigo(p: {
     return { tipo: "recusado" };
   }
   let concedido = false;
+  let bibliotecaPodeTerAtivado = false;
   try {
     try {
       if (p.alvo === "aplicativo") {
@@ -69,8 +70,10 @@ export async function conferirCodigo(p: {
       // Código recusado, ou corrida perdida no código de recuperação (a biblioteca troca o conjunto
       // de códigos de forma condicional e a perdedora recebe conflito): as duas gastam a tentativa.
       if (erro instanceof Error && erro.name === "APIError") return { tipo: "recusado" };
+      bibliotecaPodeTerAtivado = true;
       throw erro;
     }
+    bibliotecaPodeTerAtivado = true;
     const idValido = await p.sessaoQueVale(p.sessaoAtualId);
     if (!(await conceder(p.usuarioId, idValido, p.geracao))) {
       return { tipo: "perdida", sessaoId: idValido };
@@ -80,7 +83,8 @@ export async function conferirCodigo(p: {
   } finally {
     // UM só bloco de compensação: toda saída que não seja "concedido" deixa o estado como entrou.
     if (!concedido) {
-      if (p.estado === "pendente") await compensar(() => desfazerAtivacao(p.usuarioId));
+      if (p.estado === "pendente" && bibliotecaPodeTerAtivado)
+        await compensar(() => desfazerAtivacao(p.usuarioId));
       if (reivindicou) await compensar(() => liberarCodigoDeAplicativo(p.usuarioId, p.codigo));
     }
   }

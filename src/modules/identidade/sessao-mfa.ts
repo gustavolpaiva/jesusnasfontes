@@ -47,38 +47,72 @@ export async function sessaoVerificada(sessionId: string): Promise<boolean> {
   return r.rows.length > 0;
 }
 
-// Concede o acesso: UMA instrução que só marca a sessão se a geração da conta ainda é a que a
-// conferência leu ao começar (compare-and-set). Se uma recuperação passou no meio, nada é concedido
-// e o estado que a biblioteca ressuscitou ("ativo" sem linha de segundo fator) é desfeito.
+// SERIALIZAÇÃO por conta. Toda decisão de segurança que LÊ o estado do segundo fator e depois ESCREVE
+// nele (conceder, desfazer a ativação, a recuperação) roda numa transação CURTA e própria, numa só
+// conexão, que começa travando a linha de geração da conta (`for update`) e só então lê e decide.
+// `UPDATE … WHERE NOT EXISTS (…)` sozinho não basta em READ COMMITTED (a subconsulta vê o retrato do
+// início da instrução); a trava de linha é que serializa. Nada dentro dessas transações chama a
+// biblioteca, e-mail ou qualquer coisa que use outra conexão (o pool pode ser de uma só).
+// Ordem de travas, igual em todo lugar: linha de geração, depois linha do usuário.
+type Transacao = Parameters<Parameters<ReturnType<typeof obterDb>["transaction"]>[0]>[0];
+
+async function sobTravaDaConta<T>(
+  userId: string,
+  decidir: (tx: Transacao, geracao: number) => Promise<T>,
+): Promise<T> {
+  return obterDb().transaction(async (tx) => {
+    await tx.execute(sql`
+      insert into admin.segundo_fator_geracao (user_id, geracao) values (${userId}, 0)
+      on conflict (user_id) do nothing`);
+    const travada = await tx.execute<{ g: number }>(sql`
+      select geracao::int as g from admin.segundo_fator_geracao where user_id = ${userId} for update`);
+    return decidir(tx, Number(travada.rows[0]?.g ?? 0));
+  });
+}
+
+// Concede o acesso, sob a trava da conta: só marca a sessão se (1) a geração ainda é a que a
+// conferência leu ao começar e (2) o fator está de fato ativo agora (uma compensação concorrente pode
+// tê-lo devolvido a pendente: nesse caso nada é concedido). Se uma recuperação passou no meio, o
+// estado que a biblioteca ressuscitou ("ativo" sem linha de fator) é desfeito.
 export async function concederSegundoFator(
   userId: string,
   sessionId: string,
   geracaoInicial: number,
 ): Promise<boolean> {
-  const db = obterDb();
-  const r = await db.execute(sql`
-    insert into admin.sessao_mfa (session_id, geracao)
-    select ${sessionId}, ${geracaoInicial}
-    where ${GERACAO_ATUAL(userId)} = ${geracaoInicial}
-    on conflict (session_id) do update set geracao = excluded.geracao, verificado_em = now()
-    returning session_id`);
-  if (r.rows.length > 0) return true;
-  await db.execute(sql`
-    update auth."user" set two_factor_enabled = false
-    where id = ${userId} and two_factor_enabled
-      and not exists (select 1 from auth.two_factor t where t.user_id = ${userId})`);
-  return false;
+  return sobTravaDaConta(userId, async (tx, geracao) => {
+    if (geracao !== geracaoInicial) {
+      await tx.execute(sql`
+        update auth."user" set two_factor_enabled = false
+        where id = ${userId} and two_factor_enabled
+          and not exists (select 1 from auth.two_factor t where t.user_id = ${userId})`);
+      return false;
+    }
+    const ativo = await tx.execute(
+      sql`select 1 from auth.two_factor where user_id = ${userId} and verified is true limit 1`,
+    );
+    if (ativo.rows.length === 0) return false;
+    const r = await tx.execute(sql`
+      insert into admin.sessao_mfa (session_id, geracao) values (${sessionId}, ${geracao})
+      on conflict (session_id) do update set geracao = excluded.geracao, verificado_em = now()
+      returning session_id`);
+    return r.rows.length > 0;
+  });
 }
 
 // Desfaz uma ativação que a biblioteca fez mas que não chegou a ser concedida nem entregue com os
 // códigos (falha de banco no meio): volta o cadastro a "pendente", para a pessoa tentar do começo
-// com o mesmo segredo. Por id da conta, e só se nenhuma sessão dela já está verificada na geração
-// atual (nunca desfaz um fator que alguém já usou com sucesso).
-export async function desfazerAtivacao(userId: string): Promise<void> {
-  await obterDb().transaction(async (tx) => {
+// com o mesmo segredo. Por id da conta, sob a trava, e só se nenhuma sessão dela está verificada na
+// geração atual: depois de o fator ter sido usado com sucesso, só a recuperação do dono o devolve a
+// pendente. `aposLer` é um ponto de espera para teste (entre a leitura e a escrita, sob a trava).
+export async function desfazerAtivacao(
+  userId: string,
+  aposLer?: () => Promise<void>,
+): Promise<void> {
+  await sobTravaDaConta(userId, async (tx, geracao) => {
     const emUso = await tx.execute(sql`
       select 1 from admin.sessao_mfa m join auth.session s on s.id = m.session_id
-      where s.user_id = ${userId} and m.geracao = ${GERACAO_ATUAL(userId)} limit 1`);
+      where s.user_id = ${userId} and m.geracao = ${geracao} limit 1`);
+    await aposLer?.();
     if (emUso.rows.length > 0) return;
     await tx.execute(sql`update auth.two_factor set verified = false where user_id = ${userId}`);
     await tx.execute(sql`update auth."user" set two_factor_enabled = false where id = ${userId}`);
