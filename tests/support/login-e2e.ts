@@ -60,13 +60,21 @@ export async function semearAdminParaTeste(endereco: string): Promise<void> {
   });
 }
 
-// Recuperação do segundo fator, pelo script do dono do banco.
+// Recuperação do segundo fator, pelo script do dono do banco, nas duas etapas: a prévia devolve o id
+// e a escrita só vale com esse id.
 export async function recuperarSegundoFatorParaTeste(endereco: string): Promise<string> {
-  const { stdout } = await executar(
-    "pnpm",
-    ["exec", "tsx", "scripts/admin/recuperar-segundo-fator.ts", "--variavel", "JNF_EMAIL_TESTE"],
-    { env: { ...process.env, JNF_EMAIL_TESTE: endereco } },
-  );
+  const comando = [
+    "exec",
+    "tsx",
+    "scripts/admin/recuperar-segundo-fator.ts",
+    "--variavel",
+    "JNF_EMAIL_TESTE",
+  ];
+  const env = { ...process.env, JNF_EMAIL_TESTE: endereco };
+  const previa = await executar("pnpm", comando, { env });
+  const id = /^id: ([0-9a-f-]{36})$/m.exec(previa.stdout)?.[1];
+  if (!id) throw new Error("A prévia da recuperação não devolveu o id.");
+  const { stdout } = await executar("pnpm", [...comando, "--executar", "--id", id], { env });
   return stdout;
 }
 

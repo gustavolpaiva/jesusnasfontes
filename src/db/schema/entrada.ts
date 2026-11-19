@@ -82,6 +82,14 @@ export const sessaoMfa = administracao.table("sessao_mfa", {
     .primaryKey()
     .references(() => sessao.id, { onDelete: "cascade" }),
   verificadoEm: timestamp("verificado_em", { withTimezone: true }).notNull().defaultNow(),
+  geracao: integer("geracao").notNull().default(0),
+});
+
+export const geracaoSegundoFator = administracao.table("segundo_fator_geracao", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => usuario.id, { onDelete: "cascade" }),
+  geracao: integer("geracao").notNull().default(0),
 });
 
 export const falhaSegundoFator = administracao.table("falha_segundo_fator", {
