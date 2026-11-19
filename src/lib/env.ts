@@ -24,19 +24,44 @@ function ler<T extends z.ZodType>(area: string, esquema: T, fonte: Fonte): z.inf
 
 const texto = z.string().min(1);
 
-const esquemaBanco = z.object({
+const esquemaDestinoDoBanco = z.object({
   NEON_HOST: texto,
   NEON_POOLER_HOST: texto.optional(),
   NEON_DATABASE: texto,
+  PGSSLMODE: texto.optional(),
+});
+
+const esquemaBanco = esquemaDestinoDoBanco.extend({
   JNF_APP_PASSWORD: texto,
   JNF_MIGRA_PASSWORD: texto,
   JNF_CARGA_PASSWORD: texto,
   JNF_ASSISTENTE_PASSWORD: texto,
-  PGSSLMODE: texto.optional(),
 });
 
+// As quatro senhas: só quem prepara o banco (bootstrap dos papéis) as usa juntas.
 export function envBanco(fonte: Fonte = process.env) {
   return ler("banco", esquemaBanco, fonte);
+}
+
+const SENHA_DO_PAPEL = {
+  app: "JNF_APP_PASSWORD",
+  migra: "JNF_MIGRA_PASSWORD",
+  carga: "JNF_CARGA_PASSWORD",
+  assistente: "JNF_ASSISTENTE_PASSWORD",
+} as const;
+
+export type PapelDoBanco = keyof typeof SENHA_DO_PAPEL;
+
+// O destino do banco e a senha de UM papel, só. O aplicativo em execução (Vercel) usa o papel `app`:
+// exigir também as senhas de migração, carga e Assistente obrigaria a pôr no ambiente dele segredos
+// que ele nunca usa (privilégio mínimo). O erro lista só NOMES.
+export function envBancoDoPapel(papel: PapelDoBanco, fonte: Fonte = process.env) {
+  const nome = SENHA_DO_PAPEL[papel];
+  const dados = ler("banco", esquemaDestinoDoBanco.extend({ [nome]: texto }), fonte) as z.infer<
+    typeof esquemaDestinoDoBanco
+  > &
+    Record<string, string>;
+  return { ...dados, senha: dados[nome] as string };
 }
 
 const esquemaBootstrap = z.object({ DATABASE_URL_OWNER: texto });

@@ -1,15 +1,8 @@
-import { envBanco } from "@/lib/env";
+import { envBancoDoPapel } from "@/lib/env";
 
 export type Papel = "app" | "migra" | "carga" | "assistente";
 
 type Fonte = Record<string, string | undefined>;
-
-const SENHA_DO_PAPEL = {
-  app: "JNF_APP_PASSWORD",
-  migra: "JNF_MIGRA_PASSWORD",
-  carga: "JNF_CARGA_PASSWORD",
-  assistente: "JNF_ASSISTENTE_PASSWORD",
-} as const;
 
 // Banco local de teste: o host vem com a porta ("127.0.0.1:54331"), não há agrupador nem TLS.
 function ehLocal(host: string): boolean {
@@ -36,8 +29,8 @@ export function urlDoPapel(
   opcoes: { agrupada: boolean },
   fonte: Fonte = process.env,
 ): string {
-  const env = envBanco(fonte);
-  const senha = env[SENHA_DO_PAPEL[papel]];
+  const env = envBancoDoPapel(papel, fonte);
+  const senha = env.senha;
   for (const h of [env.NEON_HOST, env.NEON_POOLER_HOST]) {
     if (h !== undefined && !HOST_VALIDO.test(h))
       throw new Error("Host do banco inválido no ambiente.");
