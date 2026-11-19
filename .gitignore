@@ -20,3 +20,6 @@ next-env.d.ts
 /.claude/
 /.codex/
 /.cursor/
+
+# vínculo local com a plataforma de hospedagem
+.vercel/
