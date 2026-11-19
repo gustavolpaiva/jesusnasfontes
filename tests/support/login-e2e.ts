@@ -80,6 +80,32 @@ export async function liberarLimitesDePedido(): Promise<void> {
   }
 }
 
+// Escrita direta no banco da execução (como dono), para semear um estado que o teste vai exercitar.
+export async function escrever(consulta: string, parametros: string[] = []): Promise<void> {
+  const { default: pg } = await import("pg");
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await c.connect();
+  try {
+    await c.query(consulta, parametros);
+  } finally {
+    await c.end();
+  }
+}
+
+export async function idDoUsuario(endereco: string): Promise<string> {
+  const { default: pg } = await import("pg");
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await c.connect();
+  try {
+    const r = await c.query<{ id: string }>('select id from auth."user" where email = $1', [
+      endereco.toLowerCase(),
+    ]);
+    return r.rows[0]?.id as string;
+  } finally {
+    await c.end();
+  }
+}
+
 // Leitura de contagem direto no banco da execução (como dono; só para conferir o que ficou gravado).
 export async function contar(consulta: string, parametros: string[] = []): Promise<number> {
   const { default: pg } = await import("pg");

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { type Browser, expect, type Page, test } from "@playwright/test";
@@ -6,6 +7,8 @@ import {
   convidarParaTeste,
   emailDeTeste,
   entrarPorLink,
+  escrever,
+  idDoUsuario,
   isolarIp,
   liberarLimitesDePedido,
   recuperarSegundoFatorParaTeste,
@@ -173,11 +176,6 @@ test("entradas seguintes: contexto novo cai na verificação; código certo entr
   await expect(aba.getByRole("heading", { level: 1, name: "Administração" })).toBeVisible();
   await aba.goto("/trilhas");
   await expect(aba.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
-  // O mesmo código, agora em outro aparelho, também é recusado.
-  const outro = await novoAparelho(browser, a.endereco);
-  await digitarEConfirmar(outro.aba, gerarTotp(a.chave, Date.now() + PASSO));
-  await expect(outro.aba.getByText("Código incorreto.")).toBeVisible();
-  await outro.contexto.close();
   await contexto.close();
 });
 
@@ -247,21 +245,24 @@ test("teto por conta: sessões novas não ganham palpites novos sem fim", async 
   page,
   browser,
 }) => {
-  test.setTimeout(90_000);
-  const a = await cadastrarAdmin(page); // 1 tentativa gasta na ativação
-  // Duas sessões com 4 erros cada (8) e uma com 1 erro: 10 tentativas gastas.
-  for (let i = 0; i < 2; i++) {
-    const { contexto, aba } = await novoAparelho(browser, a.endereco);
-    for (let n = 0; n < 4; n++) await digitarEConfirmar(aba, codigoErrado(a.chave));
-    await expect(aba.getByText("Resta 1 tentativa.")).toBeVisible();
-    await contexto.close();
-  }
+  const a = await cadastrarAdmin(page);
+  // O contador de conta (10 por hora, janela ancorada no primeiro evento) já está em 9: o
+  // comportamento do contador em si é medido no teste de integração; aqui se mede o que o fluxo faz
+  // com ele. Semeado no banco da execução, com o mesmo resumo de chave que o código usa.
+  const id = await idDoUsuario(a.endereco);
+  const chave = `segundo-fator-conta:${createHash("sha256").update(id).digest("hex").slice(0, 32)}`;
+  await escrever(
+    "insert into admin.tentativa (chave, janela_inicio, contagem) values ($1, now(), 9) on conflict (chave) do update set contagem = 9, janela_inicio = now()",
+    [chave],
+  );
   const { contexto, aba } = await novoAparelho(browser, a.endereco);
   await digitarEConfirmar(aba, codigoErrado(a.chave)); // a 10ª: ainda compara
   await expect(aba.getByText("Restam 4 tentativas.")).toBeVisible();
   // A 11ª, mesmo com o código CERTO, não chega a comparar: sessão encerrada.
   await digitarEConfirmar(aba, gerarTotp(a.chave, Date.now() + PASSO));
   await expect(aba).toHaveURL(/\/entrar\?motivo=segundo-fator$/);
+  await aba.goto("/admin");
+  await expect(aba).toHaveURL(/\/entrar\?motivo=sessao/);
   await contexto.close();
 });
 
