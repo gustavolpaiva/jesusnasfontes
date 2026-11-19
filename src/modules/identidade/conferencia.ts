@@ -3,6 +3,7 @@ import type { obterAuth } from "@/lib/auth";
 import {
   concederSegundoFator,
   desfazerAtivacao,
+  fatoConcedido,
   liberarCodigoDeAplicativo,
   reivindicarCodigoDeAplicativo,
 } from "./sessao-mfa";
@@ -41,6 +42,9 @@ export async function conferirCodigo(p: {
   conceder?: typeof concederSegundoFator;
 }): Promise<ResultadoDaConferencia> {
   const conceder = p.conceder ?? concederSegundoFator;
+  // Falha fechada: fator já concedido nesta geração mas linha não está "ativa" (estado incoerente):
+  // nada é ativado de novo, nenhum código é lido nem mostrado.
+  if (p.estado !== "ativo" && (await fatoConcedido(p.usuarioId))) return { tipo: "recusado" };
   let codigos: string[] | undefined;
   if (p.estado === "pendente") {
     const lido = (await p.api.viewBackupCodes({ body: { userId: p.usuarioId } })) as {

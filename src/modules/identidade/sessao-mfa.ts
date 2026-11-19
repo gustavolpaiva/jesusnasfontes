@@ -70,6 +70,15 @@ async function sobTravaDaConta<T>(
   });
 }
 
+// O FATO gravado: o segundo fator desta geração já foi concedido (ativado e usado) ao menos uma vez.
+// Não depende de sessões (que somem no logout, na expiração e no encerramento pela guarda). Só a
+// recuperação pelo dono o limpa, ao subir a geração.
+export async function fatoConcedido(userId: string): Promise<boolean> {
+  const r = await obterDb().execute(sql`
+    select 1 from admin.segundo_fator_geracao where user_id = ${userId} and concedido_em is not null`);
+  return r.rows.length > 0;
+}
+
 // Concede o acesso, sob a trava da conta: só marca a sessão se (1) a geração ainda é a que a
 // conferência leu ao começar e (2) o fator está de fato ativo agora (uma compensação concorrente pode
 // tê-lo devolvido a pendente: nesse caso nada é concedido). Se uma recuperação passou no meio, o
@@ -95,25 +104,30 @@ export async function concederSegundoFator(
       insert into admin.sessao_mfa (session_id, geracao) values (${sessionId}, ${geracao})
       on conflict (session_id) do update set geracao = excluded.geracao, verificado_em = now()
       returning session_id`);
-    return r.rows.length > 0;
+    if (r.rows.length === 0) return false;
+    // O fato, na mesma transação e sob a mesma trava que a marca da sessão.
+    await tx.execute(sql`
+      update admin.segundo_fator_geracao set concedido_em = coalesce(concedido_em, now())
+      where user_id = ${userId}`);
+    return true;
   });
 }
 
 // Desfaz uma ativação que a biblioteca fez mas que não chegou a ser concedida nem entregue com os
 // códigos (falha de banco no meio): volta o cadastro a "pendente", para a pessoa tentar do começo
-// com o mesmo segredo. Por id da conta, sob a trava, e só se nenhuma sessão dela está verificada na
-// geração atual: depois de o fator ter sido usado com sucesso, só a recuperação do dono o devolve a
-// pendente. `aposLer` é um ponto de espera para teste (entre a leitura e a escrita, sob a trava).
+// com o mesmo segredo. Por id da conta, sob a trava, e só se o fato "concedido" não está gravado:
+// depois de o fator ter sido usado com sucesso, só a recuperação do dono o devolve a pendente. `aposLer` é um ponto de espera para teste (entre a leitura e a escrita, sob a trava).
 export async function desfazerAtivacao(
   userId: string,
   aposLer?: () => Promise<void>,
 ): Promise<void> {
-  await sobTravaDaConta(userId, async (tx, geracao) => {
-    const emUso = await tx.execute(sql`
-      select 1 from admin.sessao_mfa m join auth.session s on s.id = m.session_id
-      where s.user_id = ${userId} and m.geracao = ${geracao} limit 1`);
+  await sobTravaDaConta(userId, async (tx) => {
+    // Decide pelo FATO gravado, nunca por sessões: depois da primeira concessão da geração, só a
+    // recuperação pelo dono devolve o fator a pendente.
+    const fato = await tx.execute(sql`
+      select 1 from admin.segundo_fator_geracao where user_id = ${userId} and concedido_em is not null`);
     await aposLer?.();
-    if (emUso.rows.length > 0) return;
+    if (fato.rows.length > 0) return;
     await tx.execute(sql`update auth.two_factor set verified = false where user_id = ${userId}`);
     await tx.execute(sql`update auth."user" set two_factor_enabled = false where id = ${userId}`);
   });

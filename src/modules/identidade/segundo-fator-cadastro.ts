@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
 import { chaveDaCriacaoDoSegundoFator, consumirLimite } from "./limite";
-import { estadoDoCadastro } from "./sessao-mfa";
+import { estadoDoCadastro, fatoConcedido } from "./sessao-mfa";
 
 // Material do cadastro: o endereço otpauth (para o QR) e a chave em texto. É segredo: vai só à tela
 // de quem está cadastrando, nunca a registro, erro ou relatório.
@@ -49,6 +49,9 @@ async function criarSeAindaNaoExiste(userId: string): Promise<void> {
 // Primeira vez: a biblioteca cria o segredo. Já existe um segredo ainda não ativado (a pessoa
 // recarregou a página): mostra o MESMO, para o aplicativo que ela já escaneou continuar valendo.
 export async function prepararCadastro(userId: string): Promise<MaterialDoCadastro | null> {
+  // Fato gravado (o fator desta geração já foi concedido): nunca cria cadastro nem mostra segredo,
+  // qualquer que seja o estado das sessões ou da linha (falha fechada).
+  if (await fatoConcedido(userId)) return null;
   if ((await estadoDoCadastro(userId)) === "sem-linha") await criarSeAindaNaoExiste(userId);
   if ((await estadoDoCadastro(userId)) !== "pendente") return null;
   try {
@@ -56,7 +59,8 @@ export async function prepararCadastro(userId: string): Promise<MaterialDoCadast
       totpURI?: string;
     };
     // Releitura depois de pedir o segredo: se o fator foi ativado nesse meio tempo, não se mostra.
-    if ((await estadoDoCadastro(userId)) !== "pendente") return null;
+    if ((await estadoDoCadastro(userId)) !== "pendente" || (await fatoConcedido(userId)))
+      return null;
     return lido.totpURI ? materialDe(lido.totpURI) : null;
   } catch (erro) {
     registrarErro("segundo-fator-cadastro-ler", erro);

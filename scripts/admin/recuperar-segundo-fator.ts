@@ -152,7 +152,8 @@ export async function recuperarSegundoFator(
       // depois perde a comparação e não concede nada (ver `concederSegundoFator`).
       await tx.execute(sql`
         insert into admin.segundo_fator_geracao (user_id, geracao) values (${alvo.id}, 1)
-        on conflict (user_id) do update set geracao = admin.segundo_fator_geracao.geracao + 1`);
+        on conflict (user_id) do update
+          set geracao = admin.segundo_fator_geracao.geracao + 1, concedido_em = null`);
       const sessoes = await tx.execute(
         sql`delete from auth.session where user_id = ${alvo.id} returning id`,
       );

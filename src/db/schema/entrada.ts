@@ -90,6 +90,7 @@ export const geracaoSegundoFator = administracao.table("segundo_fator_geracao", 
     .primaryKey()
     .references(() => usuario.id, { onDelete: "cascade" }),
   geracao: integer("geracao").notNull().default(0),
+  concedidoEm: timestamp("concedido_em", { withTimezone: true }),
 });
 
 export const falhaSegundoFator = administracao.table("falha_segundo_fator", {
