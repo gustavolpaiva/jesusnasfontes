@@ -2,7 +2,7 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { obterDb } from "@/db/cliente";
 import { doisFatores } from "@/db/schema/entrada";
-import { chaveDe, chaveSegundoFatorDaConta, consumirLimite, zerarLimite } from "./limite";
+import { chaveDe, chaveSegundoFatorDaConta, consumirLimite } from "./limite";
 
 // Estado do segundo fator no banco. Fica fora do arquivo de Server Actions (`segundo-fator.ts`):
 // tudo o que um arquivo "use server" exporta é chamável pelo navegador, e estas funções não podem
@@ -119,9 +119,13 @@ export async function concederSegundoFator(
 // depois de o fator ter sido usado com sucesso, só a recuperação do dono o devolve a pendente. `aposLer` é um ponto de espera para teste (entre a leitura e a escrita, sob a trava).
 export async function desfazerAtivacao(
   userId: string,
+  geracaoDaTentativa: number,
   aposLer?: () => Promise<void>,
 ): Promise<void> {
-  await sobTravaDaConta(userId, async (tx) => {
+  await sobTravaDaConta(userId, async (tx, geracaoAtual) => {
+    // A tentativa só desfaz o que é da geração em que começou: se uma recuperação passou, o que está
+    // aí é de outra tentativa, em outra geração, e não lhe cabe tocar.
+    if (geracaoAtual !== geracaoDaTentativa) return;
     // Decide pelo FATO gravado, nunca por sessões: depois da primeira concessão da geração, só a
     // recuperação pelo dono devolve o fator a pendente.
     const fato = await tx.execute(sql`
@@ -176,8 +180,18 @@ export async function reivindicarCodigoDeAplicativo(
 
 // Compensação de `reivindicarCodigoDeAplicativo`: só quem reivindicou e NÃO concedeu nada a chama.
 // Um código que concedeu continua marcado (e recusado) pelo resto da janela.
-export async function liberarCodigoDeAplicativo(userId: string, codigo: string): Promise<void> {
-  await zerarLimite(chaveDe("totp-usado", `${userId}:${codigo}`));
+export async function liberarCodigoDeAplicativo(
+  userId: string,
+  codigo: string,
+  geracaoDaTentativa: number,
+): Promise<void> {
+  // Sob a trava e só na geração em que a tentativa começou (a reivindicação é dela).
+  await sobTravaDaConta(userId, async (tx, geracaoAtual) => {
+    if (geracaoAtual !== geracaoDaTentativa) return;
+    await tx.execute(
+      sql`delete from admin.tentativa where chave = ${chaveDe("totp-usado", `${userId}:${codigo}`)}`,
+    );
+  });
 }
 
 export type EstadoDoCadastro = "sem-linha" | "pendente" | "ativo";

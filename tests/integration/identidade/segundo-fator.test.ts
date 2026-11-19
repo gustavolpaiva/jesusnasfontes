@@ -328,7 +328,7 @@ describe("a pessoa sai da ativação com fator ativo E códigos na mão, ou sem 
     await ativarComoABiblioteca();
     expect(await concederSegundoFator(a.id, a.sessaoId, 0)).toBe(true);
     const { desfazerAtivacao } = await import("@/modules/identidade/sessao-mfa");
-    await desfazerAtivacao(a.id);
+    await desfazerAtivacao(a.id, 0);
     expect(await estadoDaConta(a.id)).toEqual({ ativo: true, cadastro: "ativo" });
   });
 });

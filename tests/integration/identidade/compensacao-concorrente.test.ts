@@ -110,7 +110,7 @@ describe("concessão e compensação concorrentes (recusada lê, válida concede
     await ativarComoABiblioteca(a.id); // a válida: a biblioteca já ativou
     let concessao: Promise<boolean> | undefined;
     let terminou = false;
-    await desfazerAtivacao(a.id, async () => {
+    await desfazerAtivacao(a.id, 0, async () => {
       // Aqui a compensação já leu "nenhuma sessão verificada" e ainda não escreveu.
       concessao = concederSegundoFator(a.id, a.sessaoId, 0).finally(() => {
         terminou = true;
@@ -129,7 +129,7 @@ describe("concessão e compensação concorrentes (recusada lê, válida concede
     const a = await pendente();
     await ativarComoABiblioteca(a.id);
     expect(await concederSegundoFator(a.id, a.sessaoId, 0)).toBe(true);
-    await desfazerAtivacao(a.id);
+    await desfazerAtivacao(a.id, 0);
     expect(await foto(a.id)).toEqual({ ativo: true, cadastro: "ativo" });
     expect(await sessaoVerificada(a.sessaoId)).toBe(true);
   });
@@ -137,9 +137,47 @@ describe("concessão e compensação concorrentes (recusada lê, válida concede
   it("a compensação primeiro: a concessão seguinte não concede sobre fator devolvido a pendente (controle)", async () => {
     const a = await pendente();
     await ativarComoABiblioteca(a.id);
-    await desfazerAtivacao(a.id);
+    await desfazerAtivacao(a.id, 0);
     expect(await concederSegundoFator(a.id, a.sessaoId, 0)).toBe(false);
     expect(await sessaoVerificada(a.sessaoId)).toBe(false);
+    expect(await foto(a.id)).toEqual({ ativo: false, cadastro: "pendente" });
+  });
+});
+
+describe("a compensação de uma tentativa só desfaz a geração em que ela começou", () => {
+  it("A valida em g0 e pausa; recuperação; B ativa em g1 e pausa; A compensa; B concede: o fator de B fica", async () => {
+    const { obterAuth } = await import("@/lib/auth");
+    const { recuperarSegundoFator } = await import(
+      "../../../scripts/admin/recuperar-segundo-fator"
+    );
+    const a = await pendente();
+    const geracaoDeA = 0;
+    await ativarComoABiblioteca(a.id); // A: a biblioteca ativou em g0; A pausa antes de compensar
+    const email = (await obterDb().select().from(usuario).where(eq(usuario.id, a.id)))[0]
+      ?.email as string;
+    expect((await recuperarSegundoFator(email, { executar: true, id: a.id })).codigo).toBe(0);
+    // B: sessão nova (a recuperação apagou todas), cadastro novo e ativação em g1; B pausa antes de conceder.
+    const b = await criarSessao(a.id);
+    await obterAuth().api.enableTwoFactor({ body: {}, headers: b.cabecalhos });
+    await ativarComoABiblioteca(a.id);
+    // A retoma, perde e compensa (com a geração em que começou).
+    await desfazerAtivacao(a.id, geracaoDeA);
+    expect(await foto(a.id)).toEqual({ ativo: true, cadastro: "ativo" }); // o fator de B segue ativo
+    // B retoma e concede, na geração dele.
+    expect(await concederSegundoFator(a.id, b.sessaoId, 1)).toBe(true);
+    expect(await sessaoVerificada(b.sessaoId)).toBe(true);
+    expect(await sessaoVerificada(a.sessaoId)).toBe(false); // A não ganhou nada
+    expect(await fatoConcedido(a.id)).toBe(true);
+    const g = await obterDb().execute<{ geracao: number }>(
+      sql`select geracao from admin.segundo_fator_geracao where user_id = ${a.id} and concedido_em is not null`,
+    );
+    expect(Number(g.rows[0]?.geracao)).toBe(1);
+  });
+
+  it("controle: sem recuperação no meio, a compensação de A continua funcionando", async () => {
+    const a = await pendente();
+    await ativarComoABiblioteca(a.id);
+    await desfazerAtivacao(a.id, 0);
     expect(await foto(a.id)).toEqual({ ativo: false, cadastro: "pendente" });
   });
 });
@@ -175,7 +213,7 @@ describe("depois de ATIVO, só a recuperação do dono devolve o fator a pendent
 
       // Caminhos de compensação (com o fato gravado, a conferência de retrato velho já recusa antes de
       // chamar a biblioteca; `desfazerAtivacao` direto cobre a compensação em si).
-      await desfazerAtivacao(a.id);
+      await desfazerAtivacao(a.id, 0);
       expect(await foto(a.id)).toEqual(ativo);
       const apiRecusa = {
         verifyTOTP: async () => {
@@ -236,7 +274,7 @@ describe("depois de ATIVO, só a recuperação do dono devolve o fator a pendent
     expect(await concederSegundoFator(a.id, sessaoB.sessaoId, 0)).toBe(true);
     await obterDb().execute(sql`delete from auth.session where id = ${sessaoB.sessaoId}`); // B sai
     expect(await sessaoVerificada(sessaoB.sessaoId)).toBe(false);
-    await desfazerAtivacao(a.id); // a compensação de A
+    await desfazerAtivacao(a.id, 0); // a compensação de A
     expect(await foto(a.id)).toEqual({ ativo: true, cadastro: "ativo" });
     const { prepararCadastro } = await import("@/modules/identidade/segundo-fator-cadastro");
     cena.cabecalhos = a.cabecalhos;

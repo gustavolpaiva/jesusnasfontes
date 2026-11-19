@@ -88,8 +88,9 @@ export async function conferirCodigo(p: {
     // UM só bloco de compensação: toda saída que não seja "concedido" deixa o estado como entrou.
     if (!concedido) {
       if (p.estado === "pendente" && bibliotecaPodeTerAtivado)
-        await compensar(() => desfazerAtivacao(p.usuarioId));
-      if (reivindicou) await compensar(() => liberarCodigoDeAplicativo(p.usuarioId, p.codigo));
+        await compensar(() => desfazerAtivacao(p.usuarioId, p.geracao));
+      if (reivindicou)
+        await compensar(() => liberarCodigoDeAplicativo(p.usuarioId, p.codigo, p.geracao));
     }
   }
 }

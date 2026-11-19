@@ -53,14 +53,14 @@ describe("pool de tamanho 1", () => {
   it("concessão e compensação, sequenciais e simultâneas, terminam (sem espera cruzada) e ficam coerentes", async () => {
     const a = await criar();
     expect(await concederSegundoFator(a.id, a.sessaoId, 0)).toBe(true);
-    await desfazerAtivacao(a.id);
+    await desfazerAtivacao(a.id, 0);
     expect(await sessaoVerificada(a.sessaoId)).toBe(true);
 
     const b = await criar();
     const [conc] = await Promise.all([
       concederSegundoFator(b.id, b.sessaoId, 0),
-      desfazerAtivacao(b.id),
-      desfazerAtivacao(b.id),
+      desfazerAtivacao(b.id, 0),
+      desfazerAtivacao(b.id, 0),
     ]);
     const verificada = await sessaoVerificada(b.sessaoId);
     expect(verificada).toBe(conc);
