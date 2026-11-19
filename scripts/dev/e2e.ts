@@ -65,7 +65,14 @@ async function main(): Promise<number> {
     await removerBancoDeExecucao(banco.nome).catch((erro) => {
       console.error(`Não foi possível remover o banco ${banco.nome}: ${String(erro)}`);
     });
-    rmSync(distDir, { recursive: true, force: true });
+    // O servidor de desenvolvimento ainda pode estar gravando no diretório de build quando o
+    // Playwright o encerra (o `rmSync` falhou com ENOTEMPTY depois de 133 testes passarem): tenta de
+    // novo por alguns segundos e, se ainda assim não sair, avisa SEM trocar o resultado dos testes.
+    try {
+      rmSync(distDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 });
+    } catch (erro) {
+      console.error(`Não foi possível remover ${distDir}: ${String(erro)}`);
+    }
     writeFileSync("tsconfig.json", tsconfigOriginal);
   }
   return codigo;
