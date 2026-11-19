@@ -360,6 +360,8 @@ const PUBLICAS = new Set([
   "/api/auth/[...all]",
 ]);
 const ISENTAS = new Set(["/admin/segundo-fator"]);
+// Rota com parâmetro na URL: o endereço de exemplo que o teste percorre (um Estudo real da carga).
+const EXEMPLOS: Record<string, string> = { "/estudos/[slug]": "/estudos/batismo-e-tentacao" };
 
 function rotasDoApp(): string[] {
   const raiz = join(process.cwd(), "src", "app");
@@ -388,18 +390,19 @@ test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as 
   expect(rotas).toEqual(expect.arrayContaining(["/trilhas", "/admin", "/admin/segundo-fator"]));
   const protegidas = rotas.filter((r) => !PUBLICAS.has(r) && !ISENTAS.has(r));
   expect(protegidas).toEqual(expect.arrayContaining(["/trilhas", "/admin"]));
-  // Rota nova com parâmetro na URL precisa de teste próprio: falha em vez de passar calada.
-  expect(protegidas.filter((r) => r.includes("["))).toEqual([]);
+  // Rota nova com parâmetro na URL precisa de um exemplo em EXEMPLOS: falha em vez de passar calada.
+  expect(protegidas.filter((r) => r.includes("[") && !(r in EXEMPLOS))).toEqual([]);
+  const enderecoDe = (r: string) => EXEMPLOS[r] ?? r;
 
   const a = await cadastrarAdmin(page);
   const { contexto, aba } = await novoAparelho(browser, a.endereco);
   for (const rota of protegidas) {
-    await aba.goto(rota);
+    await aba.goto(enderecoDe(rota));
     await expect(aba, rota).toHaveURL(/\/admin\/segundo-fator$/);
   }
   // Controle positivo: com a sessão verificada, as mesmas rotas abrem.
   for (const rota of protegidas) {
-    await page.goto(rota);
+    await page.goto(enderecoDe(rota));
     await expect(page, rota).not.toHaveURL(/segundo-fator|entrar/);
   }
 

@@ -23,7 +23,13 @@ const config: NextConfig = {
         value: "max-age=63072000; includeSubDomains",
       });
     }
-    return [{ source: "/:path*", headers: cabecalhos }];
+    // Páginas de uma pessoa só (posição de leitura): nunca em cache de CDN nem de navegador.
+    const semCache = { key: "Cache-Control", value: "no-store" };
+    return [
+      { source: "/:path*", headers: cabecalhos },
+      { source: "/trilhas", headers: [semCache] },
+      { source: "/estudos/:slug", headers: [semCache] },
+    ];
   },
 };
 

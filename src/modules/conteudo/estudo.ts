@@ -66,3 +66,16 @@ export async function lerEstudoPorSlug(slug: string): Promise<EstudoCompleto | n
     };
   });
 }
+
+/** O primeiro Estudo pela ordem das Trilhas e dos Estudos (o "Começar" de quem ainda não abriu nenhum). */
+export async function lerPrimeiroEstudo(): Promise<{ slug: string; titulo: string } | null> {
+  return comAcervo(async (tx) => {
+    const linhas = await tx
+      .select({ slug: estudo.slug, titulo: estudo.titulo })
+      .from(estudo)
+      .innerJoin(trilha, eq(trilha.id, estudo.trilhaId))
+      .orderBy(asc(trilha.ordem), asc(estudo.ordem))
+      .limit(1);
+    return linhas[0] ?? null;
+  });
+}

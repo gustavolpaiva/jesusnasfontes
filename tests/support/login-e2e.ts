@@ -133,6 +133,22 @@ export async function contar(consulta: string, parametros: string[] = []): Promi
   }
 }
 
+// Texto de uma coluna, lido direto do banco da execução (como dono): só para comparar o que a tela
+// mostra com o que está gravado.
+export async function lerTexto(consulta: string, parametros: string[] = []): Promise<string> {
+  const { default: pg } = await import("pg");
+  const cliente = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await cliente.connect();
+  try {
+    const resultado = await cliente.query<{ t: string }>(consulta, parametros);
+    const t = resultado.rows[0]?.t;
+    if (t === undefined) throw new Error("A consulta não devolveu linha.");
+    return t;
+  } finally {
+    await cliente.end();
+  }
+}
+
 export async function convidarVarios(enderecos: string[]): Promise<void> {
   for (let i = 0; i < enderecos.length; i += 5) {
     await Promise.all(enderecos.slice(i, i + 5).map((e) => convidarParaTeste(e)));

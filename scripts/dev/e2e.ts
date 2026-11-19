@@ -2,7 +2,9 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
+import path from "node:path";
 import { criarBancoPreparado, removerBancoDeExecucao } from "../../tests/support/banco-local";
+import { semearConteudo, semearTexto } from "../../tests/support/preparar-banco";
 
 // Executor de e2e isolado: cada execução tem banco, porta e diretório de build próprios,
 // então duas execuções ao mesmo tempo não se atrapalham.
@@ -31,6 +33,10 @@ async function main(): Promise<number> {
 
   let codigo = 1;
   try {
+    // Texto e Estudos no banco da execução, para que todo e2e tenha o que ler: os quatro evangelhos
+    // e 1 Coríntios (livros 40 a 43 e 46) e a pasta de conteúdo de `E2E_CONTEUDO_DIR` (padrão content/).
+    await semearTexto({ livros: [40, 41, 42, 43, 46] }, envBanco);
+    await semearConteudo(path.resolve(process.env.E2E_CONTEUDO_DIR ?? "content"), envBanco);
     const porta = await portaLivre();
     const filho = spawn("pnpm", ["exec", "playwright", "test", ...process.argv.slice(2)], {
       stdio: "inherit",
