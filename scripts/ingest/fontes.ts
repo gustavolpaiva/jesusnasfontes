@@ -94,6 +94,7 @@ export type Esperado = {
   capitulos: number;
   excecoes: { tipo: string; referencia: string; dentro_de: string }[];
   evangelhos: { capitulos: number; versiculos: number };
+  sem_texto?: { referencia: string; edicao: Edicao; motivo: string }[];
 };
 
 export type Lock = { commit: string; arquivos: Record<string, string> };

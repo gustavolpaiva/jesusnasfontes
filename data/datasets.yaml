@@ -27,14 +27,107 @@ biblia-livre:
   # Defeitos de marcação do arquivo de origem no commit fixado. Cada correção só se aplica se a linha
   # original casar exatamente com `de`; o número de correções aplicadas tem de ser igual ao listado.
   correcoes_marcacao:
-    - { edicao: n4, arquivo: joao.txt, linha: 2140, de: "\\added ", para: [], motivo: "Jo 16:14: abertura de trecho acrescentado repetida dentro de outro ainda aberto" }
-    - { edicao: n4, arquivo: luc.txt, linha: 2873, de: "\\fn", para: ["\\*fn"], motivo: "Lc 14:4: nota aberta duas vezes; o fechamento está escrito como abertura" }
-    - { edicao: n4, arquivo: luc.txt, linha: 3835, de: "*added", para: ["\\*added"], motivo: "Lc 21:1: fechamento de trecho acrescentado sem a barra invertida" }
-    - { edicao: n4, arquivo: sal.txt, linha: 7493, de: "\\fn", para: [], motivo: "Sl 144:14: abertura de nota sem conteúdo antes do texto do versículo" }
-    - { edicao: n4, arquivo: sal.txt, linha: 7497, de: "\\fn", para: ["\\*added", "\\fn"], motivo: "Sl 144:14: trecho acrescentado sem fechamento antes da nota" }
-    - { edicao: tr, arquivo: joao.txt, linha: 2149, de: "\\added ", para: [], motivo: "Jo 16:14: abertura de trecho acrescentado repetida dentro de outro ainda aberto" }
-    - { edicao: tr, arquivo: luc.txt, linha: 1798, de: "*fn", para: ["\\*fn"], motivo: "Lc 7:28: fechamento de nota sem a barra invertida" }
-    - { edicao: tr, arquivo: luc.txt, linha: 3167, de: "\\fn", para: ["\\*fn"], motivo: "Lc 14:4: nota aberta duas vezes; o fechamento está escrito como abertura" }
-    - { edicao: tr, arquivo: luc.txt, linha: 4135, de: "*added", para: ["\\*added"], motivo: "Lc 21:1: fechamento de trecho acrescentado sem a barra invertida" }
-    - { edicao: tr, arquivo: sal.txt, linha: 7496, de: "\\fn", para: [], motivo: "Sl 144:14: abertura de nota sem conteúdo antes do texto do versículo" }
-    - { edicao: tr, arquivo: sal.txt, linha: 7500, de: "\\fn", para: ["\\*added", "\\fn"], motivo: "Sl 144:14: trecho acrescentado sem fechamento antes da nota" }
+    - {
+        edicao: n4,
+        arquivo: joao.txt,
+        linha: 2140,
+        de: "\\added ",
+        para: [],
+        motivo: "Jo 16:14: abertura de trecho acrescentado repetida dentro de outro ainda aberto",
+      }
+    - {
+        edicao: n4,
+        arquivo: luc.txt,
+        linha: 2873,
+        de: "\\fn",
+        para: ["\\*fn"],
+        motivo: "Lc 14:4: nota aberta duas vezes; o fechamento está escrito como abertura",
+      }
+    - {
+        edicao: n4,
+        arquivo: luc.txt,
+        linha: 3835,
+        de: "*added",
+        para: ["\\*added"],
+        motivo: "Lc 21:1: fechamento de trecho acrescentado sem a barra invertida",
+      }
+    - {
+        edicao: n4,
+        arquivo: sal.txt,
+        linha: 7493,
+        de: "\\fn",
+        para: [],
+        motivo: "Sl 144:14: abertura de nota sem conteúdo antes do texto do versículo",
+      }
+    - {
+        edicao: n4,
+        arquivo: sal.txt,
+        linha: 7497,
+        de: "\\fn",
+        para: ["\\*added", "\\fn"],
+        motivo: "Sl 144:14: trecho acrescentado sem fechamento antes da nota",
+      }
+    - {
+        edicao: tr,
+        arquivo: joao.txt,
+        linha: 2149,
+        de: "\\added ",
+        para: [],
+        motivo: "Jo 16:14: abertura de trecho acrescentado repetida dentro de outro ainda aberto",
+      }
+    - {
+        edicao: tr,
+        arquivo: luc.txt,
+        linha: 1798,
+        de: "*fn",
+        para: ["\\*fn"],
+        motivo: "Lc 7:28: fechamento de nota sem a barra invertida",
+      }
+    - {
+        edicao: tr,
+        arquivo: luc.txt,
+        linha: 3167,
+        de: "\\fn",
+        para: ["\\*fn"],
+        motivo: "Lc 14:4: nota aberta duas vezes; o fechamento está escrito como abertura",
+      }
+    - {
+        edicao: tr,
+        arquivo: luc.txt,
+        linha: 4135,
+        de: "*added",
+        para: ["\\*added"],
+        motivo: "Lc 21:1: fechamento de trecho acrescentado sem a barra invertida",
+      }
+    - {
+        edicao: tr,
+        arquivo: sal.txt,
+        linha: 7496,
+        de: "\\fn",
+        para: [],
+        motivo: "Sl 144:14: abertura de nota sem conteúdo antes do texto do versículo",
+      }
+    - {
+        edicao: tr,
+        arquivo: sal.txt,
+        linha: 7500,
+        de: "\\fn",
+        para: ["\\*added", "\\fn"],
+        motivo: "Sl 144:14: trecho acrescentado sem fechamento antes da nota",
+      }
+  # O que a verificação exige de cada edição. Mc 5:19 não tem id próprio: o texto dele está dentro de Mc 5:18.
+  # A contagem dos evangelhos é a medida na Bíblia Livre (3.778); o artefato de origem do estudo tem 3.779
+  # porque separa Mc 5:18 e 5:19, e as demais contagens por capítulo coincidem.
+  esperado:
+    versiculos: 31101
+    capitulos: 1189
+    excecoes:
+      - { tipo: versiculo-mesclado, referencia: "Mc 5:19", dentro_de: "Mc 5:18" }
+    evangelhos: { capitulos: 89, versiculos: 3778 }
+    # Versículos que o arquivo de origem traz com id e sem texto (nomeados aqui; qualquer outro reprova).
+    sem_texto:
+      - {
+          referencia: "At 28:29",
+          edicao: tr,
+          motivo: "O arquivo da edição tr traz só a nota 'N4 não contém todo o versículo 29', sem o texto do versículo",
+        }
