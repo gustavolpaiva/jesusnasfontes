@@ -240,16 +240,52 @@ describe.skipIf(emNeon())(
       expect((await daTrilha(idB, trilhaS))?.concluidos).toBe(1); // a de B é dela, não da A
     });
 
+    it("desmarcar em outra aba espera a nova volta terminar e não apaga a conclusão da volta encerrada", async () => {
+      // A está na volta 2 com 0 de 3. Completa a volta 2 e segura aberta a transação da nova volta.
+      for (const id of estudoV) await registrarConclusao(idA, id, opcoes);
+      let soltar = () => {};
+      const portao = new Promise<void>((r) => {
+        soltar = r;
+      });
+      let gravou = () => {};
+      const jaGravou = new Promise<void>((r) => {
+        gravou = r;
+      });
+      const portaLenta: typeof comEstudante = (id, fn) =>
+        comEstudante(id, async (tx) => {
+          const r = await fn(tx);
+          gravou();
+          await portao;
+          return r;
+        });
+      const novaVolta = iniciarNovaVolta(idA, { porta: portaLenta });
+      await jaGravou;
+      let terminou = false;
+      const desmarcar = removerConclusao(idA, estudoV[0] as string, opcoes).then((r) => {
+        terminou = true;
+        return r;
+      });
+      await new Promise((r) => setTimeout(r, 400));
+      // Controle: a nova volta ainda não confirmou, então o desmarcar tem de estar na fila.
+      expect(terminou).toBe(false);
+      soltar();
+      expect(await novaVolta).toEqual({ ok: true, volta: 3 });
+      expect(await desmarcar).toMatchObject({ volta: 3, concluidos: 0 });
+      // A conclusão da volta 2, já encerrada, continua guardada.
+      expect(await contagemReal(idA, estudoV[0] as string, 2)).toBe(1);
+      // A segue na volta 3; o teste seguinte parte daí.
+    });
+
     it("duas chamadas ao mesmo tempo sobem uma volta só", async () => {
       for (const id of estudoV) await registrarConclusao(idA, id, opcoes);
       const [a, b] = await Promise.all([
         iniciarNovaVolta(idA, opcoes),
         iniciarNovaVolta(idA, opcoes),
       ]);
-      // Nunca duas voltas: ou as duas viram a 3, ou a segunda leu a volta nova e recusou por incompleta.
+      // Nunca duas voltas: ou as duas viram a 4, ou a segunda leu a volta nova e recusou por incompleta.
       expect([a.ok, b.ok]).toContain(true);
       const voltaFinal = (await daTrilha(idA, trilhaV))?.volta;
-      expect(voltaFinal).toBe(3);
+      expect(voltaFinal).toBe(4);
     });
   },
 );

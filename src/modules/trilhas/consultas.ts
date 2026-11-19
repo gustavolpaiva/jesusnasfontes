@@ -188,6 +188,18 @@ export async function lerEstadoDoEstudo(
 
 export type EstudoConcluido = ResumoDaTrilha & { trilha: string; slug: string };
 
+/**
+ * Fila por Estudante para as três escritas de progresso. Sem ela, duas abas se cruzam: desmarcar lê a
+ * volta 1, a nova volta confirma e sobe para a 2, e o desmarcar apaga uma conclusão da volta 1, que
+ * devia ficar guardada. A trava vale até o fim da transação e é pedida ANTES de ler a volta, então
+ * quem espera lê a volta já confirmada pela outra.
+ */
+async function travarProgresso(tx: Tx, estudanteId: string): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`jnf-progresso:${estudanteId}`}, 0))`,
+  );
+}
+
 async function lerAlvo(tx: Tx, id: string) {
   const [achado] = await tx
     .select({
@@ -211,6 +223,7 @@ export async function registrarConclusao(
   return porta(estudanteId, async (tx) => {
     const alvo = await lerAlvo(tx, estudoId);
     if (!alvo) return null;
+    await travarProgresso(tx, estudanteId);
     const volta = await voltaDaTrilha(tx, estudanteId, alvo.trilhaId);
     await tx
       .insert(conclusao)
@@ -230,6 +243,7 @@ export async function removerConclusao(
   return porta(estudanteId, async (tx) => {
     const alvo = await lerAlvo(tx, estudoId);
     if (!alvo) return null;
+    await travarProgresso(tx, estudanteId);
     const volta = await voltaDaTrilha(tx, estudanteId, alvo.trilhaId);
     await tx
       .delete(conclusao)
@@ -255,6 +269,7 @@ export async function iniciarNovaVolta(
   { porta = comEstudante }: Opcoes = {},
 ): Promise<{ ok: true; volta: number } | { ok: false; erro: "incompleta" }> {
   return porta(estudanteId, async (tx) => {
+    await travarProgresso(tx, estudanteId);
     const resumo = await resumoDaTrilha(tx, estudanteId, TRILHA_LEITURA_CONTINUA);
     if (resumo.total === 0 || resumo.concluidos < resumo.total) {
       return { ok: false as const, erro: "incompleta" as const };
