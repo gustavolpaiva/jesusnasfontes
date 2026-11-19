@@ -10,6 +10,7 @@ import {
   ErroCarga,
   lerEdicaoVerificada,
   type OpcoesEdicao,
+  shaDoLock,
 } from "../../../scripts/ingest/carregar-biblia";
 import { lerRegistro } from "../../../scripts/ingest/fontes";
 import type { Versiculo } from "../../../scripts/ingest/parser-f4";
@@ -18,7 +19,6 @@ import { aplicarEnvDeTeste } from "../../support/preparar-banco";
 // A Bíblia Livre do arquivo ao banco e do banco à leitura. Cada afirmação negativa (a carga recusa,
 // o papel não escreve) tem ao lado o controle positivo (a carga entra, o papel lê).
 
-const SHA_DO_LOCK = "0".repeat(64);
 const emNeon = () => inject("alvoBanco") === "neon";
 
 async function comoPapel<T>(
@@ -42,7 +42,7 @@ async function opcoesDa(
   const registro = await lerRegistro();
   return {
     edicao: lida.edicao,
-    conjunto: conjuntoDoRegistro(registro, SHA_DO_LOCK),
+    conjunto: conjuntoDoRegistro(registro, await shaDoLock()),
     marcadores: lida.marcadores,
     mesclados: lida.mesclados,
   };

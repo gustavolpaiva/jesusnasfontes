@@ -14,6 +14,7 @@ import {
   carregarEdicao,
   conjuntoDoRegistro,
   lerEdicaoVerificada,
+  shaDoLock,
 } from "../../../scripts/ingest/carregar-biblia";
 import { lerRegistro } from "../../../scripts/ingest/fontes";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
@@ -67,7 +68,7 @@ async function carregarMateus(): Promise<void> {
   const lida = await lerEdicaoVerificada("n4", { arquivos: ["mat.txt"] });
   await carregarEdicao(lida.versiculos, {
     edicao: "n4",
-    conjunto: conjuntoDoRegistro(await lerRegistro(), "0".repeat(64)),
+    conjunto: conjuntoDoRegistro(await lerRegistro(), await shaDoLock()),
     marcadores: lida.marcadores,
     mesclados: lida.mesclados,
   });

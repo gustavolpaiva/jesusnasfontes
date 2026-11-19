@@ -217,6 +217,11 @@ export type LeituraCompleta = {
   sha256Lock: string;
 };
 
+/** sha256 do arquivo de lock: o selo do conjunto de arquivos que a carga leu. */
+export async function shaDoLock(): Promise<string> {
+  return sha256(new Uint8Array(await readFile(CAMINHO_LOCK)));
+}
+
 export async function lerEdicoesVerificadas(): Promise<LeituraCompleta> {
   const registro = await lerRegistro();
   const edicoes: EdicaoLida[] = [];
@@ -234,7 +239,7 @@ export async function lerEdicoesVerificadas(): Promise<LeituraCompleta> {
     a.versiculos.some((v, i) => v.chave !== b.versiculos[i]?.chave)
   )
     throw new ErroCarga("as duas edições não têm o mesmo conjunto de ids");
-  const sha256Lock = sha256(new Uint8Array(await readFile(CAMINHO_LOCK)));
+  const sha256Lock = await shaDoLock();
   return { edicoes, impressao: hash.digest("hex"), registro, sha256Lock };
 }
 
