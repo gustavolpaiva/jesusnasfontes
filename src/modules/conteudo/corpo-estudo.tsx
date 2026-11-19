@@ -11,7 +11,22 @@ import type { EstudoCompleto } from "./estudo";
 // Estudo não tem link nem imagem (UI-SPEC: alvos de toque, sem rastreio), por isso `a` mostra só o
 // texto e `img` não existe.
 
-const ELEMENTOS = ["p", "h2", "h3", "ul", "ol", "li", "strong", "em", "blockquote", "br", "a"];
+// `h1` precisa estar na lista para chegar ao conversor abaixo, que o rebaixa a `h2`; fora dela o
+// título seria desembrulhado e viraria texto solto.
+const ELEMENTOS = [
+  "p",
+  "h1",
+  "h2",
+  "h3",
+  "ul",
+  "ol",
+  "li",
+  "strong",
+  "em",
+  "blockquote",
+  "br",
+  "a",
+];
 
 const componentes: Components = {
   // Título de seção em Rótulo (versalete); `h1` do Markdown não existe: a tela tem um só `h1`.
