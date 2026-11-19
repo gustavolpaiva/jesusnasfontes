@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 import type { Page } from "@playwright/test";
-import { ultimoEmailPara } from "./caixa-de-email";
+import { emailsPara, ultimoEmailPara } from "./caixa-de-email";
 
 const executar = promisify(execFile);
 
@@ -41,8 +41,11 @@ export async function entrarPorLink(
   chegada = "Trilhas",
 ): Promise<void> {
   await isolarIp(page);
+  // O e-mail sai depois da resposta: sem esperar por UM A MAIS do que já havia, uma segunda entrada
+  // do mesmo endereço pegaria o link da primeira (já gasto) quando o novo ainda não chegou.
+  const jaEnviados = emailsPara(endereco).filter((m) => /acesso/i.test(m.assunto)).length;
   await pedirAcesso(page, endereco);
-  const { link } = await ultimoEmailPara(endereco);
+  const { link } = await ultimoEmailPara(endereco, { depoisDe: jaEnviados });
   if (!link) throw new Error("O e-mail não trouxe o link");
   await page.goto(link);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();

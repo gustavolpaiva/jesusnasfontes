@@ -61,7 +61,19 @@ async function novoAparelho(browser: Browser, endereco: string) {
   await liberarLimitesDePedido();
   const contexto = await browser.newContext();
   const aba = await contexto.newPage();
-  await entrarPorLink(aba, endereco, "Segundo fator");
+  try {
+    await entrarPorLink(aba, endereco, "Segundo fator");
+  } catch (erro) {
+    // Diagnóstico: onde a página ficou e o que ela mostra (sem credencial: só a URL sem consulta e o texto).
+    const onde = new URL(aba.url()).pathname;
+    const texto = (
+      await aba
+        .locator("body")
+        .innerText()
+        .catch(() => "")
+    ).slice(0, 300);
+    throw new Error(`novoAparelho parou em ${onde}: ${texto}`, { cause: erro });
+  }
   return { contexto, aba };
 }
 
