@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { criarCliente, obterDb, obterPool } from "@/db/cliente";
@@ -13,26 +13,32 @@ import {
   listarTrilhas,
   registrarConclusao,
   removerConclusao,
+  TRILHA_LEITURA_CONTINUA,
 } from "@/modules/trilhas/consultas";
-import { aplicarEnvDeTeste } from "../../support/preparar-banco";
+import {
+  type BancoDeExecucao,
+  criarBancoPreparado,
+  removerBancoDeExecucao,
+} from "../../support/banco-local";
 
 // Progresso: dado privado do Estudante. Duas contas e dois conjuntos de Estudos, e cada "A não vê B"
-// tem ao lado o controle positivo "A vê o que é dela". A Trilha "com voltas" é uma de teste (o banco
-// descartável é compartilhado com os testes de carga, que são donos dos ids reais): é a opção
-// `trilhaDeVoltas` que a diz. Cria linhas, então só roda no banco descartável.
+// tem ao lado o controle positivo "A vê o que é dela". Este arquivo cria e usa um banco descartável SÓ
+// dele (como o executor de e2e): o do projeto é compartilhado com os testes de carga de conteúdo, que
+// contam os Estudos do banco inteiro, e Estudos criados aqui ao mesmo tempo fariam essa contagem variar.
+// Cria linhas, então não roda no Neon.
 
 const emNeon = () => inject("alvoBanco") === "neon";
 
 const rodada = randomUUID();
 const idA = randomUUID();
 const idB = randomUUID();
-const trilhaV = `teste-prog-v-${rodada.slice(0, 8)}`; // a Trilha que tem voltas
-const trilhaS = `teste-prog-s-${rodada.slice(0, 8)}`; // uma Trilha comum (sempre a volta 1)
+const trilhaV = TRILHA_LEITURA_CONTINUA; // a Trilha que tem voltas
+const trilhaS = "pontos-centrais"; // uma Trilha comum (sempre a volta 1)
 const estudoV = [randomUUID(), randomUUID(), randomUUID()];
 const estudoS = [randomUUID(), randomUUID()];
 const HASH = createHash("sha256").update(rodada).digest("hex");
-const ordemBase = 26_000 + Math.floor(Math.random() * 3_000);
-const opcoes = { trilhaDeVoltas: trilhaV };
+const opcoes = {};
+let banco: BancoDeExecucao | undefined;
 
 async function comoCarga<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
   const cliente = new pg.Client({ connectionString: urlDoPapel("carga", { agrupada: false }) });
@@ -73,12 +79,15 @@ const daTrilha = async (estudante: string, id: string, extra = opcoes) =>
   (await listarTrilhas(estudante, extra)).find((t) => t.id === id);
 
 beforeAll(async () => {
-  aplicarEnvDeTeste();
   if (emNeon()) return;
+  // O ambiente do banco próprio vale para todo o arquivo (o pool do aplicativo nasce depois disto).
+  const preparado = await criarBancoPreparado();
+  banco = preparado.banco;
+  Object.assign(process.env, preparado.env);
   await comoCarga(async (c) => {
     await c.query(
-      "insert into conteudo.trilha (id, nome, ordem, descricao) values ($1, $2, $3, 'x'), ($4, $5, $6, 'x')",
-      [trilhaV, `Trilha V ${rodada}`, ordemBase, trilhaS, `Trilha S ${rodada}`, ordemBase + 1],
+      "insert into conteudo.trilha (id, nome, ordem, descricao) values ($1, $2, 3, 'x'), ($3, $4, 2, 'x')",
+      [trilhaV, `Trilha V ${rodada}`, trilhaS, `Trilha S ${rodada}`],
     );
     const estudos: [string, string, string, number][] = [
       [estudoV[0] as string, trilhaV, "v1", 1],
@@ -111,18 +120,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (!emNeon()) {
-    await obterDb()
-      .delete(usuario)
-      .where(inArray(usuario.id, [idA, idB]));
-    await comoDono(async (c) => {
-      await c.query("delete from conteudo.estudo where id = any($1::uuid[])", [
-        [...estudoV, ...estudoS],
-      ]);
-      await c.query("delete from conteudo.trilha where id = any($1::text[])", [[trilhaV, trilhaS]]);
-    });
-  }
+  if (emNeon()) return;
   await obterPool().end();
+  if (banco) await removerBancoDeExecucao(banco.nome);
 });
 
 describe.skipIf(emNeon())("privado.conclusao: cada conta vê só o próprio progresso", () => {

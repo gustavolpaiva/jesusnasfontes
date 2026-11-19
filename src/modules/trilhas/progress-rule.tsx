@@ -1,6 +1,6 @@
 // Filete de progresso de uma Trilha (TRIL-04): 4 px com preenchimento em rubrica e, ao lado, o texto que
 // leva a informação ("3 de 8 concluídos"). A barra é só reforço visual; o texto vale por si.
-// Sem sequência de dias, sem comparação com outros Estudantes: só o que esta pessoa concluiu.
+// Só o que esta pessoa concluiu: nada de contagem de dias nem de comparação com outros Estudantes.
 
 type Props = {
   concluidos: number;

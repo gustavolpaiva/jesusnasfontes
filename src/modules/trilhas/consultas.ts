@@ -2,6 +2,7 @@ import { and, asc, count, eq, sql } from "drizzle-orm";
 import { comAcervo } from "@/db/com-acervo";
 import { comEstudante, type Tx } from "@/db/com-estudante";
 import { estudo, estudoPassagem, trilha } from "@/db/schema/conteudo";
+import { posicao } from "@/db/schema/posicao";
 import { conclusao, voltaLeitura } from "@/db/schema/progresso";
 import { decompor } from "@/modules/referencias";
 
@@ -39,21 +40,18 @@ export type TrilhaComEstudos = ResumoDaTrilha & {
   estudos: EstudoDaTrilha[];
 };
 
-// A porta é a única entrada para `privado.*`; as opções existem para os testes trocarem a porta por uma
-// montada sobre um pool de uma conexão e a Trilha que tem voltas por uma de teste (o banco descartável é
-// compartilhado com os testes de carga de conteúdo, que são donos dos ids reais). O código da aplicação
-// não passa opções.
+// A porta é a única entrada para `privado.*`; o parâmetro existe para os testes a trocarem por uma
+// montada sobre um pool de uma conexão. O código da aplicação não o passa.
 type Porta = typeof comEstudante;
-export type Opcoes = { porta?: Porta; trilhaDeVoltas?: string };
+export type Opcoes = { porta?: Porta };
 
 /** A volta em que o Estudante está na Trilha: sempre 1, salvo na Leitura contínua. */
 export async function voltaDaTrilha(
   tx: Tx,
   estudanteId: string,
   trilhaId: string,
-  trilhaDeVoltas: string = TRILHA_LEITURA_CONTINUA,
 ): Promise<number> {
-  if (trilhaId !== trilhaDeVoltas) return 1;
+  if (trilhaId !== TRILHA_LEITURA_CONTINUA) return 1;
   const linhas = await tx
     .select({ voltaAtual: voltaLeitura.voltaAtual })
     .from(voltaLeitura)
@@ -67,9 +65,8 @@ export async function resumoDaTrilha(
   tx: Tx,
   estudanteId: string,
   trilhaId: string,
-  trilhaDeVoltas: string = TRILHA_LEITURA_CONTINUA,
 ): Promise<ResumoDaTrilha> {
-  const volta = await voltaDaTrilha(tx, estudanteId, trilhaId, trilhaDeVoltas);
+  const volta = await voltaDaTrilha(tx, estudanteId, trilhaId);
   const [totais] = await tx
     .select({ total: count() })
     .from(estudo)
@@ -91,7 +88,7 @@ export async function resumoDaTrilha(
 /** As três Trilhas em ordem, com os Estudos e o que o Estudante já concluiu (na volta atual). */
 export async function listarTrilhas(
   estudanteId: string,
-  { porta = comEstudante, trilhaDeVoltas = TRILHA_LEITURA_CONTINUA }: Opcoes = {},
+  { porta = comEstudante }: Opcoes = {},
 ): Promise<TrilhaComEstudos[]> {
   const [conteudo, privado] = await Promise.all([
     comAcervo(async (tx) => {
@@ -130,7 +127,7 @@ export async function listarTrilhas(
   ]);
 
   return conteudo.trilhas.map((t) => {
-    const volta = t.id === trilhaDeVoltas ? privado.voltaAtual : 1;
+    const volta = t.id === TRILHA_LEITURA_CONTINUA ? privado.voltaAtual : 1;
     const concluidosNaVolta = new Set(
       privado.feitos.filter((f) => f.volta === volta).map((f) => f.estudoId),
     );
@@ -146,8 +143,9 @@ export async function listarTrilhas(
           ordem: e.ordem,
           titulo: e.titulo,
           grupo: e.grupo,
-          livro: t.id === trilhaDeVoltas ? (e.livro ?? doInicio?.livro ?? null) : null,
-          capitulo: t.id === trilhaDeVoltas ? (e.capitulo ?? doInicio?.capitulo ?? null) : null,
+          livro: t.id === TRILHA_LEITURA_CONTINUA ? (e.livro ?? doInicio?.livro ?? null) : null,
+          capitulo:
+            t.id === TRILHA_LEITURA_CONTINUA ? (e.capitulo ?? doInicio?.capitulo ?? null) : null,
           concluido: concluidosNaVolta.has(e.id),
         };
       });
@@ -168,10 +166,10 @@ export async function listarTrilhas(
 export async function lerEstadoDoEstudo(
   estudanteId: string,
   alvo: { estudoId: string; trilhaId: string },
-  { porta = comEstudante, trilhaDeVoltas = TRILHA_LEITURA_CONTINUA }: Opcoes = {},
+  { porta = comEstudante }: Opcoes = {},
 ): Promise<ResumoDaTrilha & { concluido: boolean }> {
   return porta(estudanteId, async (tx) => {
-    const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId, trilhaDeVoltas);
+    const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId);
     const [achado] = await tx
       .select({ n: sql<number>`1` })
       .from(conclusao)
@@ -208,17 +206,17 @@ async function lerAlvo(tx: Tx, id: string) {
 export async function registrarConclusao(
   estudanteId: string,
   estudoId: string,
-  { porta = comEstudante, trilhaDeVoltas = TRILHA_LEITURA_CONTINUA }: Opcoes = {},
+  { porta = comEstudante }: Opcoes = {},
 ): Promise<EstudoConcluido | null> {
   return porta(estudanteId, async (tx) => {
     const alvo = await lerAlvo(tx, estudoId);
     if (!alvo) return null;
-    const volta = await voltaDaTrilha(tx, estudanteId, alvo.trilhaId, trilhaDeVoltas);
+    const volta = await voltaDaTrilha(tx, estudanteId, alvo.trilhaId);
     await tx
       .insert(conclusao)
       .values({ estudanteId, estudoId: alvo.id, volta })
       .onConflictDoNothing();
-    const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId, trilhaDeVoltas);
+    const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId);
     return { ...resumo, trilha: alvo.trilhaNome, slug: alvo.slug };
   });
 }
@@ -227,12 +225,12 @@ export async function registrarConclusao(
 export async function removerConclusao(
   estudanteId: string,
   estudoId: string,
-  { porta = comEstudante, trilhaDeVoltas = TRILHA_LEITURA_CONTINUA }: Opcoes = {},
+  { porta = comEstudante }: Opcoes = {},
 ): Promise<EstudoConcluido | null> {
   return porta(estudanteId, async (tx) => {
     const alvo = await lerAlvo(tx, estudoId);
     if (!alvo) return null;
-    const volta = await voltaDaTrilha(tx, estudanteId, alvo.trilhaId, trilhaDeVoltas);
+    const volta = await voltaDaTrilha(tx, estudanteId, alvo.trilhaId);
     await tx
       .delete(conclusao)
       .where(
@@ -242,7 +240,7 @@ export async function removerConclusao(
           eq(conclusao.volta, volta),
         ),
       );
-    const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId, trilhaDeVoltas);
+    const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId);
     return { ...resumo, trilha: alvo.trilhaNome, slug: alvo.slug };
   });
 }
@@ -254,10 +252,10 @@ export async function removerConclusao(
  */
 export async function iniciarNovaVolta(
   estudanteId: string,
-  { porta = comEstudante, trilhaDeVoltas = TRILHA_LEITURA_CONTINUA }: Opcoes = {},
+  { porta = comEstudante }: Opcoes = {},
 ): Promise<{ ok: true; volta: number } | { ok: false; erro: "incompleta" }> {
   return porta(estudanteId, async (tx) => {
-    const resumo = await resumoDaTrilha(tx, estudanteId, trilhaDeVoltas, trilhaDeVoltas);
+    const resumo = await resumoDaTrilha(tx, estudanteId, TRILHA_LEITURA_CONTINUA);
     if (resumo.total === 0 || resumo.concluidos < resumo.total) {
       return { ok: false as const, erro: "incompleta" as const };
     }
@@ -271,7 +269,21 @@ export async function iniciarNovaVolta(
       })
       .returning({ volta: voltaLeitura.voltaAtual });
     const volta =
-      subiu[0]?.volta ?? (await voltaDaTrilha(tx, estudanteId, trilhaDeVoltas, trilhaDeVoltas));
+      subiu[0]?.volta ?? (await voltaDaTrilha(tx, estudanteId, TRILHA_LEITURA_CONTINUA));
     return { ok: true as const, volta };
   });
+}
+
+/** O Estudo aberto por último em cada Trilha (id da Trilha para id do Estudo): a casa "atual" da grade. */
+export async function lerPosicoesPorTrilha(
+  estudanteId: string,
+  { porta = comEstudante }: Opcoes = {},
+): Promise<Map<string, string>> {
+  const linhas = await porta(estudanteId, (tx) =>
+    tx
+      .select({ trilhaId: posicao.trilhaId, estudoId: posicao.estudoId })
+      .from(posicao)
+      .where(eq(posicao.estudanteId, estudanteId)),
+  );
+  return new Map(linhas.map((l) => [l.trilhaId, l.estudoId]));
 }
