@@ -12,6 +12,7 @@ import { apagarCodigoDe, conviteAtivo } from "@/modules/identidade/convite";
 import { normalizarEmail } from "@/modules/identidade/normalizar-email";
 import { enviarEmail, modeloEntrada } from "./email";
 import { envAuth, urlBase } from "./env";
+import { registrarErro } from "./registro";
 
 // Configuração do Better Auth. A entrada é só por convite: o envio de e-mail e a conferência do
 // convite acontecem na nossa porta (modules/identidade/entrada.ts); as rotas cruas da biblioteca
@@ -56,6 +57,21 @@ function criarAuth() {
   const env = envAuth();
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
+    // Nada que a biblioteca queira imprimir sai como veio: o erro de uma consulta traz os parâmetros
+    // (token de sessão, código, e-mail). Todo registro dela passa por `registrarErro`, que grava só
+    // rótulo e código; a mensagem entra apenas se for uma constante em maiúsculas (ex.:
+    // INTERNAL_SERVER_ERROR). `onAPIError.onError` substitui o registro padrão dos erros de rota.
+    logger: {
+      log: (nivel, mensagem, ...resto) => {
+        const rotulo = /^[A-Z_]{3,48}$/.test(String(mensagem)) ? `:${String(mensagem)}` : "";
+        const comCodigo = resto.find(
+          (r) => typeof (r as { code?: unknown } | null)?.code === "string",
+        );
+        registrarErro(`better-auth-${nivel}${rotulo}`, comCodigo);
+      },
+    },
+    onAPIError: { onError: (erro) => registrarErro("better-auth-rota", erro) },
+    telemetry: { enabled: false },
     baseURL: urlBase(),
     trustedOrigins: [urlBase()],
     database: drizzleAdapter(obterDb(), { provider: "pg", schema: esquemaAuth }),
