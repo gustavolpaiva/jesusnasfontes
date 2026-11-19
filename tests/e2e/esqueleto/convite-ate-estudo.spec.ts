@@ -80,7 +80,9 @@ test("convite até o Estudo: A abre e é lembrada; B, que não abriu, vê Começ
 
   // De volta às Trilhas: "Continuar de onde parei" com o Estudo.
   await expect(pa.getByText(RETOMAR)).toBeVisible();
-  await expect(pa.getByText("Batismo e tentação")).toBeVisible();
+  // O título também está na lista da Trilha aberta (plano 01-13): o bloco de retomar é a região própria.
+  const bloco = pa.getByRole("region", { name: RETOMAR });
+  await expect(bloco.getByText("Batismo e tentação")).toBeVisible();
   await expect(pa.getByRole("link", { name: "Continuar", exact: true })).toHaveAttribute(
     "href",
     "/estudos/batismo-e-tentacao",

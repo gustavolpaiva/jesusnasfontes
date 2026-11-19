@@ -1,15 +1,40 @@
 import Link from "next/link";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { lerPrimeiroEstudo } from "@/modules/conteudo/estudo";
 import { exigirSessao } from "@/modules/identidade/sessao";
+import { listarTrilhas, TRILHA_LEITURA_CONTINUA } from "@/modules/trilhas/consultas";
+import { EstudoRow } from "@/modules/trilhas/estudo-row";
 import { lerUltimaPosicao } from "@/modules/trilhas/posicao";
+import { ProgressRule } from "@/modules/trilhas/progress-rule";
 
-// Cada pessoa vê a SUA posição: a leitura passa por `comEstudante` com o id da sessão.
+// Cada pessoa vê a SUA posição e o SEU progresso: a leitura passa por `comEstudante` com o id da sessão.
 export const dynamic = "force-dynamic";
+
+// Estudos de uma Trilha em ordem, agrupados pelo `grupo` quando houver (Pontos centrais).
+function emGrupos<T extends { grupo: string | null }>(
+  estudos: T[],
+): { grupo: string | null; itens: T[] }[] {
+  const grupos: { grupo: string | null; itens: T[] }[] = [];
+  for (const e of estudos) {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.grupo === e.grupo) ultimo.itens.push(e);
+    else grupos.push({ grupo: e.grupo, itens: [e] });
+  }
+  return grupos;
+}
 
 export default async function PaginaTrilhas() {
   const { usuario } = await exigirSessao();
-  const posicao = await lerUltimaPosicao(usuario.id);
+  const [posicao, trilhas] = await Promise.all([
+    lerUltimaPosicao(usuario.id),
+    listarTrilhas(usuario.id),
+  ]);
   // Quem ainda não abriu nenhum Estudo começa pelo primeiro, na ordem das Trilhas e dos Estudos.
   const primeiro = posicao ? null : await lerPrimeiroEstudo();
   const destino = posicao ?? primeiro;
@@ -37,6 +62,47 @@ export default async function PaginaTrilhas() {
           </Button>
         </section>
       ) : null}
+      <Accordion type="multiple" defaultValue={posicao ? [posicao.trilhaId] : []}>
+        {trilhas.map((t) => (
+          <AccordionItem key={t.id} value={t.id} data-trilha={t.id}>
+            <AccordionTrigger>
+              <span className="text-heading">
+                {t.ordem}. {t.nome}
+              </span>
+              <span className="text-label ml-auto text-ink-muted">
+                {t.concluidos} de {t.total}
+              </span>
+            </AccordionTrigger>
+            <ProgressRule
+              concluidos={t.concluidos}
+              total={t.total}
+              trilha={t.nome}
+              volta={t.id === TRILHA_LEITURA_CONTINUA ? t.volta : undefined}
+            />
+            <AccordionContent>
+              <p className="text-meta mb-3 text-ink-muted">{t.descricao}</p>
+              {emGrupos(t.estudos).map((g) => (
+                <div key={g.grupo ?? "sem-grupo"} className="flex flex-col">
+                  {g.grupo ? (
+                    <h4 className="text-label mt-4 mb-1 text-ink-muted">{g.grupo}</h4>
+                  ) : null}
+                  <ul>
+                    {g.itens.map((e) => (
+                      <EstudoRow
+                        key={e.id}
+                        numero={e.ordem}
+                        slug={e.slug}
+                        titulo={e.titulo}
+                        concluido={e.concluido}
+                      />
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </div>
   );
 }

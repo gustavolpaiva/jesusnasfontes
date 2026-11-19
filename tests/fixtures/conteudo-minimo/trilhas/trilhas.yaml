@@ -1,0 +1,13 @@
+# Conteúdo mínimo de teste: escrito só para os testes de ponta a ponta, não é conteúdo do site.
+- id: base-historica
+  nome: Base histórica
+  ordem: 1
+  descricao: Oito Estudos sobre fontes, datas, manuscritos e os limites do método.
+- id: pontos-centrais
+  nome: Pontos centrais
+  ordem: 2
+  descricao: Trinta Estudos pelas Passagens decisivas dos quatro evangelhos.
+- id: leitura-continua
+  nome: Leitura contínua
+  ordem: 3
+  descricao: Os 89 capítulos em ordem. Ao terminar, comece uma nova volta com outras perguntas.

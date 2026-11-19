@@ -4,6 +4,9 @@ import { CorpoEstudo } from "@/modules/conteudo/corpo-estudo";
 import { lerEstudoPorSlug } from "@/modules/conteudo/estudo";
 import { exigirSessao } from "@/modules/identidade/sessao";
 import { lerPassagem } from "@/modules/texto";
+import { AcoesDoEstudo } from "@/modules/trilhas/acoes-do-estudo";
+import { lerEstadoDoEstudo } from "@/modules/trilhas/consultas";
+import { vizinhos } from "@/modules/trilhas/navegacao";
 import { registrarPosicao } from "@/modules/trilhas/posicao";
 
 // A posição muda a cada abertura e a resposta é de uma pessoa só: nunca é guardada em cache
@@ -18,7 +21,11 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
 
   await registrarPosicao(usuario.id, { trilhaId: estudo.trilha.id, estudoId: estudo.id });
 
-  const passagem = estudo.passagens.length > 0 ? await lerPassagem(estudo.passagens) : null;
+  const [passagem, vizinhanca, estado] = await Promise.all([
+    estudo.passagens.length > 0 ? lerPassagem(estudo.passagens) : null,
+    vizinhos(estudo),
+    lerEstadoDoEstudo(usuario.id, { estudoId: estudo.id, trilhaId: estudo.trilha.id }),
+  ]);
   const eyebrow = [`${estudo.trilha.nome} · estudo ${estudo.ordem}`, estudo.grupo]
     .filter(Boolean)
     .join(" · ");
@@ -44,6 +51,14 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
         />
       ) : null}
       <CorpoEstudo estudo={estudo} />
+      <AcoesDoEstudo
+        // Troca de Estudo remonta o componente: o estado local nunca vaza de um Estudo para outro.
+        key={estudo.id}
+        estudoId={estudo.id}
+        anterior={vizinhanca?.anterior ?? null}
+        proximo={vizinhanca?.proximo ?? null}
+        concluidoInicial={estado.concluido}
+      />
     </article>
   );
 }
