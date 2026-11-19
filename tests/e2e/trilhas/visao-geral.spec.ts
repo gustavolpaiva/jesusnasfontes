@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   contar,
   convidarParaTeste,
@@ -14,6 +14,22 @@ test.skip(
   !process.env.E2E_CONTEUDO_DIR?.includes("conteudo-minimo"),
   "usa o conteúdo mínimo: rode com E2E_CONTEUDO_DIR=tests/fixtures/conteudo-minimo",
 );
+
+// O clique antes da hidratação não faz nada (o botão ainda não tem o tratador do React): espera o React
+// ligar o botão antes de clicar, em vez de contar com a sorte do tempo.
+async function clicarQuandoHidratado(page: Page, nome: string): Promise<void> {
+  const botao = page.getByRole("button", { name: nome });
+  await botao.waitFor();
+  await botao.evaluate(
+    (el) =>
+      new Promise<void>((pronto) => {
+        const ligado = () => Object.keys(el).some((k) => k.startsWith("__reactProps$"));
+        const olhar = () => (ligado() ? pronto() : setTimeout(olhar, 25));
+        olhar();
+      }),
+  );
+  await botao.click();
+}
 
 const conclusoesDe = (id: string) =>
   contar("select count(*) as n from privado.conclusao where estudante_id = $1", [id]);
@@ -54,7 +70,7 @@ test("as três Trilhas aparecem; abrir, concluir, voltar e ver o progresso mudar
   );
 
   // Concluir: a mensagem de estado e o primário vira "Próximo".
-  await page.getByRole("button", { name: "Marcar como concluído" }).click();
+  await clicarQuandoHidratado(page, "Marcar como concluído");
   await expect(page.getByRole("status").filter({ hasText: "Estudo concluído." })).toHaveText(
     /Estudo concluído\. 1 de 2 em Base histórica\./,
   );
@@ -73,7 +89,7 @@ test("as três Trilhas aparecem; abrir, concluir, voltar e ver o progresso mudar
 
   // Desmarcar muda o progresso de volta.
   await page.getByRole("link", { name: /Como sabemos o que sabemos/ }).click();
-  await page.getByRole("button", { name: "Desmarcar conclusão" }).click();
+  await clicarQuandoHidratado(page, "Desmarcar conclusão");
   await expect(page.getByRole("status").filter({ hasText: "Conclusão desmarcada." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Marcar como concluído" })).toBeVisible();
   expect(await conclusoesDe(idA)).toBe(0);
@@ -90,7 +106,7 @@ test("o progresso é de cada conta: B não vê o de A", async ({ browser }) => {
   const pa = await contextoA.newPage();
   await entrarPorLink(pa, a);
   await pa.goto("/estudos/como-sabemos");
-  await pa.getByRole("button", { name: "Marcar como concluído" }).click();
+  await clicarQuandoHidratado(pa, "Marcar como concluído");
   await expect(pa.getByRole("status").filter({ hasText: "Estudo concluído." })).toBeVisible();
   await pa.goto("/trilhas");
   await expect(pa.getByText("1 de 2 concluídos")).toBeVisible();

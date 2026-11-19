@@ -97,7 +97,7 @@ export function AcoesDoEstudo({ estudoId, anterior, proximo, concluidoInicial }:
       {concluido ? (
         <Button
           variant="ghost"
-          className="self-start"
+          className="-ml-4 self-start"
           pendente={pendente}
           rotuloPendente="Desmarcando…"
           onClick={() => executar(desmarcarConclusao, false)}

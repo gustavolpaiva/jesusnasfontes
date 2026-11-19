@@ -62,6 +62,8 @@ export default async function PaginaTrilhas() {
           </Button>
         </section>
       ) : null}
+      {/* Título só para o leitor de tela: sem ele a lista salta de h1 para h3 (cada gatilho é um h3). */}
+      <h2 className="sr-only">Escolha uma Trilha</h2>
       <Accordion type="multiple" defaultValue={posicao ? [posicao.trilhaId] : []}>
         {trilhas.map((t) => (
           <AccordionItem key={t.id} value={t.id} data-trilha={t.id}>
