@@ -1,0 +1,21 @@
+# O que não sobe com o código na implantação. Como este arquivo existe, o `.gitignore` deixa de valer
+# para a implantação feita pela linha de comando: por isso a lista repete o que ele ignora.
+node_modules
+.next*
+.env
+.env.*
+!.env.example
+data/raw
+test-results
+playwright-report
+.venv*
+coverage
+.DS_Store
+*.tsbuildinfo
+.review
+.cursor
+.claude
+.codex
+AGENTS.md
+CLAUDE.md
+STATE.md
