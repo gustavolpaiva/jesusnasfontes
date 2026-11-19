@@ -1,0 +1,40 @@
+# Registro de conjuntos de dados. Cada conjunto traz origem, versão fixada, licença e o que se espera dele.
+# O sha256 de cada arquivo fica em datasets.lock.json; a verificação (pnpm ingest:verify) confere os dois.
+biblia-livre:
+  nome: Bíblia Livre (BLIVRE)
+  autores:
+    - Diego Santos
+    - Mario Sérgio
+    - Marco Teles
+  licenca: CC BY 3.0 BR
+  url_licenca: http://creativecommons.org/licenses/by/3.0/br/
+  fonte: https://github.com/blivre/BibliaLivre
+  commit: a315a15e9f4d01883b62206fe441d57762f126b3
+  data_versao: "2025-01-12"
+  edicoes: [n4, tr]
+  # A edição exibida por padrão é decisão do plano 01-09 (D-19); até lá fica sem valor.
+  edicao_exibida: null
+  credito_literal: >-
+    Todas as Escrituras em português citadas são da Bíblia Livre (BLIVRE), Copyright © Diego Santos,
+    Mario Sérgio, e Marco Teles, http://sites.google.com/site/biblialivre/ - fevereiro de 2018.
+    Licença Creative Commons Atribuição 3.0 Brasil (http://creativecommons.org/licenses/by/3.0/br/).
+    Reprodução permitida desde que devidamente mencionados fonte e autores.
+  alteracoes: >-
+    A marcação do formato f4 foi interpretada: os trechos acrescentados, as notas de rodapé, as
+    referências cruzadas e os títulos de salmos viram campos próprios; os sinais « e » marcam
+    versículos duvidosos. Onze marcadores com defeito no arquivo de origem foram corrigidos por linha
+    (lista em correcoes_marcacao); o texto bíblico não foi reescrito.
+  # Defeitos de marcação do arquivo de origem no commit fixado. Cada correção só se aplica se a linha
+  # original casar exatamente com `de`; o número de correções aplicadas tem de ser igual ao listado.
+  correcoes_marcacao:
+    - { edicao: n4, arquivo: joao.txt, linha: 2140, de: "\\added ", para: [], motivo: "Jo 16:14: abertura de trecho acrescentado repetida dentro de outro ainda aberto" }
+    - { edicao: n4, arquivo: luc.txt, linha: 2873, de: "\\fn", para: ["\\*fn"], motivo: "Lc 14:4: nota aberta duas vezes; o fechamento está escrito como abertura" }
+    - { edicao: n4, arquivo: luc.txt, linha: 3835, de: "*added", para: ["\\*added"], motivo: "Lc 21:1: fechamento de trecho acrescentado sem a barra invertida" }
+    - { edicao: n4, arquivo: sal.txt, linha: 7493, de: "\\fn", para: [], motivo: "Sl 144:14: abertura de nota sem conteúdo antes do texto do versículo" }
+    - { edicao: n4, arquivo: sal.txt, linha: 7497, de: "\\fn", para: ["\\*added", "\\fn"], motivo: "Sl 144:14: trecho acrescentado sem fechamento antes da nota" }
+    - { edicao: tr, arquivo: joao.txt, linha: 2149, de: "\\added ", para: [], motivo: "Jo 16:14: abertura de trecho acrescentado repetida dentro de outro ainda aberto" }
+    - { edicao: tr, arquivo: luc.txt, linha: 1798, de: "*fn", para: ["\\*fn"], motivo: "Lc 7:28: fechamento de nota sem a barra invertida" }
+    - { edicao: tr, arquivo: luc.txt, linha: 3167, de: "\\fn", para: ["\\*fn"], motivo: "Lc 14:4: nota aberta duas vezes; o fechamento está escrito como abertura" }
+    - { edicao: tr, arquivo: luc.txt, linha: 4135, de: "*added", para: ["\\*added"], motivo: "Lc 21:1: fechamento de trecho acrescentado sem a barra invertida" }
+    - { edicao: tr, arquivo: sal.txt, linha: 7496, de: "\\fn", para: [], motivo: "Sl 144:14: abertura de nota sem conteúdo antes do texto do versículo" }
+    - { edicao: tr, arquivo: sal.txt, linha: 7500, de: "\\fn", para: ["\\*added", "\\fn"], motivo: "Sl 144:14: trecho acrescentado sem fechamento antes da nota" }

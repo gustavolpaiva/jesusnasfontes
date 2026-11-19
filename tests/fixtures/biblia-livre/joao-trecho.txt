@@ -1,0 +1,61 @@
+﻿\name-long
+Evangelho Segundo João
+\*name-long
+\name-short
+João
+\*name-short
+\abbreviation
+Joao
+\*abbreviation
+\ubs-code
+JHN
+\*ubs-code
+\v Joao.1.1
+No princípio era a Palavra,
+\fn
+\key
+Palavra
+\*key
+Ou: o Verbo. Grego: Logos
+\*fn
+ e a Palavra estava com Deus, e a Palavra era Deus.
+\v Joao.1.2
+Esta estava no princípio com Deus.
+\v Joao.1.3
+Por esta foram feitas todas as coisas, e sem ela não se fez coisa nenhuma do que foi feito.
+\v Joao.1.4
+Nela estava a vida, e a vida era a luz dos seres humanos.
+\v Joao.1.5
+E a luz brilha nas trevas; e as trevas não a compreenderam.
+\fn
+Ou: não puderam derrotá-la, ou: não puderam detê-la
+\*fn
+\v Joao.1.6
+Houve um homem enviado por Deus; seu nome era João.
+\v Joao.1.7
+Este veio como testemunho, para dar testemunho da Luz, para que todos cressem por meio dele.
+\v Joao.1.8
+Ele não era a Luz; mas 
+\added
+veio
+\*added
+ para dar testemunho da Luz.
+\v Joao.1.9
+\added
+Esta
+\*added
+ era a luz verdadeira, que ilumina todo ser humano que vem ao mundo.
+\v Joao.1.10
+Aquele que é a Palavra
+\fn
+\key
+Aquele que é a Palavra
+\*key
+Lit. ele
+\*fn
+ estava no mundo e por meio dele o mundo foi feito; e o mundo não o reconheceu.
+\v Joao.1.11
+Ele veio para o que era seu, e os seus não o receberam.
+\v Joao.3.16
+Porque Deus amou o mundo de tal maneira, que deu o seu Filho unigênito, para que todo aquele que nele crê não pereça, 
+mas tenha a vida eterna.
