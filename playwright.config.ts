@@ -46,7 +46,17 @@ const configPreview = defineConfig({
         }
       : {}),
   },
-  projects: [{ name: "preview", use: { browserName: "chromium" as const } }],
+  projects: [
+    {
+      name: "preview",
+      // Os testes que mandam e-mail de verdade (tag @envia-email-real) só entram com o consentimento
+      // explícito JNF_PREVIEW_ENVIA_EMAIL_REAL=1: a fumaça comum nunca envia mensagem alguma.
+      ...(process.env.JNF_PREVIEW_ENVIA_EMAIL_REAL === "1"
+        ? {}
+        : { grepInvert: /@envia-email-real/ }),
+      use: { browserName: "chromium" as const },
+    },
+  ],
 });
 
 const configLocal = defineConfig({
