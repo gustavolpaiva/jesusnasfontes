@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { obterDb } from "@/db/cliente";
 
-// Limites de tentativa por janela fixa, em admin.tentativa (upsert atômico). A chave nunca guarda
+// Limites de tentativa por janela ancorada no primeiro evento, em admin.tentativa (upsert atômico:
+// uma linha por chave; a janela vence janelaSegundos depois do primeiro evento e recomeça em 1). A chave nunca guarda
 // o endereço nem o IP em claro: só um resumo.
 
 export const LIMITES = {
@@ -27,7 +28,7 @@ export function ipDe(cabecalhos: Pick<Headers, "get">): string {
   return vercel || "sem-ip";
 }
 
-// Conta uma tentativa na janela corrente e diz se ainda está dentro do máximo.
+// Conta uma tentativa na janela corrente (aberta pelo primeiro evento) e diz se ainda está dentro do máximo.
 export async function consumirLimite(
   chave: string,
   maximo: number,
@@ -35,8 +36,12 @@ export async function consumirLimite(
 ): Promise<{ permitido: boolean; contagem: number }> {
   const resultado = await obterDb().execute<{ contagem: number }>(sql`
     insert into admin.tentativa (chave, janela_inicio, contagem)
-    values (${chave}, to_timestamp(floor(extract(epoch from now()) / ${janelaSegundos}::int) * ${janelaSegundos}::int), 1)
-    on conflict (chave, janela_inicio) do update set contagem = admin.tentativa.contagem + 1
+    values (${chave}, now(), 1)
+    on conflict (chave) do update set
+      contagem = case when admin.tentativa.janela_inicio + make_interval(secs => ${janelaSegundos}::int) <= now()
+                      then 1 else admin.tentativa.contagem + 1 end,
+      janela_inicio = case when admin.tentativa.janela_inicio + make_interval(secs => ${janelaSegundos}::int) <= now()
+                           then now() else admin.tentativa.janela_inicio end
     returning contagem`);
   const contagem = Number(resultado.rows[0]?.contagem ?? Number.POSITIVE_INFINITY);
   return { permitido: contagem <= maximo, contagem };

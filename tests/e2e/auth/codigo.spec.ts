@@ -34,7 +34,7 @@ const INVALIDO = "Código inválido ou vencido. Confira os 6 dígitos ou peça u
 const chaveFalhas = (email: string) =>
   `codigo-falhas:${createHash("sha256").update(email).digest("hex").slice(0, 32)}`;
 
-// Põe o contador de falhas do endereço em `n` na janela corrente (como se já houvesse n palpites).
+// Põe o contador de falhas do endereço em `n` numa janela aberta agora (como se já houvesse n palpites).
 async function semearFalhas(endereco: string, n: number) {
   const { default: pg } = await import("pg");
   const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
@@ -42,8 +42,8 @@ async function semearFalhas(endereco: string, n: number) {
   try {
     await c.query(
       `insert into admin.tentativa (chave, janela_inicio, contagem)
-       values ($1, to_timestamp(floor(extract(epoch from now()) / 86400) * 86400), $2)
-       on conflict (chave, janela_inicio) do update set contagem = $2`,
+       values ($1, now(), $2)
+       on conflict (chave) do update set janela_inicio = now(), contagem = $2`,
       [chaveFalhas(endereco), n],
     );
   } finally {

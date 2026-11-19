@@ -1,13 +1,4 @@
-import {
-  bigint,
-  boolean,
-  integer,
-  pgSchema,
-  primaryKey,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { autenticacao, usuario } from "./fundacao";
 
 // Declarações para o Drizzle e para o adaptador do Better Auth. A fonte da verdade do esquema é
@@ -101,15 +92,11 @@ export const falhaSegundoFator = administracao.table("falha_segundo_fator", {
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const tentativa = administracao.table(
-  "tentativa",
-  {
-    chave: text("chave").notNull(),
-    janelaInicio: timestamp("janela_inicio", { withTimezone: true }).notNull(),
-    contagem: integer("contagem").notNull().default(0),
-  },
-  (tabela) => [primaryKey({ columns: [tabela.chave, tabela.janelaInicio] })],
-);
+export const tentativa = administracao.table("tentativa", {
+  chave: text("chave").primaryKey(),
+  janelaInicio: timestamp("janela_inicio", { withTimezone: true }).notNull(),
+  contagem: integer("contagem").notNull().default(0),
+});
 
 // Objeto de esquema do adaptador do Better Auth (nomes de modelo da biblioteca).
 export const esquemaAuth = {
