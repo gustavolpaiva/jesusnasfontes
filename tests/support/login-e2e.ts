@@ -35,14 +35,36 @@ export async function pedirAcesso(page: Page, endereco: string): Promise<void> {
   await page.getByRole("heading", { level: 1, name: "Verifique seu e-mail" }).waitFor();
 }
 
-export async function entrarPorLink(page: Page, endereco: string): Promise<void> {
+export async function entrarPorLink(
+  page: Page,
+  endereco: string,
+  chegada = "Trilhas",
+): Promise<void> {
   await isolarIp(page);
   await pedirAcesso(page, endereco);
   const { link } = await ultimoEmailPara(endereco);
   if (!link) throw new Error("O e-mail não trouxe o link");
   await page.goto(link);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.getByRole("heading", { level: 1, name: "Trilhas" }).waitFor();
+  await page.getByRole("heading", { level: 1, name: chegada }).waitFor();
+}
+
+// Semeia um Admin no banco da execução, pelo comando de verdade (`admin:semear`). O endereço vai
+// por variável de ambiente; sem e-mail de convite.
+export async function semearAdminParaTeste(endereco: string): Promise<void> {
+  await executar("pnpm", ["exec", "tsx", "scripts/admin/semear-admin.ts"], {
+    env: { ...process.env, ADMIN_EMAIL_INICIAL: endereco },
+  });
+}
+
+// Recuperação do segundo fator, pelo script do dono do banco.
+export async function recuperarSegundoFatorParaTeste(endereco: string): Promise<string> {
+  const { stdout } = await executar(
+    "pnpm",
+    ["exec", "tsx", "scripts/admin/recuperar-segundo-fator.ts", "--variavel", "JNF_EMAIL_TESTE"],
+    { env: { ...process.env, JNF_EMAIL_TESTE: endereco } },
+  );
+  return stdout;
 }
 
 // Leitura de contagem direto no banco da execução (como dono; só para conferir o que ficou gravado).

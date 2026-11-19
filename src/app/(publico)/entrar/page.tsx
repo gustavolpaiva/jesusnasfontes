@@ -13,6 +13,11 @@ export default async function PaginaEntrar({
   else if (apagada === "1") aviso = { tipo: "informacao", texto: "Sua conta foi apagada." };
   else if (motivo === "sessao")
     aviso = { tipo: "informacao", texto: "Sua sessão terminou. Entre de novo." };
+  else if (motivo === "segundo-fator")
+    aviso = {
+      tipo: "erro",
+      texto: "Muitas tentativas erradas. Sua sessão foi encerrada. Entre de novo.",
+    };
   else if (semAcesso === "1")
     aviso = {
       tipo: "erro",
