@@ -4,7 +4,10 @@ import { obterDb, obterPool } from "../../src/db/cliente";
 import { doisFatores, sessao } from "../../src/db/schema/entrada";
 import { usuario } from "../../src/db/schema/fundacao";
 import { registrarErro } from "../../src/lib/registro";
-import { chaveDe } from "../../src/modules/identidade/limite";
+import {
+  chaveDaCriacaoDoSegundoFator,
+  chaveSegundoFatorDaConta,
+} from "../../src/modules/identidade/limite";
 import { normalizarEmail } from "../../src/modules/identidade/normalizar-email";
 
 // pnpm exec tsx scripts/admin/recuperar-segundo-fator.ts --variavel ADMIN_EMAIL_INICIAL
@@ -32,9 +35,9 @@ export async function recuperarSegundoFator(emailBruto: string): Promise<Resulta
       .delete(sessao)
       .where(eq(sessao.userId, conta.id))
       .returning({ id: sessao.id });
-    // O teto por conta não deve prender o cadastro novo (a chave guarda só um resumo).
+    // Os tetos do segundo fator antigo não devem prender o cadastro novo (as chaves guardam só um resumo).
     await tx.execute(
-      sql`delete from admin.tentativa where chave = ${chaveDe("segundo-fator-conta", conta.id)}`,
+      sql`delete from admin.tentativa where chave in (${chaveSegundoFatorDaConta(conta.id)}, ${chaveDaCriacaoDoSegundoFator(conta.id)})`,
     );
     return { segundosFatores: linhas.length, sessoes: sessoes.length };
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -24,6 +24,17 @@ export function Verificacao() {
     recuperacao ? estadoRec : estadoApp,
     recuperacao ? "recuperacao" : "aplicativo",
   );
+
+  const campo = useRef<HTMLInputElement>(null);
+  const ultimoApp = useRef(estadoApp);
+  // Depois de uma resposta com erro, o campo é esvaziado e recebe o foco.
+  useEffect(() => {
+    if (estadoApp !== ultimoApp.current && estadoApp.resultado) {
+      setCodigo("");
+      campo.current?.focus();
+    }
+    ultimoApp.current = estadoApp;
+  }, [estadoApp]);
 
   return (
     <div className="coluna-leitura flex flex-col gap-6">
@@ -62,6 +73,7 @@ export function Verificacao() {
           <Field>
             <FieldLabel htmlFor="codigo-verificar">Código de 6 dígitos</FieldLabel>
             <InputOTP
+              ref={campo}
               id="codigo-verificar"
               name="codigo"
               maxLength={6}

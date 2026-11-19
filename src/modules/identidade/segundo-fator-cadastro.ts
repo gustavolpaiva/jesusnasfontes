@@ -2,6 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
+import { chaveDaCriacaoDoSegundoFator, consumirLimite } from "./limite";
 import { estadoDoCadastro } from "./sessao-mfa";
 
 // Material do cadastro: o endereço otpauth (para o QR) e a chave em texto. É segredo: vai só à tela
@@ -13,26 +14,45 @@ function materialDe(uri: string): MaterialDoCadastro | null {
   return chave ? { uri, chave } : null;
 }
 
-// Primeira vez: a biblioteca cria o segredo. Já existe um segredo ainda não ativado (a pessoa
-// recarregou a página): mostra o MESMO, para o aplicativo que ela já escaneou continuar valendo.
-// Criação simultânea: o índice único (migração 0005) faz a segunda falhar; ela lê a vencedora.
-export async function prepararCadastro(userId: string): Promise<MaterialDoCadastro | null> {
-  const auth = obterAuth();
+const JANELA_DA_CRIACAO_SEGUNDOS = 15;
+
+const dormir = (ms: number) => new Promise((resolver) => setTimeout(resolver, ms));
+
+// A biblioteca TROCA o segredo de uma conta cujo cadastro ainda não foi ativado. Duas requisições
+// de página simultâneas (a navegação e uma pré-carga) fariam a segunda trocar o segredo que a
+// primeira acabou de mostrar, e o código do aplicativo já escaneado deixaria de valer. Só quem
+// ganha a reserva atômica da criação chama `enableTwoFactor`; as outras esperam a linha existir e
+// só LEEM. (Trava consultiva do banco não serve aqui: ela prenderia uma conexão do pool enquanto a
+// biblioteca pede outras, o mesmo esgotamento que o pool de uma conexão do 01-05 expõe.)
+async function criarSeAindaNaoExiste(userId: string): Promise<void> {
   const cabecalhos = await headers();
-  if ((await estadoDoCadastro(userId)) === "sem-linha") {
+  const { permitido } = await consumirLimite(
+    chaveDaCriacaoDoSegundoFator(userId),
+    1,
+    JANELA_DA_CRIACAO_SEGUNDOS,
+  );
+  if (permitido) {
+    // Confere de novo depois de ganhar a reserva: a linha pode ter nascido entre a primeira leitura e agora.
+    if ((await estadoDoCadastro(userId)) !== "sem-linha") return;
     try {
-      const criado = (await auth.api.enableTwoFactor({ body: {}, headers: cabecalhos })) as {
-        totpURI?: string;
-      };
-      if (criado.totpURI) return materialDe(criado.totpURI);
+      await obterAuth().api.enableTwoFactor({ body: {}, headers: cabecalhos });
     } catch (erro) {
-      // Perdeu a corrida (ou a biblioteca recusou): o estado abaixo diz o que fazer.
       registrarErro("segundo-fator-cadastro-criar", erro);
     }
+    return;
   }
+  for (let i = 0; i < 50 && (await estadoDoCadastro(userId)) === "sem-linha"; i++) {
+    await dormir(100);
+  }
+}
+
+// Primeira vez: a biblioteca cria o segredo. Já existe um segredo ainda não ativado (a pessoa
+// recarregou a página): mostra o MESMO, para o aplicativo que ela já escaneou continuar valendo.
+export async function prepararCadastro(userId: string): Promise<MaterialDoCadastro | null> {
+  if ((await estadoDoCadastro(userId)) === "sem-linha") await criarSeAindaNaoExiste(userId);
   if ((await estadoDoCadastro(userId)) !== "pendente") return null;
   try {
-    const lido = (await auth.api.getTOTPURI({ body: {}, headers: cabecalhos })) as {
+    const lido = (await obterAuth().api.getTOTPURI({ body: {}, headers: await headers() })) as {
       totpURI?: string;
     };
     return lido.totpURI ? materialDe(lido.totpURI) : null;

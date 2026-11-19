@@ -1,7 +1,7 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -22,6 +22,17 @@ export function Cadastro({ material, estado, acao, pendente }: Props) {
   const [codigo, setCodigo] = useState("");
   const [copiada, setCopiada] = useState(false);
   const erro = mensagemDoResultado(estado, "aplicativo");
+  const campo = useRef<HTMLInputElement>(null);
+  const ultimo = useRef(estado);
+  // Depois de uma resposta com erro, o campo é esvaziado e recebe o foco: o código errado não fica
+  // misturado com o próximo que a pessoa digitar.
+  useEffect(() => {
+    if (estado !== ultimo.current && estado.resultado) {
+      setCodigo("");
+      campo.current?.focus();
+    }
+    ultimo.current = estado;
+  }, [estado]);
 
   async function copiar() {
     if (!material) return;
@@ -88,6 +99,7 @@ export function Cadastro({ material, estado, acao, pendente }: Props) {
         <Field>
           <FieldLabel htmlFor="codigo-ativar">Código de 6 dígitos</FieldLabel>
           <InputOTP
+            ref={campo}
             id="codigo-ativar"
             name="codigo"
             maxLength={6}

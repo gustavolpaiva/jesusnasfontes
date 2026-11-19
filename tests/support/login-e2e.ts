@@ -67,6 +67,19 @@ export async function recuperarSegundoFatorParaTeste(endereco: string): Promise<
   return stdout;
 }
 
+// Zera os limites de PEDIDO de acesso (por e-mail e por IP) no banco da execução, para um teste que
+// precisa de mais entradas por endereço do que o limite permite. Não toca nos limites do segundo fator.
+export async function liberarLimitesDePedido(): Promise<void> {
+  const { default: pg } = await import("pg");
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await c.connect();
+  try {
+    await c.query("delete from admin.tentativa where chave like 'pedido-%'");
+  } finally {
+    await c.end();
+  }
+}
+
 // Leitura de contagem direto no banco da execução (como dono; só para conferir o que ficou gravado).
 export async function contar(consulta: string, parametros: string[] = []): Promise<number> {
   const { default: pg } = await import("pg");

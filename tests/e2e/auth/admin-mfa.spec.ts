@@ -1,17 +1,28 @@
+import { readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import {
+  contar,
   convidarParaTeste,
   emailDeTeste,
   entrarPorLink,
   isolarIp,
+  liberarLimitesDePedido,
+  recuperarSegundoFatorParaTeste,
   semearAdminParaTeste,
+  sessoesDe,
 } from "../../support/login-e2e";
 import { gerarTotp } from "../../support/totp";
 
 // Segundo fator do Admin (AUTH-08). Cada teste semeia o próprio Admin (endereço sob domínio
 // reservado) no banco da execução; os limites por conta, então, não se misturam entre testes.
 
-type Cadastro = { endereco: string; chave: string; codigos: string[] };
+type Cadastro = {
+  endereco: string;
+  chave: string;
+  codigos: string[];
+  codigoDeAtivacao: string;
+};
 
 const PASSO = 30_000;
 
@@ -26,7 +37,8 @@ async function cadastrarAdmin(page: Page, prefixo = "admin"): Promise<Cadastro> 
   await semearAdminParaTeste(endereco);
   await entrarPorLink(page, endereco, "Ative o segundo fator");
   const chave = await lerChave(page);
-  await page.getByLabel("Código de 6 dígitos").fill(gerarTotp(chave));
+  const codigoDeAtivacao = gerarTotp(chave);
+  await page.getByLabel("Código de 6 dígitos").fill(codigoDeAtivacao);
   await page.getByRole("button", { name: "Ativar" }).click();
   await page
     .getByRole("heading", { level: 1, name: "Guarde seus códigos de recuperação" })
@@ -37,11 +49,13 @@ async function cadastrarAdmin(page: Page, prefixo = "admin"): Promise<Cadastro> 
   await page.getByLabel("Guardei os códigos em um lugar seguro.").click();
   await page.getByRole("button", { name: "Concluir" }).click();
   await page.getByRole("heading", { level: 1, name: "Administração" }).waitFor();
-  return { endereco, chave, codigos };
+  return { endereco, chave, codigos, codigoDeAtivacao };
 }
 
 // Contexto novo (outro aparelho) que entra de novo pelo link e cai na verificação.
 async function novoAparelho(browser: Browser, endereco: string) {
+  // O limite de pedidos por endereço (3 em 10 min) é de outro eixo: aqui o que se mede é o segundo fator.
+  await liberarLimitesDePedido();
   const contexto = await browser.newContext();
   const aba = await contexto.newPage();
   await entrarPorLink(aba, endereco, "Segundo fator");
@@ -116,4 +130,311 @@ test("Admin entra pelo link, é barrado em toda rota, cadastra o autenticador e 
   }
   await contexto.close();
   await isolarIp(page);
+});
+
+// Um código que não é válido em nenhum dos passos que a biblioteca aceita (anterior, atual, seguinte).
+function codigoErrado(chave: string): string {
+  const validos = new Set([-1, 0, 1, 2].map((i) => gerarTotp(chave, Date.now() + i * PASSO)));
+  for (let n = 0; n < 1000; n++) {
+    const c = String(n * 997 + 13)
+      .padStart(6, "0")
+      .slice(0, 6);
+    if (!validos.has(c)) return c;
+  }
+  throw new Error("sem código errado");
+}
+
+async function digitarEConfirmar(page: Page, codigo: string) {
+  await page.getByLabel("Código de 6 dígitos").fill(codigo);
+  await page.getByRole("button", { name: "Confirmar" }).click();
+}
+
+test("entradas seguintes: contexto novo cai na verificação; código certo entra, errado não, e o código já usado não vale de novo", async ({
+  page,
+  browser,
+}) => {
+  const a = await cadastrarAdmin(page);
+  const { contexto, aba } = await novoAparelho(browser, a.endereco);
+  await expect(aba).toHaveURL(/\/admin\/segundo-fator$/);
+  await aba.goto("/admin");
+  await expect(aba).toHaveURL(/\/admin\/segundo-fator$/);
+
+  // Errado: recusado, com a contagem de tentativas.
+  await digitarEConfirmar(aba, codigoErrado(a.chave));
+  await expect(aba.getByText("Restam 4 tentativas.")).toBeVisible();
+  // O código da ativação ainda está na janela de validade da biblioteca, mas já foi usado:
+  // recusado (a biblioteca sozinha o aceitaria).
+  await digitarEConfirmar(aba, a.codigoDeAtivacao);
+  await expect(aba.getByText("Restam 3 tentativas.")).toBeVisible();
+  await aba.goto("/trilhas");
+  await expect(aba).toHaveURL(/\/admin\/segundo-fator$/);
+  // Controle positivo: o código do passo seguinte, ainda não usado, entra.
+  await digitarEConfirmar(aba, gerarTotp(a.chave, Date.now() + PASSO));
+  await expect(aba.getByRole("heading", { level: 1, name: "Administração" })).toBeVisible();
+  await aba.goto("/trilhas");
+  await expect(aba.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  // O mesmo código, agora em outro aparelho, também é recusado.
+  const outro = await novoAparelho(browser, a.endereco);
+  await digitarEConfirmar(outro.aba, gerarTotp(a.chave, Date.now() + PASSO));
+  await expect(outro.aba.getByText("Código incorreto.")).toBeVisible();
+  await outro.contexto.close();
+  await contexto.close();
+});
+
+test("código de recuperação vale uma vez, e a lista de dez continua valendo para os outros", async ({
+  page,
+  browser,
+}) => {
+  const a = await cadastrarAdmin(page);
+  const [primeiro, segundo] = a.codigos as [string, string];
+
+  const um = await novoAparelho(browser, a.endereco);
+  await um.aba.getByRole("button", { name: "Usar um código de recuperação" }).click();
+  // Errado primeiro (controle negativo), depois o certo.
+  await um.aba.getByLabel("Código de recuperação").fill("AAAAA-BBBBB");
+  await um.aba.getByRole("button", { name: "Confirmar" }).click();
+  await expect(um.aba.getByText("Código incorreto.")).toBeVisible();
+  await um.aba.getByLabel("Código de recuperação").fill(primeiro);
+  await um.aba.getByRole("button", { name: "Confirmar" }).click();
+  await expect(um.aba.getByRole("heading", { level: 1, name: "Administração" })).toBeVisible();
+
+  // O mesmo código em outro aparelho: recusado. Um código diferente: aceito.
+  const dois = await novoAparelho(browser, a.endereco);
+  await dois.aba.getByRole("button", { name: "Usar um código de recuperação" }).click();
+  await dois.aba.getByLabel("Código de recuperação").fill(primeiro);
+  await dois.aba.getByRole("button", { name: "Confirmar" }).click();
+  await expect(dois.aba.getByText("Código incorreto.")).toBeVisible();
+  await dois.aba.getByLabel("Código de recuperação").fill(segundo);
+  await dois.aba.getByRole("button", { name: "Confirmar" }).click();
+  await expect(dois.aba.getByRole("heading", { level: 1, name: "Administração" })).toBeVisible();
+  await um.contexto.close();
+  await dois.contexto.close();
+});
+
+test("cinco códigos errados na mesma sessão encerram a sessão e levam a /entrar", async ({
+  page,
+  browser,
+}) => {
+  const a = await cadastrarAdmin(page);
+  const { contexto, aba } = await novoAparelho(browser, a.endereco);
+  const antes = await sessoesDe(a.endereco);
+  for (const restantes of [4, 3, 2, 1]) {
+    await digitarEConfirmar(aba, codigoErrado(a.chave));
+    await expect(
+      aba.getByText(restantes === 1 ? "Resta 1 tentativa." : `Restam ${restantes} tentativas.`),
+    ).toBeVisible();
+  }
+  await digitarEConfirmar(aba, codigoErrado(a.chave));
+  await expect(aba).toHaveURL(/\/entrar\?motivo=segundo-fator$/);
+  await expect(
+    aba.getByText("Muitas tentativas erradas. Sua sessão foi encerrada. Entre de novo."),
+  ).toBeVisible();
+  expect(await sessoesDe(a.endereco)).toBe(antes - 1);
+  await aba.goto("/admin/segundo-fator");
+  await expect(aba).toHaveURL(/\/entrar\?motivo=sessao/);
+  // Controle: a primeira sessão (a que cadastrou) segue valendo, e uma entrada nova com o código
+  // certo ainda funciona (o limite é da sessão, não bloqueou a conta).
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { level: 1, name: "Administração" })).toBeVisible();
+  const nova = await novoAparelho(browser, a.endereco);
+  await digitarEConfirmar(nova.aba, gerarTotp(a.chave, Date.now() + PASSO));
+  await expect(nova.aba.getByRole("heading", { level: 1, name: "Administração" })).toBeVisible();
+  await nova.contexto.close();
+  await contexto.close();
+});
+
+test("teto por conta: sessões novas não ganham palpites novos sem fim", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(90_000);
+  const a = await cadastrarAdmin(page); // 1 tentativa gasta na ativação
+  // Duas sessões com 4 erros cada (8) e uma com 1 erro: 10 tentativas gastas.
+  for (let i = 0; i < 2; i++) {
+    const { contexto, aba } = await novoAparelho(browser, a.endereco);
+    for (let n = 0; n < 4; n++) await digitarEConfirmar(aba, codigoErrado(a.chave));
+    await expect(aba.getByText("Resta 1 tentativa.")).toBeVisible();
+    await contexto.close();
+  }
+  const { contexto, aba } = await novoAparelho(browser, a.endereco);
+  await digitarEConfirmar(aba, codigoErrado(a.chave)); // a 10ª: ainda compara
+  await expect(aba.getByText("Restam 4 tentativas.")).toBeVisible();
+  // A 11ª, mesmo com o código CERTO, não chega a comparar: sessão encerrada.
+  await digitarEConfirmar(aba, gerarTotp(a.chave, Date.now() + PASSO));
+  await expect(aba).toHaveURL(/\/entrar\?motivo=segundo-fator$/);
+  await contexto.close();
+});
+
+test("recuperação pelo dono do banco: tudo do segundo fator antigo morre e a próxima entrada recadastra", async ({
+  page,
+  browser,
+}) => {
+  const a = await cadastrarAdmin(page);
+  const saida = await recuperarSegundoFatorParaTeste(a.endereco);
+  expect(saida).toContain("sessões encerradas: 1");
+  expect(saida).not.toContain(a.endereco);
+  expect(await sessoesDe(a.endereco)).toBe(0);
+  // A sessão que estava verificada acabou.
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/entrar\?motivo=sessao/);
+  // A próxima entrada exige novo cadastro, com chave diferente.
+  const contexto = await browser.newContext();
+  const aba = await contexto.newPage();
+  await entrarPorLink(aba, a.endereco, "Ative o segundo fator");
+  const nova = await lerChave(aba);
+  expect(nova).not.toBe(a.chave);
+  // O código da chave antiga não ativa; o da nova ativa (controle positivo).
+  await aba.getByLabel("Código de 6 dígitos").fill(gerarTotp(a.chave, Date.now() + PASSO));
+  await aba.getByRole("button", { name: "Ativar" }).click();
+  await expect(aba.getByText("Código incorreto.")).toBeVisible();
+  await aba.getByLabel("Código de 6 dígitos").fill(gerarTotp(nova));
+  await aba.getByRole("button", { name: "Ativar" }).click();
+  await expect(
+    aba.getByRole("heading", { level: 1, name: "Guarde seus códigos de recuperação" }),
+  ).toBeVisible();
+  const novos = await aba.getByTestId("codigos").locator("li").allInnerTexts();
+  expect(novos.some((c) => a.codigos.includes(c.trim()))).toBe(false);
+  await contexto.close();
+  // Um código de recuperação do conjunto antigo não vale no novo.
+  const verificando = await novoAparelho(browser, a.endereco);
+  await verificando.aba.getByRole("button", { name: "Usar um código de recuperação" }).click();
+  await verificando.aba.getByLabel("Código de recuperação").fill(a.codigos[0] as string);
+  await verificando.aba.getByRole("button", { name: "Confirmar" }).click();
+  await expect(verificando.aba.getByText("Código incorreto.")).toBeVisible();
+  await verificando.contexto.close();
+});
+
+// Todas as páginas e rotas do app, lidas do disco: nenhuma abre só com o primeiro fator.
+const PUBLICAS = new Set([
+  "/",
+  "/entrar",
+  "/entrar/confirmar",
+  "/casca-teste",
+  "/api/ambiente",
+  "/api/auth/[...all]",
+]);
+const ISENTAS = new Set(["/admin/segundo-fator"]);
+
+function rotasDoApp(): string[] {
+  const raiz = join(process.cwd(), "src", "app");
+  const achadas: string[] = [];
+  const andar = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const caminho = join(dir, nome);
+      if (statSync(caminho).isDirectory()) andar(caminho);
+      else if (/^(page|route)\.tsx?$/.test(nome)) {
+        const segmentos = relative(raiz, dir)
+          .split("/")
+          .filter((x) => x !== "" && !/^\(.*\)$/.test(x));
+        achadas.push(`/${segmentos.join("/")}`);
+      }
+    }
+  };
+  andar(raiz);
+  return achadas;
+}
+
+test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as rotas da biblioteca respondem 404", async ({
+  page,
+  browser,
+}) => {
+  const rotas = rotasDoApp();
+  expect(rotas).toEqual(expect.arrayContaining(["/trilhas", "/admin", "/admin/segundo-fator"]));
+  const protegidas = rotas.filter((r) => !PUBLICAS.has(r) && !ISENTAS.has(r));
+  expect(protegidas).toEqual(expect.arrayContaining(["/trilhas", "/admin"]));
+  // Rota nova com parâmetro na URL precisa de teste próprio: falha em vez de passar calada.
+  expect(protegidas.filter((r) => r.includes("["))).toEqual([]);
+
+  const a = await cadastrarAdmin(page);
+  const { contexto, aba } = await novoAparelho(browser, a.endereco);
+  for (const rota of protegidas) {
+    await aba.goto(rota);
+    await expect(aba, rota).toHaveURL(/\/admin\/segundo-fator$/);
+  }
+  // Controle positivo: com a sessão verificada, as mesmas rotas abrem.
+  for (const rota of protegidas) {
+    await page.goto(rota);
+    await expect(page, rota).not.toHaveURL(/segundo-fator|entrar/);
+  }
+
+  // As rotas da biblioteca: 404 para quem tem só o primeiro fator (e para a sessão verificada).
+  const origem = new URL(test.info().project.use.baseURL ?? "http://localhost").origin;
+  const cruas = [
+    "two-factor/enable",
+    "two-factor/disable",
+    "two-factor/generate-backup-codes",
+    "two-factor/get-totp-uri",
+    "two-factor/verify-totp",
+    "two-factor/verify-backup-code",
+    "two-factor/view-backup-codes",
+    "two-factor/send-otp",
+    "totp/generate",
+  ];
+  for (const contextoDeTeste of [contexto, page.context()]) {
+    for (const c of cruas) {
+      const r = await contextoDeTeste.request.post(`/api/auth/${c}`, {
+        data: { code: "000000", userId: "x" },
+        headers: { origin: origem },
+      });
+      expect(r.status(), c).toBe(404);
+    }
+    // Controle: a leitura da própria sessão segue funcionando.
+    expect((await contextoDeTeste.request.get("/api/auth/get-session")).status()).toBe(200);
+  }
+  await contexto.close();
+});
+
+test("POST direto à Server Action de verificação: sem sessão ou de Estudante, nada é processado", async ({
+  page,
+  browser,
+}) => {
+  const a = await cadastrarAdmin(page);
+  const { contexto, aba } = await novoAparelho(browser, a.endereco);
+  const origem = new URL(test.info().project.use.baseURL ?? "http://localhost").origin;
+
+  // Captura a requisição real da ação (um código errado do próprio Admin de primeiro fator).
+  const pedido = aba.waitForRequest((r) => r.method() === "POST" && !!r.headers()["next-action"]);
+  await digitarEConfirmar(aba, codigoErrado(a.chave));
+  const real = await pedido;
+  await expect(aba.getByText("Restam 4 tentativas.")).toBeVisible();
+  const cabecalhos: Record<string, string> = { ...real.headers(), origin: origem };
+  delete cabecalhos.cookie;
+  delete cabecalhos["content-length"];
+  const corpo = real.postDataBuffer();
+  if (!corpo) throw new Error("sem corpo da ação");
+  const caminho = new URL(real.url()).pathname;
+  // Só as linhas das duas contas deste teste (os outros testes rodam em paralelo no mesmo banco).
+  const estudante = emailDeTeste("estudante");
+  const dono = `join auth.session s on s.id = x.session_id join auth."user" u on u.id = s.user_id where u.email = any($1)`;
+  const verificadas = () =>
+    contar(`select count(*) as n from admin.sessao_mfa x ${dono}`, [
+      `{${a.endereco},${estudante}}`,
+    ]);
+  const gastas = () =>
+    contar(`select coalesce(sum(x.falhas), 0) as n from admin.falha_segundo_fator x ${dono}`, [
+      `{${a.endereco},${estudante}}`,
+    ]);
+  const antesVerificadas = await verificadas();
+  const antesGastas = await gastas();
+
+  // (1) Sem cookie algum.
+  const anonimo = await browser.newContext();
+  await anonimo.request.post(caminho, { headers: cabecalhos, data: corpo, maxRedirects: 0 });
+  // (2) Estudante.
+  await convidarParaTeste(estudante);
+  const ctxEstudante = await browser.newContext();
+  const abaEstudante = await ctxEstudante.newPage();
+  await entrarPorLink(abaEstudante, estudante);
+  await ctxEstudante.request.post(caminho, { headers: cabecalhos, data: corpo, maxRedirects: 0 });
+  expect(await verificadas()).toBe(antesVerificadas);
+  expect(await gastas()).toBe(antesGastas);
+
+  // Controle positivo: o MESMO corpo reenviado com o cookie do Admin é processado (gasta uma
+  // tentativa), então a ausência de efeito acima vem da guarda e não de um corpo malformado.
+  await contexto.request.post(caminho, { headers: cabecalhos, data: corpo, maxRedirects: 0 });
+  expect(await gastas()).toBe(antesGastas + 1);
+  expect(await verificadas()).toBe(antesVerificadas);
+  await anonimo.close();
+  await ctxEstudante.close();
+  await contexto.close();
 });

@@ -22,6 +22,12 @@ export function chaveDe(prefixo: string, valor: string): string {
 // Chave do contador de falhas do código de um endereço (já normalizado).
 export const chaveFalhasDoCodigo = (email: string) => chaveDe("codigo-falhas", email);
 
+// Chaves do segundo fator do Admin (por conta). Aqui, sem `server-only`, porque o script de
+// recuperação do dono do banco também as apaga.
+export const chaveSegundoFatorDaConta = (userId: string) => chaveDe("segundo-fator-conta", userId);
+export const chaveDaCriacaoDoSegundoFator = (userId: string) =>
+  chaveDe("segundo-fator-criacao", userId);
+
 // O IP vem de cabeçalho que a Vercel define e substitui (x-real-ip, ou x-vercel-forwarded-for).
 // Nunca do primeiro valor de x-forwarded-for: esse o cliente consegue enviar.
 export function ipDe(cabecalhos: Pick<Headers, "get">): string {

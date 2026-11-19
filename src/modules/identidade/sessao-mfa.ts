@@ -2,7 +2,7 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { obterDb } from "@/db/cliente";
 import { doisFatores, sessaoMfa } from "@/db/schema/entrada";
-import { chaveDe, consumirLimite } from "./limite";
+import { chaveDe, chaveSegundoFatorDaConta, consumirLimite } from "./limite";
 
 // Estado do segundo fator no banco. Fica fora do arquivo de Server Actions (`segundo-fator.ts`):
 // tudo o que um arquivo "use server" exporta é chamável pelo navegador, e estas funções não podem
@@ -56,7 +56,7 @@ export async function reservarTentativaDaSessao(
 // Mesma regra para a conta: janela ancorada no primeiro evento (`consumirLimite`).
 export async function reservarTentativaDaConta(userId: string): Promise<boolean> {
   const { permitido } = await consumirLimite(
-    chaveDe("segundo-fator-conta", userId),
+    chaveSegundoFatorDaConta(userId),
     LIMITE_POR_CONTA.maximo,
     LIMITE_POR_CONTA.janela,
   );
