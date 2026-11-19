@@ -89,8 +89,12 @@ test("Admin entra pelo link, é barrado em toda rota, cadastra o autenticador e 
   // Código errado não ativa (controle negativo ao lado do positivo).
   const certo = gerarTotp(chave);
   const errado = certo === "000000" ? "000001" : "000000";
+  const pedidoDaAcao = page.waitForRequest(
+    (r) => r.method() === "POST" && !!r.headers()["next-action"],
+  );
   await page.getByLabel("Código de 6 dígitos").fill(errado);
   await page.getByRole("button", { name: "Ativar" }).click();
+  const acaoReal = await pedidoDaAcao;
   await expect(page.getByText("Código incorreto.")).toBeVisible();
   await page.goto("/trilhas");
   await expect(page).toHaveURL(/\/admin\/segundo-fator$/);
@@ -131,6 +135,35 @@ test("Admin entra pelo link, é barrado em toda rota, cadastra o autenticador e 
       aba.getByRole("heading", { level: 1, name: "Página não encontrada" }),
     ).toBeVisible();
   }
+  // POST direto, repetido por um Estudante, à Server Action de ativação capturada acima: a
+  // guarda a recusa (a 404) e nenhuma tentativa nem verificação é gravada para a conta dele. O
+  // controle positivo (a mesma requisição, com o cookie de um Admin de primeiro fator, é processada)
+  // está no teste de POST direto.
+  const cab: Record<string, string> = {
+    ...acaoReal.headers(),
+    origin: new URL(acaoReal.url()).origin,
+  };
+  delete cab.cookie;
+  delete cab["content-length"];
+  const corpoDaAcao = acaoReal.postDataBuffer();
+  if (!corpoDaAcao) throw new Error("sem corpo da ação");
+  await contexto.request.post(new URL(acaoReal.url()).pathname, {
+    headers: cab,
+    data: corpoDaAcao,
+    maxRedirects: 0,
+  });
+  expect(
+    await contar(
+      `select count(*) as n from admin.falha_segundo_fator x join auth.session s on s.id = x.session_id join auth."user" u on u.id = s.user_id where u.email = $1`,
+      [estudante],
+    ),
+  ).toBe(0);
+  expect(
+    await contar(
+      `select count(*) as n from admin.sessao_mfa x join auth.session s on s.id = x.session_id join auth."user" u on u.id = s.user_id where u.email = $1`,
+      [estudante],
+    ),
+  ).toBe(0);
   await contexto.close();
   await isolarIp(page);
 });
@@ -385,7 +418,7 @@ test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as 
   await contexto.close();
 });
 
-test("POST direto à Server Action de verificação: sem sessão ou de Estudante, nada é processado", async ({
+test("POST direto à Server Action de verificação: sem sessão, nada é processado", async ({
   page,
   browser,
 }) => {
@@ -404,16 +437,13 @@ test("POST direto à Server Action de verificação: sem sessão ou de Estudante
   const corpo = real.postDataBuffer();
   if (!corpo) throw new Error("sem corpo da ação");
   const caminho = new URL(real.url()).pathname;
-  // Só as linhas das duas contas deste teste (os outros testes rodam em paralelo no mesmo banco).
-  const estudante = emailDeTeste("estudante");
+  // Só as linhas da conta deste teste (os outros testes rodam em paralelo no mesmo banco).
   const dono = `join auth.session s on s.id = x.session_id join auth."user" u on u.id = s.user_id where u.email = any($1)`;
   const verificadas = () =>
-    contar(`select count(*) as n from admin.sessao_mfa x ${dono}`, [
-      `{${a.endereco},${estudante}}`,
-    ]);
+    contar(`select count(*) as n from admin.sessao_mfa x ${dono}`, [`{${a.endereco}}`]);
   const gastas = () =>
     contar(`select coalesce(sum(x.falhas), 0) as n from admin.falha_segundo_fator x ${dono}`, [
-      `{${a.endereco},${estudante}}`,
+      `{${a.endereco}}`,
     ]);
   const antesVerificadas = await verificadas();
   const antesGastas = await gastas();
@@ -421,12 +451,6 @@ test("POST direto à Server Action de verificação: sem sessão ou de Estudante
   // (1) Sem cookie algum.
   const anonimo = await browser.newContext();
   await anonimo.request.post(caminho, { headers: cabecalhos, data: corpo, maxRedirects: 0 });
-  // (2) Estudante.
-  await convidarParaTeste(estudante);
-  const ctxEstudante = await browser.newContext();
-  const abaEstudante = await ctxEstudante.newPage();
-  await entrarPorLink(abaEstudante, estudante);
-  await ctxEstudante.request.post(caminho, { headers: cabecalhos, data: corpo, maxRedirects: 0 });
   expect(await verificadas()).toBe(antesVerificadas);
   expect(await gastas()).toBe(antesGastas);
 
@@ -436,6 +460,5 @@ test("POST direto à Server Action de verificação: sem sessão ou de Estudante
   expect(await gastas()).toBe(antesGastas + 1);
   expect(await verificadas()).toBe(antesVerificadas);
   await anonimo.close();
-  await ctxEstudante.close();
   await contexto.close();
 });
