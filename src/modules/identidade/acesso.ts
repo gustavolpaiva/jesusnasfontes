@@ -7,15 +7,16 @@ import { verificacao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { modeloEntrada } from "@/lib/email";
 import { urlBase } from "@/lib/env";
-import { conviteAtivo } from "./convite";
+import { conviteAtivo, manterSoCodigoMaisRecente } from "./convite";
 
 // O pedido de acesso, igual para endereço convidado ou não. Fica fora do arquivo de Server
 // Actions para o teste de equivalência poder chamá-lo e contar as operações de banco.
 //
 // Convidado (a biblioteca, mais o nosso sendMagicLink), nesta ordem:
 //   1 select convite · 2 insert verificação (link) · 3 select convite · 4 delete verificação
-//   (apagarCodigoDe) · 5 insert verificação (código) · e o e-mail, depois da resposta (waitUntil).
-// Não convidado: as mesmas cinco operações, com a mesma forma, em linhas de nome aleatório que já
+//   (apagarCodigoDe) · 5 insert verificação (código) · 6 delete do código mais antigo
+//   (manterSoCodigoMaisRecente) · e o e-mail, depois da resposta (waitUntil).
+// Não convidado: as mesmas seis operações, com a mesma forma, em linhas de nome aleatório que já
 // nascem vencidas; a última é apagada depois da resposta, como o e-mail do convidado.
 // O convidado também gera um token e um código, resume os dois e monta a mensagem; o não
 // convidado faz o mesmo trabalho de CPU e descarta o resultado.
@@ -41,6 +42,7 @@ async function trabalhoEquivalente(email: string): Promise<void> {
   await conviteAtivo(email);
   await db.delete(verificacao).where(eq(verificacao.identifier, a));
   await db.insert(verificacao).values({ identifier: b, value: "x", expiresAt: vencida });
+  await manterSoCodigoMaisRecente(email);
   waitUntil(
     db
       .delete(verificacao)

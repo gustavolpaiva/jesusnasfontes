@@ -8,7 +8,7 @@ import { sessao, verificacao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
 import { darAcesso } from "./acesso";
-import { aceitarConvite, apagarCodigoDe, conviteAtivo } from "./convite";
+import { aceitarConvite, apagarCodigoDe, conviteAtivo, manterSoCodigoMaisRecente } from "./convite";
 import {
   chaveDe,
   chaveFalhasDoCodigo,
@@ -120,6 +120,9 @@ export async function entrarComCodigo(
       });
       usuarioEmail = (resposta as { user?: { email?: string } } | null)?.user?.email;
     } catch {
+      // Um palpite errado faz a biblioteca regravar o código; se houve reenvio no meio, ela pode
+      // ter trazido de volta o antigo. Só o mais recente vale.
+      await manterSoCodigoMaisRecente(email);
       // No último palpite do teto, o código atual morre (só ele; os links pendentes ficam).
       if (reserva.ultimo) await apagarCodigoDe(email);
       return { ...base, resultado: "codigo-invalido" };

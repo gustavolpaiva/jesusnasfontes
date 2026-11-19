@@ -96,6 +96,22 @@ export async function apagarVerificacoesDe(emailNorm: string): Promise<void> {
 // Esgotamento do código: remove SÓ o código daquele endereço (identificador exato, parametrizado).
 // Os links pendentes do mesmo endereço e tudo de outros endereços ficam: quem só conhece o e-mail
 // não pode, errando o código, cancelar a entrada de quem recebeu o link.
+// Regra única: para cada endereço vale no máximo um código, o MAIS RECENTE. Instrução idempotente
+// e atômica, sem trava mantida, pelo identificador exato do código (links nunca). A recência vem de
+// `expires_at`: a biblioteca, ao regravar um código de palpite errado, preserva o vencimento
+// original (o `created_at` e o id são novos, por isso não servem). Corrige o estado depois da
+// emissão e depois de um palpite que falhou, quando a regravação pode ter trazido de volta um
+// código mais antigo que o de um reenvio simultâneo.
+export async function manterSoCodigoMaisRecente(emailNorm: string): Promise<void> {
+  const identificador = `sign-in-otp-${normalizarEmail(emailNorm)}`;
+  await obterDb().execute(sql`
+    delete from "auth"."verification" v
+    where v.identifier = ${identificador}
+      and exists (
+        select 1 from "auth"."verification" w
+        where w.identifier = v.identifier and w.expires_at > v.expires_at)`);
+}
+
 export async function apagarCodigoDe(emailNorm: string): Promise<void> {
   await obterDb()
     .delete(verificacao)

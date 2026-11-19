@@ -8,7 +8,11 @@ import { eq } from "drizzle-orm";
 import { obterDb } from "@/db/cliente";
 import { esquemaAuth } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
-import { apagarCodigoDe, conviteAtivo } from "@/modules/identidade/convite";
+import {
+  apagarCodigoDe,
+  conviteAtivo,
+  manterSoCodigoMaisRecente,
+} from "@/modules/identidade/convite";
 import { normalizarEmail } from "@/modules/identidade/normalizar-email";
 import { enviarEmail, modeloEntrada } from "./email";
 import { envAuth, urlBase } from "./env";
@@ -35,6 +39,7 @@ function acessos() {
         const codigo = await obterAuth().api.createVerificationOTP({
           body: { email: emailNorm, type: "sign-in" },
         });
+        await manterSoCodigoMaisRecente(emailNorm);
         // O link do e-mail é o da NOSSA página (que só consome por POST), nunca o da biblioteca.
         const urlConfirmar = `${urlBase()}/entrar/confirmar?token=${encodeURIComponent(token)}`;
         waitUntil(enviarEmail(modeloEntrada({ para: emailNorm, urlConfirmar, codigo })));
