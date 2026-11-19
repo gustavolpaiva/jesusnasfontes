@@ -2,6 +2,9 @@ import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 import type { Page } from "@playwright/test";
+import { recuperarSegundoFator } from "../../scripts/admin/recuperar-segundo-fator";
+import { semearAdmin } from "../../scripts/admin/semear-admin";
+import { convidar } from "../../src/modules/identidade/convite";
 import { emailsPara, ultimoEmailPara } from "./caixa-de-email";
 
 const executar = promisify(execFile);
@@ -11,8 +14,15 @@ export function emailDeTeste(prefixo = "estudante"): string {
   return `${prefixo}-${randomBytes(5).toString("hex")}@convite.example`;
 }
 
-// Convida pelo comando de verdade, no banco da execução. O endereço vai por variável de ambiente.
+// Convida pela MESMA função que o comando `pnpm convidar` chama (`convidar`), no processo do teste:
+// a partida de `pnpm exec tsx` custava de 1 a 5 s por convite e dominava o tempo dos testes. O
+// comando em si (leitura do endereço pela variável, mensagens) é exercitado por `convidarPelaCLI`.
 export async function convidarParaTeste(endereco: string): Promise<void> {
+  await convidar(endereco, null);
+}
+
+// Convida pelo comando de verdade, no banco da execução. O endereço vai por variável de ambiente.
+export async function convidarPelaCLI(endereco: string): Promise<void> {
   await executar(
     "pnpm",
     ["exec", "tsx", "scripts/admin/convidar.ts", "--variavel", "JNF_EMAIL_TESTE"],
@@ -52,30 +62,23 @@ export async function entrarPorLink(
   await page.getByRole("heading", { level: 1, name: chegada }).waitFor();
 }
 
-// Semeia um Admin no banco da execução, pelo comando de verdade (`admin:semear`). O endereço vai
-// por variável de ambiente; sem e-mail de convite.
+// Semeia um Admin no banco da execução pela função de `admin:semear` (a do comando), sem e-mail de
+// convite e sem partir um processo novo. O estado de cada caso (criar, promover, recusar revogado)
+// é provado nos testes de integração de `semearAdmin`.
 export async function semearAdminParaTeste(endereco: string): Promise<void> {
-  await executar("pnpm", ["exec", "tsx", "scripts/admin/semear-admin.ts"], {
-    env: { ...process.env, ADMIN_EMAIL_INICIAL: endereco },
-  });
+  const r = await semearAdmin(endereco);
+  if (r.codigo !== 0) throw new Error(`semearAdmin recusou: ${r.mensagem}`);
 }
 
-// Recuperação do segundo fator, pelo script do dono do banco, nas duas etapas: a prévia devolve o id
-// e a escrita só vale com esse id.
+// Recuperação do segundo fator, pela função do script do dono do banco, nas duas etapas: a prévia
+// devolve o id e a escrita só vale com esse id. Devolve a mensagem da escrita (nunca traz o endereço).
 export async function recuperarSegundoFatorParaTeste(endereco: string): Promise<string> {
-  const comando = [
-    "exec",
-    "tsx",
-    "scripts/admin/recuperar-segundo-fator.ts",
-    "--variavel",
-    "JNF_EMAIL_TESTE",
-  ];
-  const env = { ...process.env, JNF_EMAIL_TESTE: endereco };
-  const previa = await executar("pnpm", comando, { env });
-  const id = /^id: ([0-9a-f-]{36})$/m.exec(previa.stdout)?.[1];
-  if (!id) throw new Error("A prévia da recuperação não devolveu o id.");
-  const { stdout } = await executar("pnpm", [...comando, "--executar", "--id", id], { env });
-  return stdout;
+  const previa = await recuperarSegundoFator(endereco);
+  const id = /^id: ([0-9a-f-]{36})$/m.exec(previa.mensagem)?.[1];
+  if (previa.codigo !== 0 || !id) throw new Error("A prévia da recuperação não devolveu o id.");
+  const feita = await recuperarSegundoFator(endereco, { executar: true, id });
+  if (feita.codigo !== 0) throw new Error(`A recuperação recusou: ${feita.mensagem}`);
+  return feita.mensagem;
 }
 
 // Zera os limites de PEDIDO de acesso (por e-mail e por IP) no banco da execução, para um teste que

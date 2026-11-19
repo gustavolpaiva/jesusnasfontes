@@ -26,7 +26,14 @@ export default defineConfig({
   outputDir: `test-results/e2e-${porta}`,
   reporter: "list",
   fullyParallel: true,
+  // Três processos de teste, não os cinco que o padrão daria nesta máquina. Todos falam com UM servidor
+  // de desenvolvimento (um só processo do Node): o trabalho dele é a fila, e com cinco clientes cada
+  // teste esperava a vez dos outros quatro. Medido em `admin-mfa.spec.ts` (16 testes): cinco processos,
+  // 57 s no total e até 20 s num teste; três, 58,6 s no total e até 11 s; o tempo total quase não muda.
+  workers: 3,
   forbidOnly: true,
+  // Compila as rotas do servidor de desenvolvimento antes do primeiro teste (ver o arquivo).
+  globalSetup: "./tests/support/aquecer-servidor.ts",
   use: { baseURL: `http://localhost:${porta}` },
   webServer: {
     command: comandoServidor,
