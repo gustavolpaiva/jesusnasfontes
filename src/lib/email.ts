@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Resend } from "resend";
 import { envEmail } from "./env";
@@ -15,10 +15,10 @@ export async function enviarEmail(mensagem: Mensagem): Promise<boolean> {
   try {
     const env = envEmail();
     if (env.MAIL_TRANSPORT === "arquivo") {
-      mkdirSync(env.MAIL_DIR, { recursive: true });
+      await mkdir(env.MAIL_DIR, { recursive: true });
       const destino = createHash("sha256").update(mensagem.para).digest("hex").slice(0, 16);
       const nome = `${Date.now()}-${destino}-${randomBytes(4).toString("hex")}.json`;
-      writeFileSync(join(env.MAIL_DIR, nome), JSON.stringify(mensagem), { mode: 0o600 });
+      await writeFile(join(env.MAIL_DIR, nome), JSON.stringify(mensagem), { mode: 0o600 });
       return true;
     }
     const resultado = await new Resend(env.RESEND_API_KEY).emails.send({

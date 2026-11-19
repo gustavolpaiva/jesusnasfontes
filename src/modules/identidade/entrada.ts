@@ -7,6 +7,7 @@ import { obterDb } from "@/db/cliente";
 import { sessao, verificacao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
+import { darAcesso } from "./acesso";
 import { aceitarConvite, apagarCodigoDe, conviteAtivo } from "./convite";
 import { chaveDe, consumirLimite, ipDe, LIMITES, reservarPalpite, zerarLimite } from "./limite";
 import { lerEmail } from "./normalizar-email";
@@ -24,42 +25,6 @@ export type ResultadoCodigo = {
 
 export type ResultadoReenvio = { rodada: number; resultado?: "reenviado" | "limite" | "falha" };
 
-class Sentinela extends Error {}
-
-// Para e-mail não convidado: o mesmo volume de trabalho de banco que o convidado dá (a criação do
-// registro de link e do código), numa transação que é desfeita. Nada fica gravado e a resposta
-// leva o mesmo tempo.
-async function trabalhoEquivalente(): Promise<void> {
-  try {
-    await obterDb().transaction(async (tx) => {
-      const expira = new Date(Date.now() + 15 * 60 * 1000);
-      await tx.insert(verificacao).values({
-        identifier: `equivalente-${crypto.randomUUID()}`,
-        value: "x",
-        expiresAt: expira,
-      });
-      await tx.insert(verificacao).values({
-        identifier: `equivalente-${crypto.randomUUID()}`,
-        value: "x",
-        expiresAt: expira,
-      });
-      throw new Sentinela();
-    });
-  } catch (erro) {
-    if (!(erro instanceof Sentinela)) throw erro;
-  }
-}
-
-// Decide pelo convite, e só então pede a biblioteca; a resposta é a mesma nos dois casos.
-async function darAcesso(email: string): Promise<void> {
-  if (await conviteAtivo(email)) {
-    await obterAuth().api.signInMagicLink({ body: { email }, headers: await headers() });
-  } else {
-    await conviteAtivo(email); // mesma consulta que o convidado repete dentro do envio
-    await trabalhoEquivalente();
-  }
-}
-
 export async function pedirEntrada(
   _anterior: EstadoEntrada,
   formData: FormData,
@@ -72,7 +37,7 @@ export async function pedirEntrada(
     if (!(await pedidoPermitido(email))) {
       return { etapa: "email", emailDigitado: digitado, erro: "limite" };
     }
-    await darAcesso(email);
+    await darAcesso(email, await headers());
   } catch (erro) {
     registrarErro("pedir-entrada", erro);
     return { etapa: "email", emailDigitado: digitado, erro: "falha" };
@@ -109,7 +74,7 @@ export async function reenviarAcesso(
   if (!email) return { rodada, resultado: "falha" };
   try {
     if (!(await pedidoPermitido(email))) return { rodada, resultado: "limite" };
-    await darAcesso(email);
+    await darAcesso(email, await headers());
   } catch (erro) {
     registrarErro("reenviar-acesso", erro);
     return { rodada, resultado: "falha" };
