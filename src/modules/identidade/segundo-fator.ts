@@ -9,8 +9,9 @@ import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
 import { exigirPrimeiroFatorDeAdmin } from "./sessao";
 import {
+  concederSegundoFator,
   estadoDoCadastro,
-  marcarSessaoVerificada,
+  geracaoDoSegundoFator,
   reivindicarCodigoDeAplicativo,
   reservarTentativaDaConta,
   reservarTentativaDaSessao,
@@ -25,7 +26,9 @@ import {
 //   2. reserva da tentativa da sessão e da conta, ANTES de comparar, em instrução atômica;
 //   3. a biblioteca compara; falha de qualquer tipo gasta a tentativa já reservada;
 //   4. código de aplicativo: só vale a primeira vez (a biblioteca não lembra do que já viu);
-//   5. só então a sessão (a que a operação deixou valendo) é marcada como verificada.
+//   5. só então a sessão (a que a operação deixou valendo) é marcada como verificada, por uma
+//      instrução condicional à geração do segundo fator lida no começo (uma recuperação no meio
+//      derrota a conferência, que não concede nada).
 
 export type ResultadoSegundoFator = {
   resultado?: "incorreto" | "falha";
@@ -82,6 +85,9 @@ async function conferir(
   };
 
   try {
+    // A geração em que esta conferência COMEÇA: se uma recuperação passar até o fim, a concessão
+    // abaixo perde a comparação e não dá acesso a ninguém.
+    const geracao = await geracaoDoSegundoFator(atual.usuario.id);
     const estado = await estadoDoCadastro(atual.usuario.id);
     // Recuperação só para segundo fator já ativo; aplicativo precisa de uma linha (ativa ou pendente).
     if (!formatoOk || estado === "sem-linha" || (alvo === "recuperacao" && estado !== "ativo")) {
@@ -109,7 +115,11 @@ async function conferir(
       return await erradoOuFim();
     }
     const idValido = await sessaoQueValeDepois(atual.sessao.id);
-    await marcarSessaoVerificada(idValido);
+    if (!(await concederSegundoFator(atual.usuario.id, idValido, geracao))) {
+      // Uma recuperação do segundo fator terminou no meio da conferência: nada vale. Encerra a
+      // sessão que a biblioteca acabou de criar e volta à entrada.
+      return encerrarEVoltar(idValido);
+    }
     if (estado === "pendente") {
       const { backupCodes } = (await auth.api.viewBackupCodes({
         body: { userId: atual.usuario.id },

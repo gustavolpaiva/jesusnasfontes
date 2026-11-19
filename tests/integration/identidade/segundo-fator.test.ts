@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { obterDb, obterPool } from "@/db/cliente";
@@ -8,12 +8,16 @@ import { usuario } from "@/db/schema/fundacao";
 import { urlDoPapel } from "@/db/url";
 import { zerarLimite } from "@/modules/identidade/limite";
 import {
+  concederSegundoFator,
+  geracaoDoSegundoFator,
   LIMITE_POR_CONTA,
   reivindicarCodigoDeAplicativo,
   reservarTentativaDaConta,
   reservarTentativaDaSessao,
+  sessaoVerificada,
   TENTATIVAS_POR_SESSAO,
 } from "@/modules/identidade/sessao-mfa";
+import { recuperarSegundoFator } from "../../../scripts/admin/recuperar-segundo-fator";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
 import { decodificarBase32 } from "../../support/totp";
 
@@ -175,5 +179,55 @@ describe("onde o segredo mora e quem o lê", () => {
     } finally {
       await dono.end();
     }
+  });
+});
+
+describe("ativação que retoma depois de uma recuperação (corrida entre dois fluxos)", () => {
+  // Ordem do defeito, sem espera artificial: a conferência lê a geração e a biblioteca valida o
+  // código; a recuperação termina; a conferência retoma e a biblioteca grava o que ficou para trás
+  // (conta "ativa" e uma sessão nova). Daí a concessão tenta marcar a sessão.
+  async function ativacaoPausada() {
+    const { obterAuth } = await import("@/lib/auth");
+    const a = await criarAdminComSessao();
+    const email = (await obterDb().select().from(usuario).where(eq(usuario.id, a.id)))[0]
+      ?.email as string;
+    await obterAuth().api.enableTwoFactor({ body: {}, headers: a.cabecalhos });
+    const geracaoLida = await geracaoDoSegundoFator(a.id);
+    // A biblioteca já validou o código (cadastro pendente existe); a recuperação do dono do banco termina.
+    const r = await recuperarSegundoFator(email, { executar: true, id: a.id });
+    expect(r.codigo).toBe(0);
+    // A retomada: o que a biblioteca grava depois (usuário ativo, sessão nova), sem linha de fator.
+    const sessaoTardia = randomUUID();
+    await obterDb()
+      .insert(sessao)
+      .values({
+        id: sessaoTardia,
+        userId: a.id,
+        token: randomBytes(24).toString("hex"),
+        expiresAt: new Date(Date.now() + 3_600_000),
+      });
+    await obterDb().update(usuario).set({ twoFactorEnabled: true }).where(eq(usuario.id, a.id));
+    return { a, geracaoLida, sessaoTardia };
+  }
+
+  it("a conferência retomada não concede nada e a conta não fica 'ativa' sem segundo fator", async () => {
+    const { a, geracaoLida, sessaoTardia } = await ativacaoPausada();
+    expect(await geracaoDoSegundoFator(a.id)).toBe(geracaoLida + 1); // a recuperação passou
+    expect(await concederSegundoFator(a.id, sessaoTardia, geracaoLida)).toBe(false);
+    expect(await sessaoVerificada(sessaoTardia)).toBe(false);
+    const [conta] = await obterDb().select().from(usuario).where(eq(usuario.id, a.id));
+    expect(conta?.twoFactorEnabled).toBe(false);
+  });
+
+  it("uma marca de geração antiga não vale, mesmo que exista na tabela", async () => {
+    const { a, geracaoLida, sessaoTardia } = await ativacaoPausada();
+    await obterDb().execute(
+      sql`insert into admin.sessao_mfa (session_id, geracao) values (${sessaoTardia}, ${geracaoLida})`,
+    );
+    expect(await sessaoVerificada(sessaoTardia)).toBe(false);
+    // controle positivo: na geração atual, a concessão funciona e a sessão conta.
+    const atual = await geracaoDoSegundoFator(a.id);
+    expect(await concederSegundoFator(a.id, sessaoTardia, atual)).toBe(true);
+    expect(await sessaoVerificada(sessaoTardia)).toBe(true);
   });
 });
