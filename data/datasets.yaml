@@ -12,8 +12,8 @@ biblia-livre:
   commit: a315a15e9f4d01883b62206fe441d57762f126b3
   data_versao: "2025-01-12"
   edicoes: [n4, tr]
-  # A edição exibida por padrão é decisão do plano 01-09 (D-19); até lá fica sem valor.
-  edicao_exibida: null
+  # Edição exibida no site, escolhida pelo dono em 19/11/2026 (n4, texto crítico).
+  edicao_exibida: n4
   credito_literal: >-
     Todas as Escrituras em português citadas são da Bíblia Livre (BLIVRE), Copyright © Diego Santos,
     Mario Sérgio, e Marco Teles, http://sites.google.com/site/biblialivre/ - fevereiro de 2018.
