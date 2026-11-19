@@ -2,7 +2,7 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { obterDb } from "@/db/cliente";
 import { doisFatores } from "@/db/schema/entrada";
-import { chaveDe, chaveSegundoFatorDaConta, consumirLimite } from "./limite";
+import { chaveDe, chaveSegundoFatorDaConta, consumirLimite, zerarLimite } from "./limite";
 
 // Estado do segundo fator no banco. Fica fora do arquivo de Server Actions (`segundo-fator.ts`):
 // tudo o que um arquivo "use server" exporta é chamável pelo navegador, e estas funções não podem
@@ -124,6 +124,12 @@ export async function reivindicarCodigoDeAplicativo(
     JANELA_DE_REUSO_SEGUNDOS,
   );
   return permitido;
+}
+
+// Compensação de `reivindicarCodigoDeAplicativo`: só quem reivindicou e NÃO concedeu nada a chama.
+// Um código que concedeu continua marcado (e recusado) pelo resto da janela.
+export async function liberarCodigoDeAplicativo(userId: string, codigo: string): Promise<void> {
+  await zerarLimite(chaveDe("totp-usado", `${userId}:${codigo}`));
 }
 
 export type EstadoDoCadastro = "sem-linha" | "pendente" | "ativo";

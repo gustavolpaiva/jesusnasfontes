@@ -52,6 +52,11 @@ async function criarAdminComSessao() {
   return { id, sessaoId, token, cabecalhos };
 }
 
+const estadoDaConta = async (id: string) => ({
+  ativo: (await obterDb().select().from(usuario).where(eq(usuario.id, id)))[0]?.twoFactorEnabled,
+  cadastro: await estadoDoCadastro(id),
+});
+
 beforeAll(() => {
   aplicarEnvDeTeste();
   process.env.BETTER_AUTH_SECRET = segredoDaBiblioteca;
@@ -266,11 +271,6 @@ describe("a pessoa sai da ativação com fator ativo E códigos na mão, ou sem 
     });
     return { a, real, ativou, ativarComoABiblioteca, entrada };
   }
-  const estadoDaConta = async (id: string) => ({
-    ativo: (await obterDb().select().from(usuario).where(eq(usuario.id, id)))[0]?.twoFactorEnabled,
-    cadastro: await estadoDoCadastro(id),
-  });
-
   it("falha de banco na leitura dos códigos: nada ativado, sessão não verificada; repetir entrega os códigos", async () => {
     const { a, real, ativou, ativarComoABiblioteca, entrada } = await preparar();
     const falha = {
@@ -315,7 +315,6 @@ describe("a pessoa sai da ativação com fator ativo E códigos na mão, ou sem 
     expect(await estadoDaConta(a.id)).toEqual({ ativo: false, cadastro: "pendente" });
     expect(await sessaoVerificada(a.sessaoId)).toBe(false);
     // Nova tentativa do começo funciona e entrega os códigos.
-    // (o código da tentativa que falhou já foi marcado como usado; a pessoa digita o do passo seguinte)
     const r = await conferirCodigo(entrada(api, { codigo: "246810" }));
     expect(r).toMatchObject({ tipo: "concedido" });
     expect((r as { codigos: string[] }).codigos.length).toBeGreaterThan(0);
@@ -329,4 +328,127 @@ describe("a pessoa sai da ativação com fator ativo E códigos na mão, ou sem 
     await desfazerAtivacao(a.id);
     expect(await estadoDaConta(a.id)).toEqual({ ativo: true, cadastro: "ativo" });
   });
+});
+
+describe("cadastro pendente: depois de qualquer sequência que não termina em 'concedido', o fator está pendente", () => {
+  type Passo = {
+    codigo: string;
+    falha?: "leitura" | "concessao";
+    espera: "erro" | "recusado" | "concedido";
+  };
+  const sequencias: { nome: string; passos: Passo[] }[] = [
+    { nome: "falha na leitura", passos: [{ codigo: "111111", falha: "leitura", espera: "erro" }] },
+    {
+      nome: "falha na concessão",
+      passos: [{ codigo: "111111", falha: "concessao", espera: "erro" }],
+    },
+    {
+      nome: "falha na concessão, depois o MESMO código",
+      passos: [
+        { codigo: "111111", falha: "concessao", espera: "erro" },
+        { codigo: "111111", espera: "concedido" },
+      ],
+    },
+    {
+      nome: "falha na concessão, depois um código novo",
+      passos: [
+        { codigo: "111111", falha: "concessao", espera: "erro" },
+        { codigo: "222222", espera: "concedido" },
+      ],
+    },
+    {
+      nome: "código errado, depois o certo",
+      passos: [
+        { codigo: "000000", espera: "recusado" },
+        { codigo: "333333", espera: "concedido" },
+      ],
+    },
+    {
+      nome: "código certo duas vezes seguidas, sem falha",
+      passos: [
+        { codigo: "444444", espera: "concedido" },
+        { codigo: "444444", espera: "recusado" },
+      ],
+    },
+  ];
+
+  for (const seq of sequencias) {
+    it(seq.nome, async () => {
+      const { obterAuth } = await import("@/lib/auth");
+      const { chaveDe } = await import("@/modules/identidade/limite");
+      const a = await criarAdminComSessao();
+      for (const c of ["111111", "222222", "333333", "444444", "555555", "000000"]) {
+        chavesLimite.push(chaveDe("totp-usado", `${a.id}:${c}`));
+      }
+      await obterAuth().api.enableTwoFactor({ body: {}, headers: a.cabecalhos });
+      const real = obterAuth().api;
+      // A ativação da biblioteca (duas escritas dela) emulada; "000000" é o código errado.
+      const verifyTOTP = async ({ body }: { body: { code: string } }) => {
+        if (body.code === "000000") {
+          throw Object.assign(new Error("INVALID_CODE"), { name: "APIError" });
+        }
+        await obterDb().execute(
+          sql`update auth.two_factor set verified = true where user_id = ${a.id}`,
+        );
+        await obterDb().execute(
+          sql`update auth."user" set two_factor_enabled = true where id = ${a.id}`,
+        );
+      };
+      const chamar = async (passo: Pick<Passo, "codigo" | "falha">) =>
+        conferirCodigo({
+          api: {
+            viewBackupCodes:
+              passo.falha === "leitura"
+                ? async () => {
+                    await obterDb().execute(sql`select 1/0`);
+                  }
+                : real.viewBackupCodes,
+            verifyTOTP,
+            verifyBackupCode: async () => undefined,
+          } as never,
+          alvo: "aplicativo",
+          codigo: passo.codigo,
+          usuarioId: a.id,
+          sessaoAtualId: a.sessaoId,
+          geracao: 0,
+          estado: (await estadoDoCadastro(a.id)) as "pendente" | "ativo",
+          cabecalhos: a.cabecalhos,
+          sessaoQueVale: async (id) => id,
+          conceder:
+            passo.falha === "concessao"
+              ? async () => {
+                  await obterDb().execute(sql`select 1/0`);
+                  return true;
+                }
+              : concederSegundoFator,
+        });
+
+      let ultimo = "";
+      for (const passo of seq.passos) {
+        if (passo.espera === "erro") {
+          await expect(chamar(passo)).rejects.toMatchObject({ code: "22012" });
+          ultimo = "erro";
+          continue;
+        }
+        const r = await chamar(passo);
+        expect(r.tipo).toBe(passo.espera);
+        if (r.tipo === "concedido") expect(r.codigos?.length).toBeGreaterThan(0);
+        if (r.tipo === "recusado") expect("codigos" in r).toBe(false); // nunca reexibe códigos
+        ultimo = r.tipo;
+      }
+
+      if (ultimo === "concedido" || seq.nome.includes("duas vezes")) {
+        // Controle: o fator concedido continua ativo e a sessão vale (a repetição recusada não o derruba).
+        expect(await estadoDaConta(a.id)).toEqual({ ativo: true, cadastro: "ativo" });
+        expect(await sessaoVerificada(a.sessaoId)).toBe(true);
+      } else {
+        // Não terminou em 'concedido': pendente, e um código válido novo ativa e entrega os códigos.
+        expect(await estadoDaConta(a.id)).toEqual({ ativo: false, cadastro: "pendente" });
+        expect(await sessaoVerificada(a.sessaoId)).toBe(false);
+        const r = await chamar({ codigo: "555555" });
+        expect(r.tipo).toBe("concedido");
+        expect((r as { codigos?: string[] }).codigos?.length).toBeGreaterThan(0);
+      }
+    });
+  }
 });
