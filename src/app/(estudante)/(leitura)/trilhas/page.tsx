@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -8,6 +9,9 @@ import { registrarErro } from "@/lib/registro";
 import { lerPrimeiroEstudo } from "@/modules/conteudo/estudo";
 import { exigirSessao } from "@/modules/identidade/sessao";
 import { LIVROS } from "@/modules/referencias";
+import { historicoSessoes } from "@/modules/sessao/consultas";
+import { HistoricoSessoes } from "@/modules/sessao/historico-sessoes";
+import { SessaoBar } from "@/modules/sessao/sessao-bar";
 import { CapituloGrid } from "@/modules/trilhas/capitulo-grid";
 import {
   lerPosicoesPorTrilha,
@@ -80,10 +84,13 @@ export default async function PaginaTrilhas() {
       </div>
     );
   }
-  const { posicao, primeiro, trilhas, atualPorTrilha } = dados;
+  const { posicao, primeiro, trilhas, atualPorTrilha, sessoes } = dados;
 
   return (
     <div className="coluna-leitura flex flex-col gap-6">
+      <Suspense fallback={<div aria-hidden="true" className="min-h-12" />}>
+        <SessaoBar estudanteId={usuario.id} />
+      </Suspense>
       <h1 className="text-display">Trilhas</h1>
       <p className="text-leitura">
         Três caminhos em sequência: a base histórica, os pontos centrais e a leitura capítulo a
@@ -148,17 +155,19 @@ export default async function PaginaTrilhas() {
           );
         })}
       </Accordion>
+      <HistoricoSessoes sessoes={sessoes} />
     </div>
   );
 }
 
 async function carregar(estudanteId: string) {
-  const [posicao, trilhas, posicoes] = await Promise.all([
+  const [posicao, trilhas, posicoes, sessoes] = await Promise.all([
     lerUltimaPosicao(estudanteId),
     listarTrilhas(estudanteId),
     lerPosicoesPorTrilha(estudanteId),
+    historicoSessoes(estudanteId),
   ]);
   // Quem ainda não abriu nenhum Estudo começa pelo primeiro, na ordem das Trilhas e dos Estudos.
   const primeiro = posicao ? null : await lerPrimeiroEstudo();
-  return { posicao, primeiro, trilhas, atualPorTrilha: posicoes };
+  return { posicao, primeiro, trilhas, atualPorTrilha: posicoes, sessoes };
 }

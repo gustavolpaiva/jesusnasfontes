@@ -90,6 +90,11 @@ export async function semearConta(
     await c.query(`insert into privado.volta_leitura (estudante_id, volta_atual) values ($1, 2)`, [
       id,
     ]);
+    await c.query(
+      `insert into privado.sessao (estudante_id, check_in_em, check_out_em, estudo_inicio_id, estudo_fim_id, anotacao)
+       values ($1, now() - interval '1 hour', now(), $2, $3, $4)`,
+      [id, terreno.estudos[0], terreno.estudos[1], `sessão ${marcador}`],
+    );
     // biblioteca de entrada e segundo fator
     await c.query(
       `insert into auth.session (id, user_id, token, expires_at) values ($1, $2, $3, now() + interval '1 day')`,
