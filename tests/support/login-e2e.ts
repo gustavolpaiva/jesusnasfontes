@@ -5,6 +5,7 @@ import type { Page } from "@playwright/test";
 import { recuperarSegundoFator } from "../../scripts/admin/recuperar-segundo-fator";
 import { semearAdmin } from "../../scripts/admin/semear-admin";
 import { convidar } from "../../src/modules/identidade/convite";
+import { VERSAO_AVISO } from "../../src/modules/privacidade/aviso";
 import { emailsPara, ultimoEmailPara } from "./caixa-de-email";
 
 const executar = promisify(execFile);
@@ -14,15 +15,35 @@ export function emailDeTeste(prefixo = "estudante"): string {
   return `${prefixo}-${randomBytes(5).toString("hex")}@convite.example`;
 }
 
+// Registra, direto no banco da execução, o aceite da versão atual do aviso de privacidade (o portão
+// do 01-14 leva quem não aceitou a /privacidade/aceitar). Sem esse registro, todo teste que entra e
+// espera as Trilhas pararia no aviso. Só os testes do próprio consentimento pedem `semConsentimento`.
+export async function consentirParaTeste(endereco: string, versao = VERSAO_AVISO): Promise<void> {
+  await escrever(
+    `insert into privado.consentimento (estudante_id, versao_aviso, texto_hash)
+     select id, $2, 'teste' from auth."user" where email = $1
+     on conflict do nothing`,
+    [endereco.toLowerCase(), versao],
+  );
+}
+
 // Convida pela MESMA função que o comando `pnpm convidar` chama (`convidar`), no processo do teste:
 // a partida de `pnpm exec tsx` custava de 1 a 5 s por convite e dominava o tempo dos testes. O
 // comando em si (leitura do endereço pela variável, mensagens) é exercitado por `convidarPelaCLI`.
-export async function convidarParaTeste(endereco: string): Promise<void> {
+// Por padrão a pessoa convidada já aceitou o aviso atual (ver `consentirParaTeste`).
+export async function convidarParaTeste(
+  endereco: string,
+  opcoes: { semConsentimento?: boolean } = {},
+): Promise<void> {
   await convidar(endereco, null);
+  if (!opcoes.semConsentimento) await consentirParaTeste(endereco);
 }
 
 // Convida pelo comando de verdade, no banco da execução. O endereço vai por variável de ambiente.
-export async function convidarPelaCLI(endereco: string): Promise<void> {
+export async function convidarPelaCLI(
+  endereco: string,
+  opcoes: { semConsentimento?: boolean } = {},
+): Promise<void> {
   await executar(
     "pnpm",
     ["exec", "tsx", "scripts/admin/convidar.ts", "--variavel", "JNF_EMAIL_TESTE"],
@@ -30,6 +51,7 @@ export async function convidarPelaCLI(endereco: string): Promise<void> {
       env: { ...process.env, JNF_EMAIL_TESTE: endereco },
     },
   );
+  if (!opcoes.semConsentimento) await consentirParaTeste(endereco);
 }
 
 // Cada contexto tem o seu IP de teste: os limites por IP não podem ligar testes paralelos.
@@ -65,9 +87,13 @@ export async function entrarPorLink(
 // Semeia um Admin no banco da execução pela função de `admin:semear` (a do comando), sem e-mail de
 // convite e sem partir um processo novo. O estado de cada caso (criar, promover, recusar revogado)
 // é provado nos testes de integração de `semearAdmin`.
-export async function semearAdminParaTeste(endereco: string): Promise<void> {
+export async function semearAdminParaTeste(
+  endereco: string,
+  opcoes: { semConsentimento?: boolean } = {},
+): Promise<void> {
   const r = await semearAdmin(endereco);
   if (r.codigo !== 0) throw new Error(`semearAdmin recusou: ${r.mensagem}`);
+  if (!opcoes.semConsentimento) await consentirParaTeste(endereco);
 }
 
 // Recuperação do segundo fator, pela função do script do dono do banco, nas duas etapas: a prévia

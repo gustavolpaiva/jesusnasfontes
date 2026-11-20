@@ -50,6 +50,9 @@ async function main(): Promise<number> {
         // Segredo da biblioteca de entrada: aleatório por execução, nunca o do cofre.
         BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
         MAIL_TRANSPORT: "arquivo",
+        // Responsável e contato do aviso de privacidade: valores de teste, nunca os do cofre.
+        AVISO_RESPONSAVEL: "Responsável de teste",
+        AVISO_CONTATO: "contato@convite.example",
         MAIL_DIR: `test-results/correio-${id}`,
         // Saída do servidor, lida pelos testes que provam que texto privado não vai a registro.
         JNF_LOG_SERVIDOR: `test-results/servidor-${id}.log`,

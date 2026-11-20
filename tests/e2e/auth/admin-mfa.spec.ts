@@ -355,6 +355,7 @@ const PUBLICAS = new Set([
   "/",
   "/entrar",
   "/entrar/confirmar",
+  "/privacidade",
   "/casca-teste",
   "/api/ambiente",
   "/api/auth/[...all]",
