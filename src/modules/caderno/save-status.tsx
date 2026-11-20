@@ -1,5 +1,4 @@
 import { ArchiveRestore, Check, Ellipsis, SquareX, WifiOff } from "lucide-react";
-import { ANOTACAO_MAX } from "./limite";
 
 // Estado de salvamento da Anotação (tela 9): sempre texto MAIS ícone (a cor nunca é o único sinal),
 // `role="status"` e `aria-live="polite"`. O conflito não mora aqui: tem o painel próprio. A região fica
@@ -15,7 +14,8 @@ export type EstadoDeSalvamento =
   | "limite";
 
 const FALHA = "Não foi possível salvar. O texto continua neste aparelho e vamos tentar de novo.";
-const LIMITE = `A Anotação passou do limite de ${ANOTACAO_MAX.toLocaleString("pt-BR").replace(".", " ")} caracteres. Apague um trecho para continuar salvando.`;
+const LIMITE =
+  "A Anotação passou do limite de 20 000 caracteres. Apague um trecho para continuar salvando.";
 
 const textos = {
   salvo: { Icone: Check, texto: "Salvo" },
@@ -42,7 +42,7 @@ export function SaveStatus({ estado, id }: Props) {
       data-estado={estado}
       role="status"
       aria-live="polite"
-      className="text-meta flex min-w-0 items-start gap-2 text-ink-muted [overflow-wrap:anywhere]"
+      className="text-meta empty:absolute flex min-w-0 items-start gap-2 text-ink-muted [overflow-wrap:anywhere]"
     >
       {conteudo && Icone ? (
         <>
@@ -53,7 +53,9 @@ export function SaveStatus({ estado, id }: Props) {
           />
           <span>
             {erro ? (
-              <span className="text-label mr-2 not-italic text-signal-error">Erro.</span>
+              <>
+                <span className="text-label not-italic text-signal-error">Erro.</span>{" "}
+              </>
             ) : null}
             {conteudo.texto}
           </span>

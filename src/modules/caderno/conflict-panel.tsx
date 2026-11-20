@@ -38,7 +38,20 @@ function Caixa({
       {versao.corpo === "" ? (
         <p className="text-meta text-ink-muted">{vazia}</p>
       ) : (
-        <p className="text-leitura whitespace-pre-wrap [overflow-wrap:anywhere]">{versao.corpo}</p>
+        <>
+          {/* O texto inteiro, mas com altura limitada: textos longos rolam por dentro da caixa (focável por
+              teclado, selecionável e copiável) e os botões do painel continuam à vista. */}
+          <section
+            aria-label={rotulo}
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: região rolável precisa de foco para rolar pelo teclado
+            tabIndex={0}
+            className="max-h-[28dvh] overflow-y-auto rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <p className="text-leitura whitespace-pre-wrap [overflow-wrap:anywhere]">
+              {versao.corpo}
+            </p>
+          </section>
+        </>
       )}
     </div>
   );

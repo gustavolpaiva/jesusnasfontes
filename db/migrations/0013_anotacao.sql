@@ -3,7 +3,7 @@
 -- os números 0009 a 0012 já estavam em uso. A tabela e a política `dono` vêm da 0001; nada aqui as muda.
 -- Idempotente: pode ser aplicada de novo.
 
--- ON DELETE RESTRICT, ao contrário das chaves da posição, da conclusão e da Sessão: um Estudo que sai do
+-- A ação é RESTRICT, ao contrário das chaves da posição, da conclusão e da Sessão: um Estudo que sai do
 -- conteúdo NÃO leva embora o texto que a pessoa escreveu sobre ele. A carga de conteúdo que tentar remover
 -- um Estudo com Anotação falha em voz alta, em vez de apagar o que é do Estudante. A restrição é só sobre
 -- o `estudo_id` (um uuid): o banco repete a chave na mensagem de uma violação, nunca o corpo.

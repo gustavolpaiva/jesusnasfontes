@@ -340,9 +340,9 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
         aria-describedby="anotacao-ajuda anotacao-estado"
         aria-invalid={estado === "limite" ? true : undefined}
         autoComplete="off"
-        className="min-h-[calc(3lh+1.5rem)] border-rule-strong"
+        className="min-h-[calc(3lh+1.5rem)] resize-none border-rule-strong"
       />
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+      <div className="relative flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <p id="anotacao-ajuda" className="text-meta min-w-0 text-ink-muted">
           Privada: nenhum Estudante nem Admin lê pelo site. Salva sozinha.{" "}
           <Link href="/privacidade" className="underline underline-offset-2">
