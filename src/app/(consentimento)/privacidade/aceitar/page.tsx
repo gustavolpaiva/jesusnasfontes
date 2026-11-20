@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { exigirSessao } from "@/modules/identidade/sessao";
 import { mudancasDoAviso, VERSAO_AVISO } from "@/modules/privacidade/aviso";
@@ -38,6 +39,12 @@ export default async function PaginaAceitar() {
       ) : null}
       <TextoDoAviso />
       <FormularioConsentimento />
+      <Link
+        href="/privacidade/seus-dados"
+        className="text-ui inline-flex min-h-11 items-center justify-center underline"
+      >
+        Baixar ou apagar meus dados sem aceitar
+      </Link>
     </div>
   );
 }

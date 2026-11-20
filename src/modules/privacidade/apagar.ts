@@ -14,8 +14,9 @@ import { exigirSessao } from "@/modules/identidade/sessao";
 import { ERRO_UNICO_ADMIN, removerConta } from "./remover-conta";
 import { sessaoRecente } from "./sessao-recente";
 
-// Server Actions de apagar a conta (PRIV-03, ANOT-05). Cada uma exige a sessão (e, por ela, o
-// consentimento) antes de qualquer coisa e age só sobre a conta DA SESSÃO, por ID: nada aqui recebe um
+// Server Actions de apagar a conta (PRIV-03, ANOT-05). Cada uma exige a sessão antes de qualquer coisa
+// (e o segundo fator do Admin), mas NÃO o consentimento: quem não aceitou a versão atual do aviso
+// também apaga a própria conta (decisão do dono, 20/11/2026). Age só sobre a conta DA SESSÃO, por ID: nada aqui recebe um
 // ID, um e-mail ou um filtro vindo do navegador. O pedido forjado de outro site não passa: a checagem de
 // origem do Next vale para toda Server Action, e a palavra APAGAR e, com a sessão antiga, o código por
 // e-mail só quem tem a conta aberta e a caixa de e-mail consegue dar (T-01-44).
@@ -38,7 +39,7 @@ async function apagarCodigosDeConfirmacao(email: string): Promise<void> {
 
 /** Envia ao próprio e-mail da conta o código de 6 dígitos da reautenticação (no máximo 3 por 10 min). */
 export async function pedirCodigoReautenticacao(): Promise<ResultadoPedidoDeCodigo> {
-  const { usuario } = await exigirSessao();
+  const { usuario } = await exigirSessao({ exigirConsentimento: false });
   try {
     const limite = await consumirLimite(chaveDe("apagar-pedido", usuario.id), 3, 600);
     if (!limite.permitido) return { ok: false, erro: "limite" };
@@ -85,7 +86,7 @@ export async function apagarConta(
   _anterior: EstadoApagar,
   formData: FormData,
 ): Promise<EstadoApagar> {
-  const { usuario, sessao } = await exigirSessao();
+  const { usuario, sessao } = await exigirSessao({ exigirConsentimento: false });
   const precisaCodigo = !sessaoRecente(sessao.criadaEm);
   if (String(formData.get("confirmacao") ?? "").trim() !== "APAGAR") {
     return { erro: "digitacao", precisaCodigo };

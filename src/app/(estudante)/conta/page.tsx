@@ -1,19 +1,21 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { exigirSessao, sair } from "@/modules/identidade/sessao";
-import { PRAZO_DAS_COPIAS } from "@/modules/privacidade/aviso";
+import {
+  BlocosExportarEApagar,
+  CLASSE_DO_BLOCO,
+  CLASSE_DO_TITULO,
+} from "@/modules/privacidade/blocos-exportar-e-apagar";
 import { ultimoAceite } from "@/modules/privacidade/consentimento";
-import { dataLonga, sessaoRecente } from "@/modules/privacidade/sessao-recente";
-import { ApagarConta } from "./apagar-conta";
-import { BaixarDados } from "./baixar-dados";
+import { dataLonga } from "@/modules/privacidade/sessao-recente";
 
 // Conta: dados, exportar, apagar e sair (PRIV-03, ANOT-05). Depende da sessão: nunca gerada no build.
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Conta" };
 
-const bloco = "flex flex-col gap-3 border-t border-rule py-6 first:border-t-0 first:pt-0";
-const titulo = "text-label text-ink-muted";
+const bloco = CLASSE_DO_BLOCO;
+const titulo = CLASSE_DO_TITULO;
 
 export default async function PaginaConta() {
   const { usuario, sessao } = await exigirSessao();
@@ -39,30 +41,7 @@ export default async function PaginaConta() {
             Ler o aviso
           </Link>
         </section>
-        <section aria-labelledby="conta-exportar" className={bloco}>
-          <h2 id="conta-exportar" className={titulo}>
-            Exportar meus dados
-          </h2>
-          <p className="text-leitura">
-            Baixe um arquivo com seu e-mail, o registro do aceite, suas Sessões, Anotações,
-            conclusões e posição nas Trilhas.
-          </p>
-          <BaixarDados />
-        </section>
-        <section aria-labelledby="conta-apagar" className={bloco}>
-          <h2 id="conta-apagar" className={titulo}>
-            Apagar minha conta
-          </h2>
-          <p className="text-leitura">
-            Isto apaga a sua conta, as Anotações, as Sessões e o progresso. Não dá para desfazer. Se
-            quiser guardar algo, baixe seus dados antes.
-          </p>
-          <ApagarConta
-            email={usuario.email}
-            precisaCodigo={!sessaoRecente(sessao.criadaEm)}
-            prazoDasCopias={PRAZO_DAS_COPIAS}
-          />
-        </section>
+        <BlocosExportarEApagar email={usuario.email} sessaoCriadaEm={sessao.criadaEm} />
         <section aria-labelledby="conta-sair" className={bloco}>
           <h2 id="conta-sair" className={titulo}>
             Sair

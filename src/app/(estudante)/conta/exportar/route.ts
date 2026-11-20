@@ -4,6 +4,9 @@ import { exportarDados } from "@/modules/privacidade/exportar";
 
 // Todos os dados da pessoa em um arquivo JSON (PRIV-03). Só a conta da sessão; resposta nunca guardada
 // em cache e entregue como anexo; nada do conteúdo vai ao registro (T-01-45).
+// Abre também para quem não aceitou a versão atual do aviso (decisão do dono, 20/11/2026): levar os
+// próprios dados não depende de aceitar o tratamento. A sessão (e o segundo fator do Admin) continua
+// exigida e a conta é sempre a da sessão.
 export const dynamic = "force-dynamic";
 
 const CABECALHOS = {
@@ -14,7 +17,7 @@ const CABECALHOS = {
 };
 
 export async function GET(): Promise<Response> {
-  const { usuario } = await exigirSessao();
+  const { usuario } = await exigirSessao({ exigirConsentimento: false });
   try {
     const dados = await exportarDados(usuario.id);
     return new Response(JSON.stringify(dados, null, 2), { headers: CABECALHOS });
