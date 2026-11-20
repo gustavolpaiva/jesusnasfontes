@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { obterPool } from "@/db/cliente";
 import { lerEstudoPorSlug } from "@/modules/conteudo/estudo";
 import { carregarConteudo, PASTA_PADRAO } from "../../../scripts/content/carregar";
@@ -22,6 +22,11 @@ import { semearTexto } from "../../support/preparar-banco";
 // descartável SÓ deste arquivo (o compartilhado conta os Estudos em outros testes) e não roda no Neon.
 
 const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+// A carga inteira (127 Estudos) passa de 30 s com a máquina ocupada. Um teste abandonado por prazo deixa
+// a carga a meio caminho, segurando a trava; o teste seguinte chama o comando de forma síncrona e os dois
+// ficam esperando um pelo outro (visto em 20/11/2026: 5 horas parado).
+vi.setConfig({ testTimeout: 180_000 });
+
 const emNeon = () => inject("alvoBanco") === "neon";
 const temporarios: string[] = [];
 let banco: BancoDeExecucao | undefined;
@@ -160,6 +165,8 @@ describe.skipIf(emNeon())("content/ completo: 8 + 30 + 89 e os 3 conjuntos de pe
       cwd: RAIZ,
       env: process.env,
       encoding: "utf8",
+      // Processo filho síncrono trava o laço de eventos deste arquivo: sem prazo, uma espera vira eterna.
+      timeout: 120_000,
     });
     expect(saida).toContain("inseridos=0 atualizados=0 inalterados=127");
     expect(saida).toContain(

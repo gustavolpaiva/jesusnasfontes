@@ -136,6 +136,8 @@ describe("content:load com o Estudo real batismo-e-tentacao", () => {
       cwd: RAIZ,
       env: process.env,
       encoding: "utf8",
+      // Processo filho síncrono trava o laço de eventos deste arquivo: sem prazo, uma espera vira eterna.
+      timeout: 120_000,
     });
     expect(saida).toContain("inseridos=0 atualizados=0 inalterados=");
     expect(saida).toContain("trilhas inseridas=0 atualizadas=0 inalteradas=3");
@@ -170,6 +172,8 @@ describe("a carga recusa e desfaz", () => {
         cwd: RAIZ,
         env: process.env,
         encoding: "utf8",
+        // Processo filho síncrono trava o laço de eventos deste arquivo: sem prazo, uma espera vira eterna.
+        timeout: 120_000,
         stdio: ["ignore", "pipe", "pipe"],
       });
     } catch (erro) {

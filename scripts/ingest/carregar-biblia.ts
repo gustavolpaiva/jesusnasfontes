@@ -351,7 +351,11 @@ async function escreverEdicao(
   await c.query("begin");
   try {
     // Só uma carga de texto por vez; a trava some no fim da transação.
+    // A espera pela trava tem prazo: outra carga presa (ou abandonada) vira erro em 2 minutos, não uma
+    // espera sem fim. O prazo vale só para pegar a trava; depois volta ao normal.
+    await c.query("set local lock_timeout = '120s'");
     await c.query("select pg_advisory_xact_lock(hashtext('jnf-carga-texto'))");
+    await c.query("set local lock_timeout = 0");
     const amb = await c.query<{ nome: string }>("select nome from acervo.ambiente");
     if (amb.rows.length !== 1 || !amb.rows[0])
       throw new ErroCarga("marcador de ambiente ausente no banco: rode as migrações");
