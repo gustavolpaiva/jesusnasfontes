@@ -38,6 +38,15 @@ type No = {
 function textoPuro(no: No): string {
   if (typeof no.value === "string" && (no.type === "text" || no.type === "inlineCode"))
     return no.value;
+  // Dois-pontos do texto lido como diretiva (o ":9-20" de "Mc 16:9-20"): volta como estava no
+  // arquivo. Sem isto "Mc 16:9-20" e "Mc 16:1-8" dariam a mesma frase e o mesmo hash.
+  if (
+    no.type === "textDirective" &&
+    no.name !== "afirmacao" &&
+    (no.children?.length ?? 0) === 0 &&
+    Object.keys(no.attributes ?? {}).length === 0
+  )
+    return `:${no.name ?? ""}`;
   return (no.children ?? []).map(textoPuro).join("");
 }
 

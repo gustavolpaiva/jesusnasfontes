@@ -36,6 +36,14 @@ describe("extrairAfirmacoes", () => {
     expect(extrairAfirmacoes(md)).toEqual([]);
   });
 
+  it("a referência dentro da Afirmação fica inteira: versículos diferentes dão frases e hashes diferentes", () => {
+    const [longo] = extrairAfirmacoes("Texto. :afirmacao[O final longo é Mc 16:9-20.]{#bh05-a6}");
+    const [curto] = extrairAfirmacoes("Texto. :afirmacao[O final longo é Mc 16:1-8.]{#bh05-a6}");
+    expect(longo?.texto).toBe("O final longo é Mc 16:9-20.");
+    expect(curto?.texto).toBe("O final longo é Mc 16:1-8.");
+    expect(textoDaAfirmacao(longo?.texto ?? "")).not.toBe(textoDaAfirmacao(curto?.texto ?? ""));
+  });
+
   it("guarda formatação dentro da frase como texto puro", () => {
     const r = extrairAfirmacoes(":afirmacao[o **dado** é *este*]{#pc03-a1}");
     expect(r[0]?.texto).toBe("o dado é este");
