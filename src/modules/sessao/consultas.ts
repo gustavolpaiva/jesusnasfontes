@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { z } from "zod";
 import { comAcervo } from "@/db/com-acervo";
 import { comEstudante, type Tx } from "@/db/com-estudante";
 import { estudo, trilha } from "@/db/schema/conteudo";
@@ -186,26 +187,43 @@ export type ResultadoEncerrar =
   | { ok: true; minutos: number; de: string; ate: string }
   | { ok: false; erro: "sem-sessao-aberta" | "anotacao-invalida" };
 
+const idDaSessao = z.uuid();
+
 /**
- * Encerra a Sessão aberta. `estudoSlugAtual` é o Estudo em que a pessoa está (quando o check-out vem de um
+ * Encerra A Sessão que a tela mostrava (`sessaoId`), e só ela. A trava põe os envios em fila, mas não diz
+ * QUAL Sessão cada um quer encerrar: a aba A que abriu a folha da Sessão 1 e demorou a enviar não pode
+ * encerrar a Sessão 2 que a aba B abriu depois, com a Anotação escrita para a 1. Por isso a leitura e a
+ * escrita exigem o id, o Estudante e `check_out_em` nulo; se não baterem (id de outra Sessão, de outra
+ * conta, que não é uuid, ausente, ou Sessão já encerrada) a resposta é a mesma de "Sessão já encerrada em
+ * outra aba" e nada é gravado.
+ *
+ * `estudoSlugAtual` é o Estudo em que a pessoa está (quando o check-out vem de um
  * Estudo); sem ele, ou com um slug que não existe, o Estudo final é a posição mais recente e, na falta
  * dela, o Estudo em que a Sessão começou. A Anotação é validada (200 caracteres) ANTES de qualquer
  * consulta e nunca volta numa mensagem de erro.
  */
 export async function encerrarSessao(
   estudanteId: string,
-  { estudoSlugAtual, anotacao }: { estudoSlugAtual?: string | null; anotacao?: unknown },
+  {
+    sessaoId,
+    estudoSlugAtual,
+    anotacao,
+  }: { sessaoId?: unknown; estudoSlugAtual?: string | null; anotacao?: unknown },
   { porta = comEstudante }: Opcoes = {},
 ): Promise<ResultadoEncerrar> {
   const validada = validarAnotacaoDaSessao(anotacao);
   if (!validada.ok) return { ok: false, erro: "anotacao-invalida" };
+  const id = idDaSessao.safeParse(sessaoId);
+  if (!id.success) return { ok: false, erro: "sem-sessao-aberta" };
 
   return porta(estudanteId, async (tx) => {
     await travarProgresso(tx, estudanteId);
     const [aberta] = await tx
       .select({ id: sessao.id, checkInEm: sessao.checkInEm, inicioId: sessao.estudoInicioId })
       .from(sessao)
-      .where(and(eq(sessao.estudanteId, estudanteId), isNull(sessao.checkOutEm)));
+      .where(
+        and(eq(sessao.id, id.data), eq(sessao.estudanteId, estudanteId), isNull(sessao.checkOutEm)),
+      );
     // Outra aba já encerrou (a trava fez esta esperar): nada a gravar.
     if (!aberta) return { ok: false as const, erro: "sem-sessao-aberta" as const };
 
@@ -228,7 +246,13 @@ export async function encerrarSessao(
         estudoFimId: fimId,
         anotacao: validada.valor,
       })
-      .where(and(eq(sessao.id, aberta.id), isNull(sessao.checkOutEm)))
+      .where(
+        and(
+          eq(sessao.id, aberta.id),
+          eq(sessao.estudanteId, estudanteId),
+          isNull(sessao.checkOutEm),
+        ),
+      )
       .returning({ checkOutEm: sessao.checkOutEm });
     if (!fechada?.checkOutEm) return { ok: false as const, erro: "sem-sessao-aberta" as const };
 

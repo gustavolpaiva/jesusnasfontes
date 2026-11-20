@@ -39,7 +39,12 @@ export async function SessaoBar({
       const desde = mesmoDia(checkInEm, new Date())
         ? formatarHora(checkInEm)
         : `${formatarData(checkInEm)}, ${formatarHora(checkInEm)}`;
-      estado = { tipo: "aberta", desde, estudo: faixa.aberta.estudoTitulo };
+      estado = {
+        tipo: "aberta",
+        sessaoId: faixa.aberta.id,
+        desde,
+        estudo: faixa.aberta.estudoTitulo,
+      };
     } else {
       estado = { tipo: "nenhuma", ultima: faixa.ultima ? textoDaUltima(faixa.ultima) : null };
     }

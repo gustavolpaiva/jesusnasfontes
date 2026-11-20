@@ -129,6 +129,17 @@ function observar<T>(promessa: Promise<T>): () => boolean {
 // soltar, a segunda termina e o resultado é o da ordem da fila.
 const ESPERA_DA_FILA_MS = 400;
 
+// A aba só pode pedir o check-out da Sessão que ela MOSTRA: o id é o da Sessão aberta que a tela lê agora.
+// Sem Sessão aberta a aba manda um id que não é de Sessão nenhuma (nada a encerrar).
+async function encerrarDaTela(
+  estudanteId: string,
+  entrada: Omit<Parameters<typeof encerrarSessao>[1], "sessaoId">,
+  extra?: Parameters<typeof encerrarSessao>[2],
+) {
+  const sessaoId = (await sessaoAberta(estudanteId))?.id ?? randomUUID();
+  return encerrarSessao(estudanteId, { ...entrada, sessaoId }, extra);
+}
+
 beforeAll(async () => {
   if (emNeon()) {
     aplicarEnvDeTeste();
@@ -214,7 +225,7 @@ describe.skipIf(emNeon())("privado.sessao: cada conta vê só as suas Sessões",
     const b = await novaConta();
     const segredo = `anotacao-privada-de-a-${rodada}`;
     expect((await abrirSessao(a, { estudoSlug: e1.slug })).ok).toBe(true);
-    const fechada = await encerrarSessao(a, { estudoSlugAtual: e2.slug, anotacao: segredo });
+    const fechada = await encerrarDaTela(a, { estudoSlugAtual: e2.slug, anotacao: segredo });
     expect(fechada).toMatchObject({ ok: true, de: e1.titulo, ate: e2.titulo });
 
     // Controle positivo: A vê a dela, com a Anotação.
@@ -277,9 +288,9 @@ describe.skipIf(emNeon())("privado.sessao: cada conta vê só as suas Sessões",
     const deA = `texto-da-sessao-de-a-${rodada}`;
     const deB = `texto-da-sessao-de-b-${rodada}`;
     await abrirSessao(a, { estudoSlug: e1.slug });
-    await encerrarSessao(a, { anotacao: deA });
+    await encerrarDaTela(a, { anotacao: deA });
     await abrirSessao(b, { estudoSlug: e1.slug });
-    await encerrarSessao(b, { anotacao: deB });
+    await encerrarDaTela(b, { anotacao: deB });
     const arquivoA = JSON.stringify(await exportarDados(a));
     expect(arquivoA).toContain(deA);
     expect(arquivoA).not.toContain(deB);
@@ -325,7 +336,7 @@ describe.skipIf(emNeon())("abrir e encerrar a Sessão", () => {
     const id = await novaConta();
     await abrirSessao(id, { estudoSlug: e1.slug });
     const longa = "a".repeat(ANOTACAO_DA_SESSAO_MAX + 1);
-    expect(await encerrarSessao(id, { anotacao: longa })).toEqual({
+    expect(await encerrarDaTela(id, { anotacao: longa })).toEqual({
       ok: false,
       erro: "anotacao-invalida",
     });
@@ -341,24 +352,24 @@ describe.skipIf(emNeon())("abrir e encerrar a Sessão", () => {
     expect(aindaAberta).toEqual([{ anotacao: null }]);
 
     const justa = "b".repeat(ANOTACAO_DA_SESSAO_MAX);
-    expect(await encerrarSessao(id, { anotacao: justa })).toMatchObject({ ok: true });
+    expect(await encerrarDaTela(id, { anotacao: justa })).toMatchObject({ ok: true });
     expect((await historicoSessoes(id))[0]?.anotacao).toBe(justa);
   });
 
   it("a Anotação é opcional: vazia ou só espaços vira nulo; o NUL de texto é tirado; um valor que não é texto é recusado", async () => {
     const vazia = await novaConta();
     await abrirSessao(vazia, { estudoSlug: e1.slug });
-    await encerrarSessao(vazia, { anotacao: "   " });
+    await encerrarDaTela(vazia, { anotacao: "   " });
     expect((await historicoSessoes(vazia))[0]?.anotacao).toBeNull();
 
     const comNul = await novaConta();
     await abrirSessao(comNul, { estudoSlug: e1.slug });
-    await encerrarSessao(comNul, { anotacao: "antes\u0000depois" });
+    await encerrarDaTela(comNul, { anotacao: "antes\u0000depois" });
     expect((await historicoSessoes(comNul))[0]?.anotacao).toBe("antesdepois");
 
     const objeto = await novaConta();
     await abrirSessao(objeto, { estudoSlug: e1.slug });
-    expect(await encerrarSessao(objeto, { anotacao: { corpo: "x" } })).toEqual({
+    expect(await encerrarDaTela(objeto, { anotacao: { corpo: "x" } })).toEqual({
       ok: false,
       erro: "anotacao-invalida",
     });
@@ -367,30 +378,30 @@ describe.skipIf(emNeon())("abrir e encerrar a Sessão", () => {
   it("o Estudo final é o da tela; sem ele, a posição mais recente; sem posição, onde a Sessão começou", async () => {
     const daTela = await novaConta();
     await abrirSessao(daTela, { estudoSlug: e1.slug });
-    const r1 = await encerrarSessao(daTela, { estudoSlugAtual: e2.slug, anotacao: null });
+    const r1 = await encerrarDaTela(daTela, { estudoSlugAtual: e2.slug, anotacao: null });
     expect(r1).toMatchObject({ ok: true, de: e1.titulo, ate: e2.titulo });
 
     const daPosicao = await novaConta();
     await abrirSessao(daPosicao, { estudoSlug: e1.slug });
     await registrarPosicao(daPosicao, { trilhaId: trilhaB, estudoId: e3.id });
-    const r2 = await encerrarSessao(daPosicao, { anotacao: null });
+    const r2 = await encerrarDaTela(daPosicao, { anotacao: null });
     expect(r2).toMatchObject({ ok: true, de: e1.titulo, ate: e3.titulo });
     // Um slug que não existe cai na mesma regra (nunca grava Estudo inventado).
     const slugRuim = await novaConta();
     await abrirSessao(slugRuim, { estudoSlug: e1.slug });
     await registrarPosicao(slugRuim, { trilhaId: trilhaA, estudoId: e2.id });
-    const r3 = await encerrarSessao(slugRuim, { estudoSlugAtual: `nao-existe-${rodada}` });
+    const r3 = await encerrarDaTela(slugRuim, { estudoSlugAtual: `nao-existe-${rodada}` });
     expect(r3).toMatchObject({ ok: true, ate: e2.titulo });
 
     const semPosicao = await novaConta();
     await abrirSessao(semPosicao, { estudoSlug: e2.slug });
-    const r4 = await encerrarSessao(semPosicao, { anotacao: null });
+    const r4 = await encerrarDaTela(semPosicao, { anotacao: null });
     expect(r4).toMatchObject({ ok: true, de: e2.titulo, ate: e2.titulo });
   });
 
   it("encerrar sem Sessão aberta não grava nada e diz que não há", async () => {
     const id = await novaConta();
-    expect(await encerrarSessao(id, { anotacao: "x" })).toEqual({
+    expect(await encerrarDaTela(id, { anotacao: "x" })).toEqual({
       ok: false,
       erro: "sem-sessao-aberta",
     });
@@ -400,7 +411,7 @@ describe.skipIf(emNeon())("abrir e encerrar a Sessão", () => {
   it("o fim nunca fica antes do início", async () => {
     const id = await novaConta();
     await abrirSessao(id, { estudoSlug: e1.slug });
-    await encerrarSessao(id, {});
+    await encerrarDaTela(id, {});
     const [s] = await historicoSessoes(id);
     expect(s).toBeDefined();
     if (!s) return;
@@ -439,13 +450,13 @@ describe.skipIf(emNeon())(
       const id = await novaConta();
       await abrirSessao(id, { estudoSlug: e1.slug });
       const g = comPortao();
-      const primeira = encerrarSessao(
+      const primeira = encerrarDaTela(
         id,
         { estudoSlugAtual: e2.slug, anotacao: "da primeira aba" },
         { porta: g.porta },
       );
       await g.jaGravou;
-      const segunda = encerrarSessao(id, { anotacao: "da segunda aba" });
+      const segunda = encerrarDaTela(id, { anotacao: "da segunda aba" });
       const terminou = observar(segunda);
       await dormir(ESPERA_DA_FILA_MS);
       // Controle: com a primeira ainda segurando a trava, a segunda não pode ter terminado.
@@ -475,26 +486,105 @@ describe.skipIf(emNeon())(
       expect(await sessoesReais(id)).toBe(1);
     });
 
-    it("check-out junto do check-in: o check-out espera e vê a Sessão que o check-in acabou de abrir", async () => {
+    it("check-in de uma aba desatualizada espera o check-out e abre uma Sessão nova depois dele", async () => {
       const id = await novaConta();
+      await abrirSessao(id, { estudoSlug: e1.slug });
       const g = comPortao();
-      const abrir = abrirSessao(id, { estudoSlug: e1.slug }, { porta: g.porta });
+      const fechando = encerrarDaTela(id, { anotacao: "da primeira Sessão" }, { porta: g.porta });
       await g.jaGravou;
-      const fechar = encerrarSessao(id, { anotacao: "fechou" });
-      const terminou = observar(fechar);
+      // A outra aba ainda mostra "Nenhuma Sessão aberta" e pede o check-in.
+      const abrir = abrirSessao(id, { estudoSlug: e2.slug });
+      const terminou = observar(abrir);
       await dormir(ESPERA_DA_FILA_MS);
       expect(terminou()).toBe(false);
       g.soltar();
-      await abrir;
-      expect(await fechar).toMatchObject({ ok: true });
-      expect(await sessaoAberta(id)).toBeNull();
+      expect(await fechando).toMatchObject({ ok: true });
+      expect(await abrir).toMatchObject({ ok: true, jaAberta: false });
+      expect(await sessoesReais(id)).toBe(2);
+      expect((await historicoSessoes(id))[0]?.anotacao).toBe("da primeira Sessão");
+      expect((await sessaoAberta(id))?.estudoSlug).toBe(e2.slug);
+    });
+
+    it("o check-out leva o id da Sessão exibida: a aba que mostra a Sessão 1 não encerra a Sessão 2 aberta depois", async () => {
+      const id = await novaConta();
+      const s1 = await abrirSessao(id, { estudoSlug: e1.slug });
+      const idS1 = s1.ok ? s1.sessao.id : "";
+      expect(idS1).not.toBe("");
+      // A aba A abre a folha de check-out da Sessão 1 e demora a enviar. A aba B encerra a Sessão 1 e,
+      // com a trava na mão, abre a Sessão 2: é neste instante que a aba A envia o texto dela.
+      expect(await encerrarSessao(id, { sessaoId: idS1, anotacao: "da aba B" })).toMatchObject({
+        ok: true,
+      });
+      const g = comPortao();
+      const abrindoS2 = abrirSessao(id, { estudoSlug: e2.slug }, { porta: g.porta });
+      await g.jaGravou;
+      const envioDaA = encerrarSessao(id, {
+        sessaoId: idS1,
+        anotacao: "da aba A, para a Sessão 1",
+      });
+      const terminou = observar(envioDaA);
+      await dormir(ESPERA_DA_FILA_MS);
+      // Controle: o envio da A está na fila atrás da abertura da Sessão 2.
+      expect(terminou()).toBe(false);
+      g.soltar();
+      const s2 = await abrindoS2;
+      const idS2 = s2.ok ? s2.sessao.id : "";
+      expect(idS2).not.toBe(idS1);
+      // A resposta é a mesma de "Sessão já encerrada em outra aba", e nada foi gravado.
+      expect(await envioDaA).toEqual({ ok: false, erro: "sem-sessao-aberta" });
+      const linhas = await comoDono(async (c) => {
+        const r = await c.query(
+          "select id, check_out_em is null as aberta, anotacao from privado.sessao where estudante_id = $1 order by check_in_em",
+          [id],
+        );
+        return r.rows as { id: string; aberta: boolean; anotacao: string | null }[];
+      });
+      expect(linhas).toEqual([
+        { id: idS1, aberta: false, anotacao: "da aba B" },
+        { id: idS2, aberta: true, anotacao: null },
+      ]);
+      // A Anotação da aba A não está em lugar nenhum.
+      expect(JSON.stringify(linhas)).not.toContain("da aba A");
+    });
+
+    it("o id da Sessão de outra conta, ou que não é um uuid, não encerra nada", async () => {
+      const a = await novaConta();
+      const b = await novaConta();
+      await abrirSessao(a, { estudoSlug: e1.slug });
+      const sb = await abrirSessao(b, { estudoSlug: e1.slug });
+      const idDeB = sb.ok ? sb.sessao.id : "";
+      // A pede o check-out com o id da Sessão de B: a RLS e o filtro por Estudante recusam.
+      expect(await encerrarSessao(a, { sessaoId: idDeB, anotacao: "invasão" })).toEqual({
+        ok: false,
+        erro: "sem-sessao-aberta",
+      });
+      expect(await encerrarSessao(a, { sessaoId: "nao-e-uuid", anotacao: "x" })).toEqual({
+        ok: false,
+        erro: "sem-sessao-aberta",
+      });
+      expect(await encerrarSessao(a, { anotacao: "sem id" })).toEqual({
+        ok: false,
+        erro: "sem-sessao-aberta",
+      });
+      // As duas Sessões seguem abertas e sem texto.
+      expect((await sessaoAberta(a))?.id).toBeDefined();
+      expect((await sessaoAberta(b))?.id).toBe(idDeB);
+      expect(
+        await comoDono(async (c) => {
+          const r = await c.query(
+            "select count(*)::int as n from privado.sessao where anotacao is not null and estudante_id = any($1)",
+            [[a, b]],
+          );
+          return r.rows[0]?.n as number;
+        }),
+      ).toBe(0);
     });
 
     it("check-out junto de apagar a conta: apagar espera o check-out e não sobra linha da conta", async () => {
       const id = await novaConta();
       await abrirSessao(id, { estudoSlug: e1.slug });
       const g = comPortao();
-      const fechar = encerrarSessao(id, { anotacao: "segredo" }, { porta: g.porta });
+      const fechar = encerrarDaTela(id, { anotacao: "segredo" }, { porta: g.porta });
       await g.jaGravou;
       const apagar = removerConta(id);
       const terminou = observar(apagar);
@@ -530,7 +620,7 @@ describe.skipIf(emNeon())(
       } as unknown as typeof base;
       const apagar = removerConta(id, { db: lento });
       await jaGravou;
-      const fechar = encerrarSessao(id, { anotacao: "tarde demais" });
+      const fechar = encerrarDaTela(id, { anotacao: "tarde demais" });
       const terminou = observar(fechar);
       await dormir(ESPERA_DA_FILA_MS);
       expect(terminou()).toBe(false);
@@ -553,7 +643,7 @@ describe.skipIf(emNeon())(
       const a = await novaConta();
       await abrirSessao(a, { estudoSlug: e1.slug });
       const g1 = comPortao();
-      const fechar = encerrarSessao(a, { anotacao: "x" }, { porta: g1.porta });
+      const fechar = encerrarDaTela(a, { anotacao: "x" }, { porta: g1.porta });
       await g1.jaGravou;
       const volta1 = iniciarNovaVolta(a);
       const terminou1 = observar(volta1);
@@ -569,7 +659,7 @@ describe.skipIf(emNeon())(
       const g2 = comPortao();
       const volta2 = iniciarNovaVolta(b, { porta: g2.porta });
       await g2.jaGravou;
-      const fechar2 = encerrarSessao(b, { anotacao: "y" });
+      const fechar2 = encerrarDaTela(b, { anotacao: "y" });
       const terminou2 = observar(fechar2);
       await dormir(ESPERA_DA_FILA_MS);
       expect(terminou2()).toBe(false);
@@ -582,7 +672,7 @@ describe.skipIf(emNeon())(
       const id = await novaConta();
       await abrirSessao(id, { estudoSlug: e1.slug });
       const g = comPortao();
-      const fechar = encerrarSessao(
+      const fechar = encerrarDaTela(
         id,
         { anotacao: `na-exportacao-${rodada}` },
         { porta: g.porta },

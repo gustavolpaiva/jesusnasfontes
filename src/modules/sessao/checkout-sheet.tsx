@@ -40,6 +40,8 @@ type Aviso = { tipo: "erro" | "informacao"; texto: string } | null;
 export type SessaoEncerrada = { minutos: number; de: string; ate: string };
 
 type Props = {
+  /** A Sessão que a faixa mostra agora. A folha guarda a que estava na tela QUANDO foi aberta. */
+  sessaoId: string;
   /** O Estudo em que a pessoa está, quando o check-out vem de um Estudo. */
   estudoSlugAtual: string | null;
   aoEncerrar: (encerrada: SessaoEncerrada) => void;
@@ -67,7 +69,7 @@ function useFolhaSobOTeclado(ativo: boolean): CSSProperties | undefined {
   return estilo;
 }
 
-export function CheckoutSheet({ estudoSlugAtual, aoEncerrar }: Props) {
+export function CheckoutSheet({ sessaoId, estudoSlugAtual, aoEncerrar }: Props) {
   const [aberta, setAberta] = useState(false);
   const [texto, setTexto] = useState("");
   const [aviso, setAviso] = useState<Aviso>(null);
@@ -81,10 +83,16 @@ export function CheckoutSheet({ estudoSlugAtual, aoEncerrar }: Props) {
   // o texto embora; ela se refaz quando a folha é fechada.
   const desatualizada = useRef(false);
 
+  // O id da Sessão no instante em que a folha abriu: se a faixa se refizer com a folha aberta (outra aba
+  // abriu uma Sessão nova), o envio continua sendo o da Sessão que a pessoa estava encerrando.
+  const sessaoDaFolha = useRef(sessaoId);
+
   function aoMudarAbertura(valor: boolean) {
     setAberta(valor);
-    if (valor) setAviso(null);
-    else if (desatualizada.current) {
+    if (valor) {
+      sessaoDaFolha.current = sessaoId;
+      setAviso(null);
+    } else if (desatualizada.current) {
       desatualizada.current = false;
       roteador.refresh();
     }
@@ -94,6 +102,7 @@ export function CheckoutSheet({ estudoSlugAtual, aoEncerrar }: Props) {
     evento.preventDefault();
     const dados = new FormData();
     dados.set("anotacao", texto);
+    dados.set("sessaoId", sessaoDaFolha.current);
     if (estudoSlugAtual) dados.set("estudoSlug", estudoSlugAtual);
     setAviso(null);
     iniciar(async () => {

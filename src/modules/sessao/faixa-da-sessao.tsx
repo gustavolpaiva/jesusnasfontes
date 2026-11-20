@@ -14,7 +14,7 @@ import { formatarDuracao } from "./formato";
 const SEM_CONEXAO = "Sem conexão. Tente de novo quando a conexão voltar.";
 
 export type EstadoDaFaixa =
-  | { tipo: "aberta"; desde: string; estudo: string }
+  | { tipo: "aberta"; sessaoId: string; desde: string; estudo: string }
   | { tipo: "nenhuma"; ultima: string | null };
 
 type Props = {
@@ -82,7 +82,11 @@ export function FaixaDaSessao({ estado, estudoAtual }: Props) {
           </span>
         </p>
         {estado.tipo === "aberta" ? (
-          <CheckoutSheet estudoSlugAtual={estudoAtual?.slug ?? null} aoEncerrar={aoEncerrar} />
+          <CheckoutSheet
+            sessaoId={estado.sessaoId}
+            estudoSlugAtual={estudoAtual?.slug ?? null}
+            aoEncerrar={aoEncerrar}
+          />
         ) : (
           <Button
             variant="secondary"

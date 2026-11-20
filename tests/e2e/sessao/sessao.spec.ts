@@ -162,6 +162,55 @@ test("duas abas: o check-out da segunda acha a Sessão já encerrada, avisa e ma
   ).toBe("da primeira aba");
 });
 
+test("duas abas: a folha da Sessão 1 não encerra a Sessão 2 que a outra aba abriu depois", async ({
+  page,
+}) => {
+  const { id } = await entrar(page);
+  await page.goto("/estudos/o-nascimento");
+  await clicarQuandoHidratado(page, "Fazer check-in no Estudo: O nascimento");
+  await expect(faixa(page).getByText(/em O nascimento\./)).toBeVisible();
+  // A aba A abre a folha da Sessão 1, escreve e ainda não envia.
+  await clicarQuandoHidratado(page, "Fazer check-out");
+  await folha(page).getByLabel("Anotação da Sessão (opcional)").fill("da aba A, para a Sessão 1");
+
+  // A aba B encerra a Sessão 1 e abre a Sessão 2.
+  const outra = await page.context().newPage();
+  await outra.goto("/estudos/batismo-e-tentacao");
+  await clicarQuandoHidratado(outra, "Fazer check-out");
+  await outra.getByLabel("Anotação da Sessão (opcional)").fill("da aba B");
+  await outra.getByRole("button", { name: "Encerrar Sessão" }).click();
+  await expect(outra.getByRole("status").filter({ hasText: "Feito." })).toBeVisible();
+  await clicarQuandoHidratado(outra, /Fazer check-in/);
+  await expect(faixa(outra).getByText(/em Batismo e tentação\./)).toBeVisible();
+  await outra.close();
+  expect(await sessoesDe(id)).toBe(2);
+
+  // A envia: recusa, mesma mensagem de "já encerrada em outra aba", o texto continua no campo.
+  await folha(page).getByRole("button", { name: "Encerrar Sessão" }).click();
+  await expect(folha(page).getByRole("status")).toContainText(
+    "Esta Sessão já foi encerrada em outra aba.",
+  );
+  await expect(folha(page).getByLabel("Anotação da Sessão (opcional)")).toHaveValue(
+    "da aba A, para a Sessão 1",
+  );
+  // A Sessão 2 segue aberta e sem Anotação; a da aba A não foi a lugar nenhum.
+  expect(
+    await contar(
+      "select count(*) as n from privado.sessao where estudante_id = $1 and check_out_em is null and anotacao is null",
+      [id],
+    ),
+  ).toBe(1);
+  expect(
+    await contar(
+      "select count(*) as n from privado.sessao where estudante_id = $1 and anotacao like '%aba A%'",
+      [id],
+    ),
+  ).toBe(0);
+  // Ao fechar a folha a faixa se refaz e mostra a Sessão 2.
+  await folha(page).getByRole("button", { name: "Voltar" }).click();
+  await expect(faixa(page).getByText(/em Batismo e tentação\./)).toBeVisible();
+});
+
 test("sem conexão: check-in e check-out mostram o erro de conexão, nada entra em fila e o texto digitado fica", async ({
   page,
   context,

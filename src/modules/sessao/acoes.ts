@@ -63,6 +63,8 @@ export async function fazerCheckOut(dados: FormData): Promise<ResultadoCheckOut>
   const { usuario } = await exigirSessao();
   const anotacao = dados.get("anotacao");
   const slugAtual = dados.get("estudoSlug");
+  // O id da Sessão que a folha mostrava ao abrir: o servidor encerra essa, e só essa.
+  const sessaoId = dados.get("sessaoId");
   // Um valor que não é texto (um arquivo, por exemplo) não é Anotação.
   if (anotacao !== null && typeof anotacao !== "string") {
     return { ok: false, erro: "anotacao-invalida" };
@@ -70,6 +72,7 @@ export async function fazerCheckOut(dados: FormData): Promise<ResultadoCheckOut>
   const slug = typeof slugAtual === "string" ? slugDoEstudo.safeParse(slugAtual) : null;
   try {
     const resultado = await encerrarSessao(usuario.id, {
+      sessaoId: typeof sessaoId === "string" ? sessaoId : null,
       estudoSlugAtual: slug?.success ? slug.data : null,
       anotacao,
     });
