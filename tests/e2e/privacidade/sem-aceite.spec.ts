@@ -25,7 +25,7 @@ const aceites = (id: string) =>
 
 async function semearAnotacao(id: string, marcador: string): Promise<void> {
   await escrever(
-    "insert into privado.anotacao (estudante_id, estudo_id, corpo) values ($1, gen_random_uuid(), $2)",
+    "insert into privado.anotacao (estudante_id, estudo_id, corpo) values ($1, (select id from conteudo.estudo order by slug limit 1), $2)",
     [id, `corpo ${marcador}`],
   );
 }
