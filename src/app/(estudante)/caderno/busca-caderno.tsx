@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useRef, useState, useTransition } from "react";
+import { type FormEvent, useEffect, useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/estado/empty-state";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,11 @@ import { EntradaCaderno } from "./entrada-caderno";
 // chega à tela.
 
 type Visao = { termo: string; entradas: EntradaDoCaderno[]; total: number; proximo: string | null };
-type Aviso = "falha" | "offline" | null;
+type Aviso = "falha" | "offline" | "sessao-trocada" | null;
 
 const SEM_CONEXAO = "Sem conexão. A busca precisa de internet.";
 const FALHA = "Não conseguimos buscar agora. Tente de novo.";
+const TROCADA = "Este navegador entrou com outra conta. Recarregue a página.";
 
 function contagem(termo: string, total: number): string {
   if (total === 0) return `Nenhuma Anotação com "${termo}"`;
@@ -34,11 +35,13 @@ function contagem(termo: string, total: number): string {
 }
 
 type Props = {
+  /** Quem abriu a página: toda busca diz isso ao servidor, que recusa se a sessão agora for de outra conta. */
+  estudanteId: string;
   /** A primeira página, lida no servidor; `null` se a leitura falhou. */
   inicial: PaginaDoCaderno | null;
 };
 
-export function BuscaCaderno({ inicial }: Props) {
+export function BuscaCaderno({ estudanteId, inicial }: Props) {
   const roteador = useRouter();
   const visaoInicial = useRef<Visao | null>(inicial ? { termo: "", ...inicial } : null);
   const [visao, setVisao] = useState<Visao | null>(visaoInicial.current);
@@ -47,10 +50,21 @@ export function BuscaCaderno({ inicial }: Props) {
   const [buscando, iniciarBusca] = useTransition();
   const [carregandoMais, iniciarMais] = useTransition();
 
+  // "Tentar de novo" refaz a página no servidor e a primeira página chega aqui como um `inicial` NOVO: sem
+  // isto, o estado criado na primeira montagem (nulo, com o erro) ficaria para sempre. Uma busca em andamento
+  // não é trocada pela lista.
+  useEffect(() => {
+    visaoInicial.current = inicial ? { termo: "", ...inicial } : null;
+    if (!inicial) return;
+    setVisao((atual) => (atual === null ? visaoInicial.current : atual));
+    setAviso((atual) => (atual === "falha" ? null : atual));
+  }, [inicial]);
+
   const semConexao = () => typeof navigator !== "undefined" && !navigator.onLine;
 
   async function chamar(termo: string, cursor: string | null) {
     const dados = new FormData();
+    dados.set("estudanteId", estudanteId);
     dados.set("termo", termo);
     if (cursor) dados.set("cursor", cursor);
     try {
@@ -75,7 +89,7 @@ export function BuscaCaderno({ inicial }: Props) {
         return;
       }
       if (!r.ok) {
-        setAviso("falha");
+        setAviso(r.erro === "sessao-trocada" ? "sessao-trocada" : "falha");
         return;
       }
       setAviso(null);
@@ -99,7 +113,13 @@ export function BuscaCaderno({ inicial }: Props) {
     iniciarMais(async () => {
       const r = await chamar(termo, proximo);
       if (!r?.ok) {
-        setAviso(r === null && semConexao() ? "offline" : "falha");
+        setAviso(
+          r?.erro === "sessao-trocada"
+            ? "sessao-trocada"
+            : r === null && semConexao()
+              ? "offline"
+              : "falha",
+        );
         return;
       }
       setAviso(null);
@@ -151,6 +171,7 @@ export function BuscaCaderno({ inicial }: Props) {
       </search>
 
       {aviso === "offline" ? <StatusMessage tipo="aviso">{SEM_CONEXAO}</StatusMessage> : null}
+      {aviso === "sessao-trocada" ? <StatusMessage tipo="erro">{TROCADA}</StatusMessage> : null}
       {aviso === "falha" ? (
         <StatusMessage
           tipo="erro"

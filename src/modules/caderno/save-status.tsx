@@ -11,11 +11,15 @@ export type EstadoDeSalvamento =
   | "offline"
   | "falha"
   | "recuperado"
-  | "limite";
+  | "limite"
+  | "sessao-trocada";
 
 const FALHA = "Não foi possível salvar. O texto continua neste aparelho e vamos tentar de novo.";
 const LIMITE =
   "A Anotação passou do limite de 20 000 caracteres. Apague um trecho para continuar salvando.";
+
+const TROCADA =
+  "Este navegador entrou com outra conta. O texto desta aba não foi enviado. Recarregue a página.";
 
 const textos = {
   salvo: { Icone: Check, texto: "Salvo" },
@@ -27,6 +31,7 @@ const textos = {
   },
   falha: { Icone: SquareX, texto: FALHA, erro: true },
   limite: { Icone: SquareX, texto: LIMITE, erro: true },
+  "sessao-trocada": { Icone: SquareX, texto: TROCADA, erro: true },
 } as const;
 
 type Props = { estado: EstadoDeSalvamento; id?: string };

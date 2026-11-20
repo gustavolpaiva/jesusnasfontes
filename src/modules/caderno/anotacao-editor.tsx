@@ -63,6 +63,8 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
   // A versão do servidor que o painel de conflito mostra: sobre ela vale o que a pessoa escolher.
   const contaDoConflito = useRef<Base>(SEM_BASE);
   const emVooRef = useRef(false);
+  // O navegador passou a ser de outra conta: esta aba nunca mais envia nada (nem reenvia).
+  const trocadaRef = useRef(false);
   const reenviarRef = useRef(false);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -109,7 +111,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
 
   const enviar = useCallback(async () => {
     limparTemporizador();
-    if (conflitoRef.current || !sujo()) return;
+    if (trocadaRef.current || conflitoRef.current || !sujo()) return;
     if (textoRef.current.length > ANOTACAO_MAX) {
       setEstado("limite");
       return;
@@ -129,6 +131,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     let resposta: Awaited<ReturnType<typeof salvarAnotacao>>;
     try {
       resposta = await salvarAnotacao({
+        estudanteId,
         estudoId,
         corpo: enviado,
         versaoBase: usada.versao,
@@ -178,6 +181,12 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       case "limite":
         setEstado("limite");
         return;
+      case "sessao-trocada":
+        // Outra conta entrou neste navegador: o texto fica só na tela (e no rascunho de A, que B nunca lê).
+        trocadaRef.current = true;
+        limparTemporizador();
+        setEstado("sessao-trocada");
+        return;
       case "conta-apagada":
         // A conta não existe mais: o rascunho deste aparelho vai embora com ela.
         apagarTodosRascunhos();
@@ -187,7 +196,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
         setEstado("falha");
         agendar(NOVA_TENTATIVA_MS);
     }
-  }, [agendar, estudoId, guardarLocal, limparTemporizador, sujo]);
+  }, [agendar, estudanteId, estudoId, guardarLocal, limparTemporizador, sujo]);
 
   useEffect(() => {
     enviarRef.current = enviar;
@@ -196,12 +205,18 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
   // Confere o que o servidor tem agora e adota se a pessoa não escreveu nada que dependa da versão velha.
   // Cobre a página que veio do cache do navegador (voltar) e a Anotação mudada em outro aparelho.
   const conferirServidor = useCallback(async () => {
-    if (emVooRef.current || conflitoRef.current || sujo()) return;
+    if (trocadaRef.current || emVooRef.current || conflitoRef.current || sujo()) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const antes = textoRef.current;
     let atual: AnotacaoDoEstudo | null;
     try {
-      atual = await lerAnotacao(estudoId);
+      const lida = await lerAnotacao(estudoId, estudanteId);
+      if (!lida.ok) {
+        trocadaRef.current = true;
+        setEstado("sessao-trocada");
+        return;
+      }
+      atual = lida.anotacao;
     } catch {
       return;
     }
@@ -255,7 +270,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       if (sujo() && !conflitoRef.current) void enviarRef.current();
     };
     const aoPerderConexao = () => {
-      if (sujo() && !conflitoRef.current) setEstado("offline");
+      if (sujo() && !conflitoRef.current && !trocadaRef.current) setEstado("offline");
     };
     const aoMudarVisibilidade = () => {
       if (document.visibilityState === "hidden") {
@@ -336,7 +351,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
         id="anotacao-campo"
         value={texto}
         onChange={aoDigitar}
-        readOnly={conflito !== null}
+        readOnly={conflito !== null || estado === "sessao-trocada"}
         aria-describedby="anotacao-ajuda anotacao-estado"
         aria-invalid={estado === "limite" ? true : undefined}
         autoComplete="off"

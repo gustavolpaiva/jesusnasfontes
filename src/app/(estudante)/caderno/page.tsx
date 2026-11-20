@@ -24,7 +24,7 @@ export default async function PaginaCaderno() {
         <h1 className="text-display">Caderno</h1>
         <p className="text-leitura">Todas as suas Anotações, num só lugar.</p>
       </header>
-      <BuscaCaderno inicial={inicial} />
+      <BuscaCaderno estudanteId={usuario.id} inicial={inicial} />
     </div>
   );
 }

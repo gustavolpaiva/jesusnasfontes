@@ -22,9 +22,11 @@ import {
 
 export type RespostaDeSalvar =
   | ResultadoDeSalvar
-  | { ok: false; erro: "invalida" | "falha" | "conta-apagada" };
+  | { ok: false; erro: "invalida" | "falha" | "conta-apagada" | "sessao-trocada" };
 
 const entradaDeSalvar = z.object({
+  // Quem a tela acha que está escrevendo: o Estudante que abriu a página. Tem de ser o da sessão de agora.
+  estudanteId: z.uuid(),
   estudoId: z.uuid(),
   // Sem `.max`: o limite é conferido no núcleo, que o devolve como erro próprio e nunca grava.
   corpo: z.string(),
@@ -43,13 +45,24 @@ function contaApagada(erro: unknown): boolean {
   );
 }
 
+export type RespostaDeLer =
+  | { ok: true; anotacao: AnotacaoDoEstudo | null }
+  | { ok: false; erro: "sessao-trocada" };
+
+// A sessão é um cookie, comum a todas as abas do navegador. Uma aba aberta como A continua viva depois de
+// o navegador passar a ser de B (A saiu e B entrou em outra aba), e o que ela tem para enviar, ou para
+// mostrar, não pode ir para a conta de B nem trazer o texto de B para a tela de A. Por isso cada chamada diz
+// quem a tela acha que é, e a ação recusa, sem tocar no banco e sem devolver texto, se não for a sessão.
+const mesmaPessoa = (esperado: string, sessao: string) => esperado === sessao;
+
 /** O que o servidor tem agora para este Estudo (o navegador confere ao abrir e ao voltar para a aba). */
-export async function lerAnotacao(estudoId: string): Promise<AnotacaoDoEstudo | null> {
+export async function lerAnotacao(estudoId: string, estudanteId: string): Promise<RespostaDeLer> {
   const { usuario } = await exigirSessao();
+  if (!mesmaPessoa(estudanteId, usuario.id)) return { ok: false, erro: "sessao-trocada" };
   const id = z.uuid().safeParse(estudoId);
-  if (!id.success) return null;
+  if (!id.success) return { ok: true, anotacao: null };
   try {
-    return await lerAnotacaoDoEstudo(usuario.id, id.data);
+    return { ok: true, anotacao: await lerAnotacaoDoEstudo(usuario.id, id.data) };
   } catch (erro) {
     registrarErro("anotacao-ler", erro);
     throw new Error("falha");
@@ -60,8 +73,10 @@ export async function salvarAnotacao(entrada: unknown): Promise<RespostaDeSalvar
   const { usuario } = await exigirSessao();
   const lida = entradaDeSalvar.safeParse(entrada);
   if (!lida.success) return { ok: false, erro: "invalida" };
+  if (!mesmaPessoa(lida.data.estudanteId, usuario.id)) return { ok: false, erro: "sessao-trocada" };
   try {
-    return await salvarAnotacaoDoEstudo(usuario.id, lida.data);
+    const { estudanteId: _esperado, ...entrada } = lida.data;
+    return await salvarAnotacaoDoEstudo(usuario.id, entrada);
   } catch (erro) {
     if (contaApagada(erro)) return { ok: false, erro: "conta-apagada" };
     registrarErro("anotacao-salvar", erro);

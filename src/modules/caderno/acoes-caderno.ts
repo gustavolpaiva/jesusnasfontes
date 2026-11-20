@@ -14,13 +14,16 @@ import { TERMO_MAX } from "./limite";
 
 export type ResultadoDaBusca =
   | ({ ok: true; termo: string } & PaginaDoCaderno)
-  | { ok: false; erro: "invalida" | "falha" };
+  | { ok: false; erro: "invalida" | "falha" | "sessao-trocada" };
 
 const termoDaBusca = z.string().max(TERMO_MAX);
 
 /** `termo` vazio lista tudo; `cursor` pede a página depois da que a tela já tem. */
 export async function buscarCaderno(dados: FormData): Promise<ResultadoDaBusca> {
   const { usuario } = await exigirSessao();
+  // Quem a tela acha que é: se o navegador passou a ser de outra conta (outra aba), a busca não traz o
+  // Caderno de B para a tela de A.
+  if (dados.get("estudanteId") !== usuario.id) return { ok: false, erro: "sessao-trocada" };
   const bruto = dados.get("termo");
   const cursorBruto = dados.get("cursor");
   // Um valor que não é texto (um arquivo, por exemplo) não é termo.
