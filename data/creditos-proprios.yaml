@@ -1,0 +1,28 @@
+# Créditos do que é nosso: o conteúdo escrito para este projeto e o código. Lido por
+# src/modules/creditos/creditos.ts, junto com data/datasets.yaml (texto bíblico) e
+# data/tipografia.yaml (fontes), para gerar a página /creditos. Nada aqui afirma licença que não
+# esteja num arquivo deste repositório: o conteúdo em content/LICENSE (CC BY-SA 4.0), o código em
+# LICENSE (MIT) e a divisão em NOTICE.md.
+
+# Endereço de cada licença citada nas entradas. A licença das fontes (SIL Open Font License 1.1) vem
+# de data/tipografia.yaml sem endereço; o endereço dela é o que o próprio texto da licença
+# (src/app/tipografia/OFL.txt) cita. A MIT não tem endereço aqui: o texto dela está no arquivo LICENSE.
+licencas:
+  "SIL Open Font License 1.1": https://openfontlicense.org
+  "CC BY-SA 4.0": https://creativecommons.org/licenses/by-sa/4.0/
+
+entradas:
+  - nome: Conteúdo dos Estudos
+    autores:
+      - Os autores do Jesus nas Fontes
+    licenca: CC BY-SA 4.0
+    versao: "2026"
+    alteracoes: Adaptado do estudo de origem.
+  - nome: Código
+    autores:
+      - Os autores do Jesus nas Fontes
+    licenca: MIT
+    nota_licenca: O texto da licença está no arquivo LICENSE do repositório.
+    versao: "2026"
+    alteracoes: Nenhuma. É o código escrito para este site.
+    repositorio: https://github.com/gustavolpaiva/jesusnasfontes
