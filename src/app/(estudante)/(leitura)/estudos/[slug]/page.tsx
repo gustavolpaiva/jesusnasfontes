@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { registrarErro } from "@/lib/registro";
+import { OuvirProvider } from "@/modules/audio/contexto";
+import { OuvirControl } from "@/modules/audio/ouvir-control";
+import { estudoParaFala, passagemParaFala } from "@/modules/audio/texto-para-fala";
+import { dividirEmTrechos } from "@/modules/audio/trechos";
 import { CorpoEstudo } from "@/modules/conteudo/corpo-estudo";
 import { type EstudoCompleto, lerEstudoPorSlug } from "@/modules/conteudo/estudo";
 import { exigirSessao } from "@/modules/identidade/sessao";
-import { decompor, formatarReferencia, LIVROS } from "@/modules/referencias";
+import { decompor, formatarReferencia, LIVROS, referenciaParaFala } from "@/modules/referencias";
 import { lerPassagem } from "@/modules/texto";
 import { AcoesDoEstudo } from "@/modules/trilhas/acoes-do-estudo";
 import { lerEstadoDoEstudo, TRILHA_LEITURA_CONTINUA } from "@/modules/trilhas/consultas";
@@ -36,7 +40,15 @@ async function PassagemDoEstudo({ estudo }: { estudo: EstudoCompleto }) {
   let passagem: PassagemParaTela;
   try {
     const lida = await lerPassagem(estudo.passagens);
+    const falaveis = lida.trechos.map((trecho, indice) => ({
+      referenciaFalada: referenciaFalada(estudo.passagens[indice]?.referenciaTexto ?? ""),
+      capitulos: trecho.capitulos.map((c) => ({
+        subtitulo: trecho.capitulos.length > 1 ? `${nomeDoLivro(c.livro)} ${c.capitulo}` : null,
+        versiculos: c.versiculos.map((v) => ({ conteudo: v.conteudo })),
+      })),
+    }));
     passagem = {
+      trechosParaOuvir: dividirEmTrechos(passagemParaFala(falaveis)),
       edicao: NOME_DA_EDICAO[lida.edicao] ?? lida.edicao,
       trechos: lida.trechos.map((trecho, indice) => ({
         referencia: formatarReferencia(estudo.passagens[indice]?.referenciaTexto ?? ""),
@@ -57,6 +69,15 @@ async function PassagemDoEstudo({ estudo }: { estudo: EstudoCompleto }) {
     return <PassagemErro />;
   }
   return <PassagemBiblica passagem={passagem} idDoEstudo={ID_DO_ESTUDO} />;
+}
+
+// A referência falada nunca derruba a leitura: texto que o interpretador não entende fica sem ela.
+function referenciaFalada(texto: string): string {
+  try {
+    return referenciaParaFala(texto);
+  } catch {
+    return "";
+  }
 }
 
 function metaDoEstudo(estudo: EstudoCompleto): string {
@@ -94,30 +115,46 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
   });
   const meta = metaDoEstudo(estudo);
 
+  // O texto da voz sai do mesmo conteúdo da tela, montado aqui (o navegador não leva a tabela dos livros).
+  const trechosDoEstudo = dividirEmTrechos(estudoParaFala(estudo, { volta: estado.volta }));
+
   return (
-    <article className="coluna-leitura flex flex-col gap-8">
-      <header className="flex flex-col gap-3">
-        <p className="text-label text-balance text-rubric">{eyebrow}</p>
-        <h1 className="text-display">{estudo.titulo}</h1>
-        {meta ? <p className="text-meta text-ink-muted">{meta}</p> : null}
-      </header>
-      {estudo.passagens.length > 0 ? (
-        <Suspense fallback={<PassagemCarregando />}>
-          <PassagemDoEstudo estudo={estudo} />
-        </Suspense>
-      ) : null}
-      {/* Destino do link "Ir para o Estudo": recebe o foco ao ser alcançado. */}
-      <div id={ID_DO_ESTUDO} tabIndex={-1} className="scroll-mt-6 outline-none">
-        <CorpoEstudo estudo={estudo} volta={estado.volta} />
-      </div>
-      <AcoesDoEstudo
-        // Troca de Estudo remonta o componente: o estado local nunca vaza de um Estudo para outro.
-        key={estudo.id}
-        estudoId={estudo.id}
-        anterior={vizinhanca?.anterior ?? null}
-        proximo={vizinhanca?.proximo ?? null}
-        concluidoInicial={estado.concluido}
-      />
-    </article>
+    // Um leitor por Estudo: o controle do Estudo e o do texto bíblico se interrompem, e a fala acaba
+    // quando a página sai. A chave remonta o leitor na troca de Estudo.
+    <OuvirProvider key={estudo.id}>
+      <article className="coluna-leitura flex flex-col gap-8">
+        <header className="flex flex-col gap-3">
+          <p className="text-label text-balance text-rubric">{eyebrow}</p>
+          <h1 className="text-display">{estudo.titulo}</h1>
+          <OuvirControl
+            id="estudo"
+            trechos={trechosDoEstudo}
+            nome="Ouvir o Estudo"
+            rotulo="Ouvir"
+            meta="Lendo o Estudo"
+            larguraDoBotao="min-w-[9rem]"
+          >
+            {meta ? <p className="text-meta text-ink-muted">{meta}</p> : null}
+          </OuvirControl>
+        </header>
+        {estudo.passagens.length > 0 ? (
+          <Suspense fallback={<PassagemCarregando />}>
+            <PassagemDoEstudo estudo={estudo} />
+          </Suspense>
+        ) : null}
+        {/* Destino do link "Ir para o Estudo": recebe o foco ao ser alcançado. */}
+        <div id={ID_DO_ESTUDO} tabIndex={-1} className="scroll-mt-6 outline-none">
+          <CorpoEstudo estudo={estudo} volta={estado.volta} />
+        </div>
+        <AcoesDoEstudo
+          // Troca de Estudo remonta o componente: o estado local nunca vaza de um Estudo para outro.
+          key={estudo.id}
+          estudoId={estudo.id}
+          anterior={vizinhanca?.anterior ?? null}
+          proximo={vizinhanca?.proximo ?? null}
+          concluidoInicial={estado.concluido}
+        />
+      </article>
+    </OuvirProvider>
   );
 }

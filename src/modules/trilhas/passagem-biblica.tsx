@@ -8,6 +8,7 @@ import { SkeletonBlock } from "@/components/estado/skeleton-block";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { OuvirControl } from "@/modules/audio/ouvir-control";
 
 // Bloco "Leitura" do Estudo (TRIL-02): a referência por extenso, o texto lido do banco com o número de
 // cada versículo em `sup`, subtítulo por capítulo quando a Passagem passa de um capítulo, a nota dos
@@ -16,6 +17,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 // para este arquivo, que roda no navegador, não puxar a tabela dos 66 livros.
 
 export type PassagemParaTela = {
+  /**
+   * O texto bíblico já em trechos para a voz (sem números de versículo, « » nem marcas de nota),
+   * montado no servidor com a referência falada: este arquivo roda no navegador e não leva a tabela
+   * dos 66 livros.
+   */
+  trechosParaOuvir: string[];
   /** Nome da edição, como o crédito a escreve ("texto crítico, Nestle 1904"). */
   edicao: string;
   trechos: {
@@ -45,9 +52,15 @@ export function PassagemBiblica({ passagem, idDoEstudo }: Props) {
         Leitura
       </h2>
       <Collapsible open={aberto} onOpenChange={setAberto} className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {/* Lugar do controle "Ouvir o texto" (plano 01-17). */}
-          <div data-slot="ouvir-texto" className="empty:hidden" />
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
+          <OuvirControl
+            id="texto"
+            trechos={passagem.trechosParaOuvir}
+            nome="Ouvir o texto bíblico"
+            rotulo="Ouvir o texto"
+            meta="Lendo o texto bíblico"
+            larguraDoBotao="min-w-[10.5rem]"
+          />
           <CollapsibleTrigger asChild>
             <Button variant="ghost" className="-ml-4" aria-expanded={aberto}>
               {aberto ? "Recolher o texto" : "Mostrar o texto"}
