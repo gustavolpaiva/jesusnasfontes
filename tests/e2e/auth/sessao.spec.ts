@@ -99,3 +99,35 @@ for (const via of ["link", "codigo"] as const) {
     await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
   });
 }
+
+test("sessão que sobrou de um convite revogado não vale: a pessoa cai em /entrar e a sessão é apagada", async ({
+  page,
+  browser,
+}) => {
+  const a = emailDeTeste("sobrou");
+  const vizinho = emailDeTeste("sobrou-vizinho");
+  await convidarParaTeste(a);
+  await convidarParaTeste(vizinho);
+  await entrarPorLink(page, a);
+  const outro = await browser.newContext();
+  const abaVizinho = await outro.newPage();
+  await entrarPorLink(abaVizinho, vizinho);
+  // Controle positivo: com o convite ativo, a sessão abre as Trilhas.
+  await page.goto("/trilhas");
+  await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+
+  // O convite é revogado direto no banco, SEM apagar a sessão: é o estado que uma corrida entre a
+  // criação da sessão e a revogação deixaria.
+  await revogarConviteNoBanco(a);
+  expect(await sessoesDe(a)).toBe(1);
+
+  await page.goto("/trilhas");
+  await expect(page).toHaveURL(/\/entrar/);
+  expect(await sessoesDe(a)).toBe(0);
+
+  // Controle negativo: a pessoa vizinha continua dentro.
+  await abaVizinho.goto("/trilhas");
+  await expect(abaVizinho.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  expect(await sessoesDe(vizinho)).toBe(1);
+  await outro.close();
+});

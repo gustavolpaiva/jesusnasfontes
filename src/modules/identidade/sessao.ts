@@ -1,9 +1,14 @@
 import "server-only";
+import { eq } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { obterDb } from "@/db/cliente";
+import { sessao as tabelaDeSessoes } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
+import { registrarErro } from "@/lib/registro";
 import { temConsentimentoAtual } from "@/modules/privacidade/consentimento";
+import { conviteAtivo } from "./convite";
 import { sessaoVerificada } from "./sessao-mfa";
 
 export { sair } from "./entrada";
@@ -36,6 +41,17 @@ async function cabecalhosAtuais(): Promise<Headers> {
 export const lerSessao = cache(async (): Promise<SessaoLida | null> => {
   const resultado = await obterAuth().api.getSession({ headers: await cabecalhosAtuais() });
   if (!resultado) return null;
+  // Convite revogado: a sessão não vale, exista ou não no banco. A revogação apaga as sessões, mas uma
+  // sessão que nasce no mesmo instante (o gancho de criação leu o convite ainda ativo) pode sobrar; por
+  // isso a regra é conferida em TODA leitura, e a sessão que sobrou é apagada aqui, pelo próprio id.
+  if (!(await conviteAtivo(resultado.user.email))) {
+    try {
+      await obterDb().delete(tabelaDeSessoes).where(eq(tabelaDeSessoes.id, resultado.session.id));
+    } catch (erro) {
+      registrarErro("sessao-de-convite-revogado", erro);
+    }
+    return null;
+  }
   const papel = (resultado.user as { role?: string }).role === "admin" ? "admin" : "estudante";
   const sessaoId = resultado.session.id;
   return {
