@@ -7,6 +7,7 @@ import path from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
 import { type Intervalo, parsearReferencia } from "../../src/modules/referencias/parser";
+import { type AfirmacaoExtraida, ErroAfirmacao, extrairAfirmacoes } from "./afirmacoes";
 
 // Erro nosso, com texto seguro (nomes de arquivo, campos e referências): pode ir ao terminal.
 export class ErroConteudo extends Error {
@@ -32,6 +33,27 @@ export const esquemaTrilhas = z
   )
   .min(1);
 
+export const TRADICOES = ["catolica", "ortodoxa", "protestante"] as const;
+
+// Divergência entre tradições (TRIL-08): um tema e a leitura de cada tradição NOMEADA. Duas ou três
+// leituras, cada tradição no máximo uma vez; a ordem de exibição é fixa e não vem do arquivo.
+const esquemaDivergencia = z
+  .object({
+    tema: textoNaoVazio,
+    leituras: z
+      .array(
+        z
+          .object({ tradicao: z.enum(TRADICOES), resumo: textoNaoVazio })
+          .strict(),
+      )
+      .min(2)
+      .max(3)
+      .refine((l) => new Set(l.map((x) => x.tradicao)).size === l.length, {
+        message: "tradição repetida na mesma Divergência",
+      }),
+  })
+  .strict();
+
 export const GRAUS_DE_CERTEZA = ["consenso", "posicao-majoritaria", "disputada"] as const;
 
 export const esquemaFrontMatter = z
@@ -52,6 +74,7 @@ export const esquemaFrontMatter = z
       })
       .strict()
       .optional(),
+    divergencias: z.array(esquemaDivergencia).default([]),
   })
   .strict();
 
@@ -70,6 +93,7 @@ export type EstudoLido = {
   frontMatter: FrontMatter;
   corpo: string;
   passagens: PassagemEstudo[];
+  afirmacoes: AfirmacaoExtraida[];
   conteudoHash: string;
 };
 
@@ -109,6 +133,7 @@ export function hashDoEstudo(
         fm.grau_de_certeza?.texto ?? null,
         fm.grau_de_certeza?.revisado ?? false,
         passagens.map((p) => [p.ordem, p.inicio, p.fim, p.referenciaTexto]),
+        fm.divergencias.map((d) => [d.tema, d.leituras.map((l) => [l.tradicao, l.resumo])]),
       ]),
     )
     .digest("hex");
@@ -128,6 +153,18 @@ export function passagensDe(leitura: readonly string[]): PassagemEstudo[] {
     }
   }
   return saida;
+}
+
+/**
+ * Prefixo dos ids de Afirmação do Estudo: `bh` + número da posição (Base histórica) ou `pc` + número
+ * (Pontos centrais), com dois dígitos: o Estudo 3 de Pontos centrais leva `pc03-aK`. Outras Trilhas
+ * (a Leitura contínua) não levam Afirmações.
+ */
+export function prefixoDeAfirmacao(trilhaId: string, ordem: number): string | null {
+  const numero = String(ordem).padStart(2, "0");
+  if (trilhaId === "base-historica") return `bh${numero}`;
+  if (trilhaId === "pontos-centrais") return `pc${numero}`;
+  return null;
 }
 
 const NOME_DE_ESTUDO = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/;
@@ -158,6 +195,7 @@ export async function lerPasta(dir: string): Promise<ConteudoLido> {
   const estudos: EstudoLido[] = [];
   const slugs = new Map<string, string>();
   const posicoes = new Map<string, string>();
+  const idsDeAfirmacao = new Map<string, string>();
   const pastas = (await readdir(raizTrilhas, { withFileTypes: true }))
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
@@ -207,11 +245,29 @@ export async function lerPasta(dir: string): Promise<ConteudoLido> {
       } catch (erro) {
         throw new ErroConteudo(`${rotulo}: leitura inválida: ${(erro as Error).message}`);
       }
+      let afirmacoes: AfirmacaoExtraida[];
+      try {
+        afirmacoes = extrairAfirmacoes(separado.corpo);
+      } catch (erro) {
+        if (erro instanceof ErroAfirmacao) throw new ErroConteudo(`${rotulo}: ${erro.message}`);
+        throw erro;
+      }
+      const prefixo = prefixoDeAfirmacao(fm.trilha, fm.ordem);
+      for (const a of afirmacoes) {
+        if (prefixo === null)
+          throw new ErroConteudo(`${rotulo}: ${a.id}: esta Trilha não leva Afirmações`);
+        if (!a.id.startsWith(`${prefixo}-a`))
+          throw new ErroConteudo(`${rotulo}: ${a.id}: o id deve começar por ${prefixo}-a`);
+        const outro = idsDeAfirmacao.get(a.id);
+        if (outro) throw new ErroConteudo(`${rotulo}: ${a.id}: id já usado em ${outro}`);
+        idsDeAfirmacao.set(a.id, rotulo);
+      }
       estudos.push({
         arquivo: rotulo,
         frontMatter: fm,
         corpo: separado.corpo,
         passagens,
+        afirmacoes,
         conteudoHash: hashDoEstudo(fm, separado.corpo, passagens),
       });
     }

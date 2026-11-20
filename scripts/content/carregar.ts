@@ -9,10 +9,16 @@ import { decidirAmbiente } from "../../src/db/ambiente";
 import { sanitizarErroDeBanco } from "../../src/db/erro-banco";
 import { registrarErro } from "../../src/lib/registro";
 import { abrirCarga, ErroCarga } from "../ingest/carregar-biblia";
-import { type ConteudoLido, ErroConteudo, lerPasta } from "./esquema";
+import { textoDaAfirmacao } from "./afirmacoes";
+import { type ConteudoLido, ErroConteudo, type EstudoLido, lerPasta } from "./esquema";
 
 export type Contagem = { inseridos: number; atualizados: number; inalterados: number };
-export type ResultadoConteudo = { estudos: Contagem; trilhas: Contagem };
+export type ResultadoConteudo = {
+  estudos: Contagem;
+  trilhas: Contagem;
+  afirmacoes: Contagem & { removidas: number };
+  divergencias: number;
+};
 
 export const PASTA_PADRAO = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -29,6 +35,8 @@ export async function carregarConteudo(
   const c = opcoes.cliente ?? (await abrirCarga());
   const estudos: Contagem = { inseridos: 0, atualizados: 0, inalterados: 0 };
   const trilhas: Contagem = { inseridos: 0, atualizados: 0, inalterados: 0 };
+  const afirmacoes = { inseridos: 0, atualizados: 0, inalterados: 0, removidas: 0 };
+  let divergencias = 0;
   try {
     await c.query("begin");
     try {
@@ -72,6 +80,7 @@ export async function carregarConteudo(
         const linha = existente.rows[0];
         if (linha && linha.conteudo_hash === e.conteudoHash) {
           estudos.inalterados++;
+          await reconciliarAfirmacoes(c, linha.id, e, afirmacoes);
           continue;
         }
         const valores = [
@@ -110,6 +119,23 @@ export async function carregarConteudo(
           await c.query("delete from conteudo.estudo_passagem where estudo_id = $1", [estudoId]);
           estudos.atualizados++;
         }
+        // Divergências do Estudo que mudou: trocadas inteiras, escopadas ao id dele.
+        await c.query("delete from conteudo.divergencia where estudo_id = $1", [estudoId]);
+        for (const [i, d] of fm.divergencias.entries()) {
+          const nova = await c.query<{ id: string }>(
+            `insert into conteudo.divergencia (estudo_id, ordem, tema) values ($1, $2, $3) returning id`,
+            [estudoId, i + 1, d.tema],
+          );
+          const divergenciaId = (nova.rows[0] as { id: string }).id;
+          for (const l of d.leituras) {
+            await c.query(
+              `insert into conteudo.divergencia_leitura (divergencia_id, tradicao, resumo) values ($1, $2, $3)`,
+              [divergenciaId, l.tradicao, l.resumo],
+            );
+          }
+          divergencias++;
+        }
+        await reconciliarAfirmacoes(c, estudoId, e, afirmacoes);
         if (e.passagens.length > 0) {
           await c.query(
             `insert into conteudo.estudo_passagem (estudo_id, ordem, versiculo_inicio, versiculo_fim, referencia_texto)
@@ -133,7 +159,69 @@ export async function carregarConteudo(
   } finally {
     if (proprio) await c.end().catch(() => {});
   }
-  return { estudos, trilhas };
+  return { estudos, trilhas, afirmacoes, divergencias };
+}
+
+/**
+ * Afirmações do Estudo (TRIL-07), na mesma transação: upsert por id autoral (texto e hash). Um id que
+ * sumiu do conteúdo só é apagado se não tiver Citação; texto mudado com Citação existente também
+ * falha (a revisão da Citação vem antes). Um id que já pertence a outro Estudo nunca é tomado.
+ */
+async function reconciliarAfirmacoes(
+  c: pg.Client,
+  estudoId: string,
+  e: EstudoLido,
+  contagem: ResultadoConteudo["afirmacoes"],
+): Promise<void> {
+  const atuais = await c.query<{
+    id: string;
+    estudo_id: string | null;
+    texto_hash: string;
+    ordem: number | null;
+  }>("select id, estudo_id, texto_hash, ordem from acervo.afirmacao where id = any($1::text[]) or estudo_id = $2", [
+    e.afirmacoes.map((a) => a.id),
+    estudoId,
+  ]);
+  const porId = new Map(atuais.rows.map((r) => [r.id, r]));
+  const temCitacao = async (id: string): Promise<boolean> =>
+    ((await c.query("select 1 from acervo.citacao where afirmacao_id = $1 limit 1", [id])).rowCount ?? 0) > 0;
+
+  for (const a of e.afirmacoes) {
+    const atual = porId.get(a.id);
+    const hash = textoDaAfirmacao(a.texto);
+    if (!atual) {
+      await c.query(
+        `insert into acervo.afirmacao (id, estudo_id, texto, texto_hash, ordem) values ($1, $2, $3, $4, $5)`,
+        [a.id, estudoId, a.texto, hash, a.ordem],
+      );
+      contagem.inseridos++;
+    } else if (atual.estudo_id !== estudoId) {
+      throw new ErroCarga(`Afirmação ${a.id}: o id já pertence a outro Estudo`);
+    } else if (atual.texto_hash !== hash) {
+      if (await temCitacao(a.id))
+        throw new ErroCarga(`Afirmação ${a.id}: o texto mudou e ela já tem Citação; revise a Citação antes`);
+      await c.query("update acervo.afirmacao set texto = $2, texto_hash = $3, ordem = $4 where id = $1", [
+        a.id,
+        a.texto,
+        hash,
+        a.ordem,
+      ]);
+      contagem.atualizados++;
+    } else if (atual.ordem !== a.ordem) {
+      await c.query("update acervo.afirmacao set ordem = $2 where id = $1", [a.id, a.ordem]);
+      contagem.atualizados++;
+    } else {
+      contagem.inalterados++;
+    }
+  }
+  const queFicam = new Set(e.afirmacoes.map((a) => a.id));
+  for (const r of atuais.rows) {
+    if (r.estudo_id !== estudoId || queFicam.has(r.id)) continue;
+    if (await temCitacao(r.id))
+      throw new ErroCarga(`Afirmação ${r.id}: o id saiu do conteúdo e ela já tem Citação`);
+    await c.query("delete from acervo.afirmacao where id = $1", [r.id]);
+    contagem.removidas++;
+  }
 }
 
 function lerDir(argumentos: string[]): string {
@@ -152,6 +240,9 @@ async function principal(): Promise<void> {
   );
   console.log(
     `trilhas inseridas=${r.trilhas.inseridos} atualizadas=${r.trilhas.atualizados} inalteradas=${r.trilhas.inalterados}`,
+  );
+  console.log(
+    `afirmacoes inseridas=${r.afirmacoes.inseridos} atualizadas=${r.afirmacoes.atualizados} inalteradas=${r.afirmacoes.inalterados} removidas=${r.afirmacoes.removidas} divergencias=${r.divergencias}`,
   );
 }
 

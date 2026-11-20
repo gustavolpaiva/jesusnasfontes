@@ -108,7 +108,7 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
       ) : null}
       {/* Destino do link "Ir para o Estudo": recebe o foco ao ser alcançado. */}
       <div id={ID_DO_ESTUDO} tabIndex={-1} className="scroll-mt-6 outline-none">
-        <CorpoEstudo estudo={estudo} />
+        <CorpoEstudo estudo={estudo} volta={estado.volta} />
       </div>
       <AcoesDoEstudo
         // Troca de Estudo remonta o componente: o estado local nunca vaza de um Estudo para outro.

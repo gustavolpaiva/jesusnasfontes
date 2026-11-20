@@ -10,14 +10,7 @@ import { lerEstudoPorSlug } from "@/modules/conteudo/estudo";
 import { lerPassagem } from "@/modules/texto";
 import { carregarConteudo, PASTA_PADRAO } from "../../../scripts/content/carregar";
 import { ErroConteudo, lerPasta } from "../../../scripts/content/esquema";
-import {
-  carregarEdicao,
-  conjuntoDoRegistro,
-  lerEdicaoVerificada,
-  shaDoLock,
-} from "../../../scripts/ingest/carregar-biblia";
-import { lerRegistro } from "../../../scripts/ingest/fontes";
-import { aplicarEnvDeTeste } from "../../support/preparar-banco";
+import { aplicarEnvDeTeste, semearTexto } from "../../support/preparar-banco";
 
 // Um Estudo real de content/ faz o caminho arquivo, banco e leitura; a Passagem dele é lida por
 // intervalo de chave. A carga é idempotente e atômica.
@@ -64,19 +57,15 @@ function estudoMd(slug: string, ordem: number, leitura: string[]): string {
   ].join("\n");
 }
 
-async function carregarMateus(): Promise<void> {
-  const lida = await lerEdicaoVerificada("n4", { arquivos: ["mat.txt"] });
-  await carregarEdicao(lida.versiculos, {
-    edicao: "n4",
-    conjunto: conjuntoDoRegistro(await lerRegistro(), await shaDoLock()),
-    marcadores: lida.marcadores,
-    mesclados: lida.mesclados,
-  });
+// O conteúdo real cita os quatro evangelhos e 1 Coríntios: sem esses livros no banco, a carga de
+// content/ falha pela chave estrangeira da Passagem (23503).
+async function carregarLivrosDoConteudo(): Promise<void> {
+  await semearTexto({ livros: [40, 41, 42, 43, 46] });
 }
 
 beforeAll(async () => {
   aplicarEnvDeTeste();
-  await carregarMateus();
+  await carregarLivrosDoConteudo();
 });
 afterAll(async () => {
   for (const d of temporarios) rmSync(d, { recursive: true, force: true });
@@ -250,6 +239,8 @@ describe("a carga recusa e desfaz", () => {
       const clone = (slug: string) => ({
         ...base,
         frontMatter: { ...base.frontMatter, slug, ordem: 95 },
+        // As Afirmações do Estudo de partida pertencem a ele: o clone não as leva.
+        afirmacoes: [],
         conteudoHash: slug.padEnd(64, "0").replace(/[^0-9a-f]/g, "a"),
       });
       // O segundo clone repete a posição (trilha, ordem) do primeiro: o banco recusa (23505) já na
