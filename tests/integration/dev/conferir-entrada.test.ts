@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { obterDb, obterPool } from "@/db/cliente";
@@ -15,6 +14,11 @@ import {
   medirTotais,
   NaoMedido,
 } from "../../../scripts/dev/conferir-entrada";
+import {
+  type BancoDeExecucao,
+  criarBancoPreparado,
+  removerBancoDeExecucao,
+} from "../../support/banco-local";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
 
 // O conferidor da entrada real só LÊ e só imprime contagens. Aqui o estado que a Tarefa 3 deve deixar
@@ -26,6 +30,9 @@ const trilha = `teste-ce-${rodada.slice(0, 8)}`;
 const estudo = randomUUID();
 const HASH = createHash("sha256").update(rodada).digest("hex");
 const ids: string[] = [];
+// Banco descartável só deste arquivo: ele cria uma Trilha e um Estudo, e no banco compartilhado isso
+// mudava a contagem que o teste da carga de conteúdo confere enquanto roda ao lado.
+let banco: BancoDeExecucao | undefined;
 
 function conta(nome: string) {
   const id = randomUUID();
@@ -35,16 +42,6 @@ function conta(nome: string) {
 
 async function comoCarga<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
   const c = new pg.Client({ connectionString: urlDoPapel("carga", { agrupada: false }) });
-  await c.connect();
-  try {
-    return await fn(c);
-  } finally {
-    await c.end();
-  }
-}
-
-async function comoDono<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
-  const c = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
   await c.connect();
   try {
     return await fn(c);
@@ -108,6 +105,9 @@ const umMinutoAtras = () => new Date(Date.now() - 60_000);
 beforeAll(async () => {
   aplicarEnvDeTeste();
   if (emNeon()) return;
+  const preparado = await criarBancoPreparado();
+  banco = preparado.banco;
+  Object.assign(process.env, preparado.env);
   await comoCarga(async (c) => {
     await c.query(
       "insert into conteudo.trilha (id, nome, ordem, descricao) values ($1, $2, $3, 'x')",
@@ -122,14 +122,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (!emNeon()) {
-    await obterDb().delete(usuario).where(inArray(usuario.id, ids));
-    await comoDono(async (c) => {
-      await c.query("delete from conteudo.estudo where id = $1", [estudo]);
-      await c.query("delete from conteudo.trilha where id = $1", [trilha]);
-    });
-  }
   await obterPool().end();
+  if (banco) await removerBancoDeExecucao(banco.nome);
 });
 
 describe.skipIf(emNeon())("conferir-entrada: só contagens, só leitura", () => {
