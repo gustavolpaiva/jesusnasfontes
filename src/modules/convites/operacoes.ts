@@ -73,7 +73,7 @@ export async function revogarConviteNucleo(
     if (!previa) return { ok: false as const, erro: "inexistente" as const };
 
     const [conta] = await tx
-      .select({ id: usuario.id, papel: usuario.role })
+      .select({ id: usuario.id, papel: usuario.role, jaEntrou: usuario.emailVerified })
       .from(usuario)
       .where(eq(usuario.email, previa.email))
       .for("update");
@@ -132,7 +132,15 @@ export async function revogarConviteNucleo(
         .where(eq(sessao.userId, conta.id))
         .returning({ id: sessao.id });
       sessoesEncerradas = apagadas.length;
-      if (linha.aceitoEm === null && sessoesEncerradas === 0) {
+      // A conta só sai junto se NUNCA foi usada, e a prova tem de durar: convite nunca aceito, nenhuma
+      // sessão agora e o e-mail nunca confirmado por uma entrada (a biblioteca grava isso na conta ao
+      // entrar por link ou por código). Sessão aberta é sinal de uso: como ela é apagada aqui, o sinal
+      // fica gravado na conta, senão uma segunda revogação depois de reconvidar veria a conta "vazia"
+      // e levaria por cascata as Anotações, o progresso e o consentimento da pessoa.
+      if (sessoesEncerradas > 0 && !conta.jaEntrou) {
+        await tx.update(usuario).set({ emailVerified: true }).where(eq(usuario.id, conta.id));
+      }
+      if (linha.aceitoEm === null && sessoesEncerradas === 0 && !conta.jaEntrou) {
         await tx.delete(usuario).where(eq(usuario.id, conta.id));
         contaApagada = true;
       }

@@ -210,6 +210,32 @@ describe.skipIf(emNeon())("revogarConviteNucleo", () => {
     expect(await sessoes(alvo)).toBe(0);
   });
 
+  it("Pendente com sessão e dados: revogar, reconvidar e revogar de novo não apaga a conta nem os dados", async () => {
+    const admin = await convidarPessoa("admin", { papel: "admin", aceito: true });
+    const alvo = await convidarPessoa("duas-vezes");
+    await abrirSessoes(alvo, 1);
+    await semearDados(alvo);
+    const primeira = await revogarConviteNucleo(alvo.conviteId, admin.id);
+    expect(primeira).toMatchObject({ ok: true, sessoesEncerradas: 1, contaApagada: false });
+    await convidar(alvo.email, null, { enviar: false });
+    // Agora: Pendente, nunca aceito e sem sessão. Só o sinal gravado na conta separa do caso "vazia".
+    expect(await sessoes(alvo)).toBe(0);
+    const segunda = await revogarConviteNucleo(alvo.conviteId, admin.id);
+    expect(segunda).toMatchObject({ ok: true, sessoesEncerradas: 0, contaApagada: false });
+    expect(await usuarios(alvo)).toBe(1);
+    expect(await anotacoes(alvo)).toBe(1);
+  });
+
+  it("quem já entrou alguma vez e saiu (e-mail confirmado, sem sessão, convite nunca aceito) mantém a conta", async () => {
+    const admin = await convidarPessoa("admin", { papel: "admin", aceito: true });
+    const alvo = await convidarPessoa("entrou-e-saiu");
+    await dono.query('update auth."user" set email_verified = true where id = $1', [alvo.id]);
+    await semearDados(alvo);
+    const r = await revogarConviteNucleo(alvo.conviteId, admin.id);
+    expect(r).toMatchObject({ ok: true, sessoesEncerradas: 0, contaApagada: false });
+    expect(await anotacoes(alvo)).toBe(1);
+  });
+
   it("recusa o próprio convite de quem revoga, sem tocar em nada", async () => {
     const admin = await convidarPessoa("admin", { papel: "admin", aceito: true });
     const outro = await convidarPessoa("outro-admin", { papel: "admin", aceito: true });
