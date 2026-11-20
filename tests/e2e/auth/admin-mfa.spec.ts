@@ -361,6 +361,8 @@ const PUBLICAS = new Set([
   "/api/auth/[...all]",
 ]);
 const ISENTAS = new Set(["/admin/segundo-fator"]);
+// Rotas que respondem com um anexo (download), não com uma página.
+const ROTAS_DE_ARQUIVO = new Set(["/conta/exportar"]);
 // Rota com parâmetro na URL: o endereço de exemplo que o teste percorre (um Estudo real da carga).
 const EXEMPLOS: Record<string, string> = { "/estudos/[slug]": "/estudos/batismo-e-tentacao" };
 
@@ -403,6 +405,13 @@ test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as 
   }
   // Controle positivo: com a sessão verificada, as mesmas rotas abrem.
   for (const rota of protegidas) {
+    // Rota que entrega arquivo (anexo): o navegador não "navega" até ela; o pedido com os cookies da
+    // sessão mostra que ela abre (200, sem redirecionar à entrada nem ao segundo fator).
+    if (ROTAS_DE_ARQUIVO.has(rota)) {
+      const r = await page.request.get(enderecoDe(rota), { maxRedirects: 0 });
+      expect(r.status(), rota).toBe(200);
+      continue;
+    }
     await page.goto(enderecoDe(rota));
     await expect(page, rota).not.toHaveURL(/segundo-fator|entrar/);
   }

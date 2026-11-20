@@ -27,7 +27,7 @@ async function entrarSemAceite(page: Page) {
 
 test("sem o aceite nenhuma tela do app abre e a navegação não aparece", async ({ page }) => {
   await entrarSemAceite(page);
-  for (const rota of ["/trilhas", "/estudos/batismo-e-tentacao"]) {
+  for (const rota of ["/trilhas", "/estudos/batismo-e-tentacao", "/conta"]) {
     await page.goto(rota);
     await expect(page, rota).toHaveURL(/\/privacidade\/aceitar$/);
     await expect(page.getByRole("heading", { level: 1, name: "Antes de começar" })).toBeVisible();

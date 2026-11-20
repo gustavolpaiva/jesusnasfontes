@@ -194,7 +194,7 @@ export type EstudoConcluido = ResumoDaTrilha & { trilha: string; slug: string };
  * devia ficar guardada. A trava vale até o fim da transação e é pedida ANTES de ler a volta, então
  * quem espera lê a volta já confirmada pela outra.
  */
-async function travarProgresso(tx: Tx, estudanteId: string): Promise<void> {
+export async function travarProgresso(tx: Tx, estudanteId: string): Promise<void> {
   await tx.execute(
     sql`select pg_advisory_xact_lock(hashtextextended(${`jnf-progresso:${estudanteId}`}, 0))`,
   );

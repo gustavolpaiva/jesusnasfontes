@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
+import { ErroDeBanco } from "@/db/erro-banco";
 import { registrarErro } from "@/lib/registro";
 import { exigirSessao } from "@/modules/identidade/sessao";
 import { iniciarNovaVolta, registrarConclusao, removerConclusao } from "./consultas";
@@ -21,6 +23,16 @@ export type ResultadoNovaVolta =
 
 const idDoEstudo = z.uuid();
 
+// A conta foi apagada (em outra aba) entre a guarda de sessão e a escrita: a chave estrangeira para
+// `auth.user` recusa a linha (23503). Não é falha do banco nem erro para mostrar: a sessão acabou.
+function sessaoEncerradaPorApagarConta(erro: unknown): boolean {
+  return (
+    erro instanceof ErroDeBanco &&
+    erro.code === "23503" &&
+    (erro.constraint ?? "").includes("estudante_id")
+  );
+}
+
 // A Trilha e a página do Estudo mostram o novo estado na mesma resposta da ação.
 function atualizarTelas(slug: string): void {
   revalidatePath("/trilhas");
@@ -37,6 +49,7 @@ export async function concluirEstudo(estudoId: string): Promise<ResultadoProgres
     atualizarTelas(feito.slug);
     return { ok: true, ...feito };
   } catch (erro) {
+    if (sessaoEncerradaPorApagarConta(erro)) redirect("/entrar?motivo=sessao");
     registrarErro("progresso-concluir", erro);
     return { ok: false, erro: "falha" };
   }
@@ -52,6 +65,7 @@ export async function desmarcarConclusao(estudoId: string): Promise<ResultadoPro
     atualizarTelas(feito.slug);
     return { ok: true, ...feito };
   } catch (erro) {
+    if (sessaoEncerradaPorApagarConta(erro)) redirect("/entrar?motivo=sessao");
     registrarErro("progresso-desmarcar", erro);
     return { ok: false, erro: "falha" };
   }
@@ -64,6 +78,7 @@ export async function comecarNovaVolta(): Promise<ResultadoNovaVolta> {
     if (resultado.ok) revalidatePath("/trilhas");
     return resultado;
   } catch (erro) {
+    if (sessaoEncerradaPorApagarConta(erro)) redirect("/entrar?motivo=sessao");
     registrarErro("progresso-nova-volta", erro);
     return { ok: false, erro: "falha" };
   }

@@ -95,3 +95,17 @@ export function modeloConvite(dados: { para: string; urlEntrar: string }): Mensa
   const html = `<div ${ESTILO}><p>Você foi convidado para o Jesus nas Fontes, um grupo fechado de estudo.</p><p>Para entrar, abra <a href="${url}">${url}</a>, digite este mesmo e-mail e toque em Enviar acesso. Você receberá um segundo e-mail com o link de entrada.</p><p>Não responda a este e-mail: ninguém lê as respostas.</p></div>`;
   return { para: dados.para, assunto: ASSUNTO_CONVITE, texto, html };
 }
+
+export const ASSUNTO_REAUTENTICACAO = "Confirmação para apagar sua conta";
+
+// Código de 6 dígitos para confirmar que é a própria pessoa antes de apagar a conta (sessão antiga).
+export function modeloReautenticacao(dados: { para: string; codigo: string }): Mensagem {
+  const texto = [
+    `Para apagar sua conta no Jesus nas Fontes, digite este código de 6 dígitos na tela de confirmação: ${dados.codigo}`,
+    "",
+    "O código vale por 10 minutos. Se você não pediu isso, ignore esta mensagem e avise quem organiza o grupo.",
+    "Não responda a este e-mail: ninguém lê as respostas.",
+  ].join("\n");
+  const html = `<div ${ESTILO}><p>Para apagar sua conta no Jesus nas Fontes, digite este código de 6 dígitos na tela de confirmação: <strong>${escaparHtml(dados.codigo)}</strong></p><p>O código vale por 10 minutos. Se você não pediu isso, ignore esta mensagem e avise quem organiza o grupo.</p><p>Não responda a este e-mail: ninguém lê as respostas.</p></div>`;
+  return { para: dados.para, assunto: ASSUNTO_REAUTENTICACAO, texto, html };
+}

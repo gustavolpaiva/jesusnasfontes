@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { criarCliente, obterDb, obterPool } from "@/db/cliente";
@@ -8,11 +8,18 @@ import { usuario } from "@/db/schema/fundacao";
 import { posicao } from "@/db/schema/posicao";
 import { urlDoPapel } from "@/db/url";
 import { lerUltimaPosicao, registrarPosicao } from "@/modules/trilhas/posicao";
+import {
+  type BancoDeExecucao,
+  criarBancoPreparado,
+  removerBancoDeExecucao,
+} from "../../support/banco-local";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
 
 // Posição de leitura: dado privado do Estudante. Duas contas, dois Estudos, e cada "A não vê B" tem
 // ao lado o controle positivo "A vê o que é dela". Os Estudos e Trilhas de teste são criados pelo
-// papel de carga (o mesmo que a carga de conteúdo usa) e ficam fora das ordens reais.
+// papel de carga (o mesmo que a carga de conteúdo usa) e ficam fora das ordens reais. Este arquivo usa
+// um banco descartável SÓ dele (como o do progresso): criar Estudos no banco compartilhado fazia a contagem
+// de Estudos de `carga.test.ts` variar no meio de um teste dele (flaky achado no plano 01-14).
 
 const emNeon = () => inject("alvoBanco") === "neon";
 
@@ -28,6 +35,7 @@ const estudoY = randomUUID();
 const titulo = (nome: string) => `Título ${nome} ${rodada.slice(0, 8)}`;
 const HASH = createHash("sha256").update(rodada).digest("hex");
 const ordemBase = 20_000 + Math.floor(Math.random() * 5_000);
+let banco: BancoDeExecucao | undefined;
 
 const codigoDe = (erro: unknown) =>
   (erro as { code?: string; cause?: { code?: string } }).code ??
@@ -56,8 +64,14 @@ async function comoDono<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
 }
 
 beforeAll(async () => {
-  aplicarEnvDeTeste();
-  if (emNeon()) return; // cria Trilhas e Estudos: só no banco descartável
+  if (emNeon()) {
+    aplicarEnvDeTeste();
+    return; // cria Trilhas e Estudos: só no banco descartável
+  }
+  // O ambiente do banco próprio vale para todo o arquivo (o pool do aplicativo nasce depois disto).
+  const preparado = await criarBancoPreparado();
+  banco = preparado.banco;
+  Object.assign(process.env, preparado.env);
   await comoCarga(async (c) => {
     await c.query(
       "insert into conteudo.trilha (id, nome, ordem, descricao) values ($1, $2, $3, 'x'), ($4, $5, $6, 'x')",
@@ -86,19 +100,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (!emNeon()) {
-    // A cascata do usuário leva as posições; as Trilhas e os Estudos de teste saem pelo dono.
-    await obterDb()
-      .delete(usuario)
-      .where(inArray(usuario.id, [idA, idB, idC]));
-    await comoDono(async (c) => {
-      await c.query("delete from conteudo.estudo where id = any($1::uuid[])", [
-        [estudoXA, estudoXB, estudoY],
-      ]);
-      await c.query("delete from conteudo.trilha where id = any($1::text[])", [[trilhaX, trilhaY]]);
-    });
-  }
   await obterPool().end();
+  if (banco) await removerBancoDeExecucao(banco.nome);
 });
 
 describe.skipIf(emNeon())("privado.posicao: cada conta vê só a própria posição", () => {
@@ -210,11 +213,14 @@ describe.skipIf(emNeon())("privado.posicao: cada conta vê só a própria posiç
 // Pool de uma conexão: toda transação, de qualquer conta, passa pela MESMA conexão física. Se a
 // identidade vazasse de uma para a próxima, a leitura de uma conta mostraria o Estudo da outra.
 describe.skipIf(emNeon())("posição em conexão agrupada de tamanho 1", () => {
-  const cliente1 = (() => {
-    aplicarEnvDeTeste();
-    return criarCliente({ max: 1 });
-  })();
-  const porta1 = fabricarComEstudante(() => cliente1.db);
+  // O pool nasce depois do `beforeAll` do arquivo, que aponta o ambiente para o banco próprio.
+  let cliente1 = undefined as unknown as ReturnType<typeof criarCliente>;
+  const porta1: ReturnType<typeof fabricarComEstudante> = (id, fn) =>
+    fabricarComEstudante(() => cliente1.db)(id, fn);
+
+  beforeAll(() => {
+    cliente1 = criarCliente({ max: 1 });
+  });
 
   afterAll(async () => {
     await cliente1.pool.end();

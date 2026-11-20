@@ -119,6 +119,7 @@
   --color-rubric-hover: var(--rubric-hover);
   --color-rubric-ink: var(--rubric-ink);
   --color-signal-error: var(--signal-error);
+  --color-signal-error-ink: var(--signal-error-ink);
   --color-signal-success: var(--signal-success);
   --color-signal-warning: var(--signal-warning);
 
