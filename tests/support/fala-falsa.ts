@@ -18,8 +18,11 @@ export type VozFalsa = { name: string; lang: string; localService?: boolean };
 export type ConfigFalaFalsa = {
   /** Vozes do aparelho. `null` = o navegador não tem a API de fala. */
   vozes: VozFalsa[] | null;
-  /** As vozes só aparecem depois deste tempo (evento `voiceschanged`), como no Chrome. */
-  chegamEmMs?: number;
+  /**
+   * As vozes só aparecem depois (evento `voiceschanged`), como no Chrome: `"manual"` espera o teste
+   * chamar `liberarVozes` (sem depender do relógio da máquina); um número espera esse tempo.
+   */
+  chegamEmMs?: number | "manual";
 };
 
 export const VOZ_PT_BR: VozFalsa = { name: "Voz de teste BR", lang: "pt-BR", localService: true };
@@ -57,7 +60,7 @@ const SCRIPT = (config: ConfigFalaFalsa) => `(() => {
     name: v.name, lang: v.lang, voiceURI: v.name, localService: v.localService !== false, default: false,
   }));
   class Sintese extends EventTarget {
-    constructor() { super(); this.fila = []; this.atual = null; this.visiveis = typeof cfg.chegamEmMs === "number" ? [] : todas; }
+    constructor() { super(); this.fila = []; this.atual = null; this.visiveis = cfg.chegamEmMs !== undefined ? [] : todas; }
     getVoices() { return this.visiveis; }
     speak(fala) { registro.enfileiradas.push(fala.text); this.fila.push(fala); this.andar(); }
     cancel() {
@@ -90,9 +93,9 @@ const SCRIPT = (config: ConfigFalaFalsa) => `(() => {
   };
   Object.defineProperty(window, "speechSynthesis", { configurable: true, value: sintese });
   Object.defineProperty(window, "SpeechSynthesisUtterance", { configurable: true, value: Fala });
-  if (typeof cfg.chegamEmMs === "number") {
-    setTimeout(() => { sintese.visiveis = todas; sintese.dispatchEvent(new Event("voiceschanged")); }, cfg.chegamEmMs);
-  }
+  const liberar = () => { sintese.visiveis = todas; sintese.dispatchEvent(new Event("voiceschanged")); };
+  registro.liberarVozes = liberar;
+  if (typeof cfg.chegamEmMs === "number") setTimeout(liberar, cfg.chegamEmMs);
 })();`;
 
 /** Instala o falso antes de qualquer script da página. */
@@ -118,6 +121,13 @@ export async function estadoDaFala(page: Page): Promise<EstadoDaFala> {
 export async function terminarFala(page: Page): Promise<boolean> {
   return page.evaluate(() =>
     (window as unknown as { __fala: { terminar: () => boolean } }).__fala.terminar(),
+  );
+}
+
+/** Faz as vozes do falso aparecerem (com `chegamEmMs: "manual"`). */
+export async function liberarVozes(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    (window as unknown as { __fala: { liberarVozes: () => void } }).__fala.liberarVozes(),
   );
 }
 

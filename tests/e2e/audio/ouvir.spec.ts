@@ -4,6 +4,7 @@ import {
   estadoDaFala,
   falharFala,
   instalarFalaFalsa,
+  liberarVozes,
   terminarFala,
   VOZ_EN,
   VOZ_PT_BR,
@@ -64,6 +65,20 @@ test("nada toca nem é enfileirado antes do toque; Ouvir enfileira as falas do E
   const estudo = controle(page, "estudo");
   await expect(principal(estudo)).toHaveAccessibleName("Ouvir o Estudo");
   await expect(principal(estudo)).toHaveText("Ouvir");
+  // Contrato (tela 8): botão de 44 px com contorno de 1 px na cor da tinta (`--ink`, a cor do título).
+  const desenho = await principal(estudo).evaluate((b) => {
+    const cs = getComputedStyle(b);
+    const tinta = getComputedStyle(document.querySelector("h1") as Element).color;
+    return {
+      altura: b.getBoundingClientRect().height,
+      largura: cs.borderTopWidth,
+      cor: cs.borderTopColor,
+      tinta,
+    };
+  });
+  expect(desenho.altura).toBeGreaterThanOrEqual(44);
+  expect(desenho.largura).toBe("1px");
+  expect(desenho.cor).toBe(desenho.tinta);
   // A página já carregou e as vozes já foram procuradas: nada foi enfileirado.
   await page.waitForTimeout(500);
   expect((await estadoDaFala(page)).enfileiradas).toEqual([]);
@@ -204,6 +219,13 @@ test("sair da página cancela a fala", async ({ page }) => {
 test("sem voz em português: a mensagem aparece sem tocar em nada; o botão é aria-disabled, focável, e não fala", async ({
   page,
 }) => {
+  // O controle do texto bíblico hidrata depois (Suspense) e já encontra o leitor em "sem voz": a
+  // hidratação não pode reclamar de HTML diferente do que o servidor desenhou.
+  const erros: string[] = [];
+  page.on("pageerror", (e) => erros.push(e.message));
+  page.on("console", (m) => {
+    if (m.type() === "error") erros.push(m.text());
+  });
   await abrir(page, { vozes: [VOZ_EN] });
   const estudo = controle(page, "estudo");
   const texto = controle(page, "texto");
@@ -224,6 +246,7 @@ test("sem voz em português: a mensagem aparece sem tocar em nada; o botão é a
   await principal(estudo).click({ force: true });
   await page.keyboard.press("Enter");
   expect((await estadoDaFala(page)).enfileiradas).toEqual([]);
+  expect(erros).toEqual([]);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -238,10 +261,12 @@ test("sem nenhuma voz e sem evento: depois de 2 s a mensagem de sem voz aparece"
 test("as vozes chegam depois (voiceschanged): procurando, e então o botão funciona", async ({
   page,
 }) => {
-  await abrir(page, { vozes: [VOZ_PT_BR], chegamEmMs: 900 });
+  await abrir(page, { vozes: [VOZ_PT_BR], chegamEmMs: "manual" });
   const estudo = controle(page, "estudo");
   await expect(estudo.getByText("Procurando voz em português…")).toBeVisible();
-  await expect(estudo.getByText("Procurando voz em português…")).toHaveCount(0, { timeout: 4000 });
+  await expect(principal(estudo)).toHaveAttribute("aria-disabled", "true");
+  await liberarVozes(page);
+  await expect(estudo.getByText("Procurando voz em português…")).toHaveCount(0);
   await expect(principal(estudo)).not.toHaveAttribute("aria-disabled", "true");
   await principal(estudo).click();
   await expect(principal(estudo)).toHaveText("Pausar");

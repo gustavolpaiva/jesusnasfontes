@@ -1,11 +1,12 @@
 "use client";
 
 import { Pause, Play, Square } from "lucide-react";
-import { type ReactNode, useId, useRef } from "react";
+import { type ReactNode, useId, useRef, useSyncExternalStore } from "react";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useOuvir } from "./contexto";
+import { INSTANTANEO_INICIAL } from "./leitor";
 
 // Botão "Ouvir" (tela 8 do contrato). Dois lugares usam este controle, o Estudo e o texto bíblico, e
 // ambos falam com o mesmo leitor: iniciar um interrompe o outro. Os botões não mudam de lugar entre os
@@ -22,6 +23,8 @@ export const MENSAGENS_DO_OUVIR = {
   pausado: "Pausado",
   falha: "A leitura em voz parou. Toque em Ouvir para recomeçar.",
 } as const;
+
+const assinarNada = () => () => {};
 
 type Props = {
   /** Identifica o controle no leitor compartilhado ("estudo" ou "texto"). */
@@ -51,7 +54,16 @@ export function OuvirControl({
   children,
   className,
 }: Props) {
-  const { instantaneo: s, iniciar, pausar, continuar, parar } = useOuvir();
+  const { instantaneo, iniciar, pausar, continuar, parar } = useOuvir();
+  // O controle do texto bíblico hidrata depois (vem em Suspense) e pode encontrar o leitor já em outro
+  // estado (sem voz, por exemplo): enquanto hidrata, mostra o estado inicial que o servidor desenhou;
+  // só depois de montado passa ao estado real. Sem isso, a hidratação reclama de HTML diferente.
+  const montado = useSyncExternalStore(
+    assinarNada,
+    () => true,
+    () => false,
+  );
+  const s = montado ? instantaneo : INSTANTANEO_INICIAL;
   const idDaMensagem = useId();
   const principal = useRef<HTMLButtonElement>(null);
 
@@ -95,7 +107,7 @@ export function OuvirControl({
           ref={principal}
           type="button"
           variant="secondary"
-          className={larguraDoBotao}
+          className={cn("border-ink", larguraDoBotao)}
           aria-disabled={bloqueado || undefined}
           aria-label={lendo || pausado ? undefined : nome}
           aria-describedby={bloqueado ? idDaMensagem : undefined}
@@ -109,6 +121,7 @@ export function OuvirControl({
           <Button
             type="button"
             variant="secondary"
+            className="border-ink"
             onClick={() => {
               parar();
               principal.current?.focus();
