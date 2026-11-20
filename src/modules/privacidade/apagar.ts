@@ -8,6 +8,7 @@ import { verificacao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { enviarEmail, modeloReautenticacao } from "@/lib/email";
 import { registrarErro } from "@/lib/registro";
+import { manterSoVerificacaoMaisRecente } from "@/modules/identidade/convite";
 import { chaveDe, consumirLimite, reservarPalpite } from "@/modules/identidade/limite";
 import { exigirSessao } from "@/modules/identidade/sessao";
 import { ERRO_UNICO_ADMIN, removerConta } from "./remover-conta";
@@ -72,6 +73,9 @@ async function codigoConfere(
     });
     return "ok";
   } catch {
+    // Um palpite errado faz a biblioteca regravar o código; se houve novo pedido no meio, o antigo
+    // pode ter voltado. Só o mais recente vale (a mesma regra da entrada por código).
+    await manterSoVerificacaoMaisRecente(`${TIPO_DO_CODIGO}-otp-${email}`);
     return "invalido";
   }
 }

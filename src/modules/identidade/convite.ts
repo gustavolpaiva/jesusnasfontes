@@ -102,14 +102,22 @@ export async function apagarVerificacoesDe(emailNorm: string): Promise<void> {
 // original (o `created_at` e o id são novos, por isso não servem). Corrige o estado depois da
 // emissão e depois de um palpite que falhou, quando a regravação pode ter trazido de volta um
 // código mais antigo que o de um reenvio simultâneo.
-export async function manterSoCodigoMaisRecente(emailNorm: string): Promise<void> {
-  const identificador = `sign-in-otp-${normalizarEmail(emailNorm)}`;
+/**
+ * De um mesmo identificador de código, fica só a linha que vence por último. Um palpite errado faz a
+ * biblioteca regravar o código que ela leu; se um pedido novo entrou no meio, o antigo volta ao lado do
+ * novo. Vale para todo código de 6 dígitos (entrada e confirmação de apagar a conta).
+ */
+export async function manterSoVerificacaoMaisRecente(identificador: string): Promise<void> {
   await obterDb().execute(sql`
     delete from "auth"."verification" v
     where v.identifier = ${identificador}
       and exists (
         select 1 from "auth"."verification" w
         where w.identifier = v.identifier and w.expires_at > v.expires_at)`);
+}
+
+export async function manterSoCodigoMaisRecente(emailNorm: string): Promise<void> {
+  await manterSoVerificacaoMaisRecente(`sign-in-otp-${normalizarEmail(emailNorm)}`);
 }
 
 export async function apagarCodigoDe(emailNorm: string): Promise<void> {
