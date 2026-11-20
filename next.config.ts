@@ -9,6 +9,10 @@ const config: NextConfig = {
   // Cada execução de teste usa o seu diretório de build para não colidir com outra.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   poweredByHeader: false,
+  // O `next dev` imprime cada chamada de Server Action COM os argumentos (`ƒ salvarAnotacao({"corpo": ...})`):
+  // o texto de uma Anotação, de uma Anotação da Sessão e o termo da busca iriam ao registro do servidor. Achado
+  // pelo teste do marcador (plano 01-18, PRIV-04). Desligado para todos; em produção esse registro não existe.
+  logging: { serverFunctions: false },
   // O `next dev` gravaria um AGENTS.md na raiz; esse caminho é proibido no repositório público.
   agentRules: false,
   async headers() {
@@ -28,6 +32,8 @@ const config: NextConfig = {
     return [
       { source: "/:path*", headers: cabecalhos },
       { source: "/trilhas", headers: [semCache] },
+      // O Caderno traz o texto das Anotações: nunca em cache de CDN nem de navegador.
+      { source: "/caderno", headers: [semCache] },
       { source: "/estudos/:slug", headers: [semCache] },
     ];
   },

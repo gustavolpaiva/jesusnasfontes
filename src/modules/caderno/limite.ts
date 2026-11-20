@@ -10,3 +10,6 @@ export const semNulo = (texto: string): string => texto.replaceAll("\u0000", "")
 
 /** Texto vazio, ou só espaços, é a Anotação apagada. */
 export const estaVazio = (texto: string): boolean => texto.trim() === "";
+
+/** O termo da busca do Caderno: uma palavra, ou poucas. Maior que isto, o servidor recusa. */
+export const TERMO_MAX = 100;
