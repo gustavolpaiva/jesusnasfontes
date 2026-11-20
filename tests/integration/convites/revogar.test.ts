@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import pg from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { obterPool } from "@/db/cliente";
 import {
   chaveDoReenvio,
@@ -29,7 +29,11 @@ const destino = (para: string) => createHash("sha256").update(para).digest("hex"
 const emailsEnviados = (para: string): number =>
   readdirSync(pastaDeEmail).filter((n) => n.endsWith(".json") && n.includes(destino(para))).length;
 
+// Cria e APAGA contas: nunca contra o Neon (lá o arquivo inteiro é ignorado).
+const emNeon = () => inject("alvoBanco") === "neon";
+
 beforeAll(async () => {
+  if (emNeon()) return;
   const criado = await criarBancoPreparado();
   banco = criado.banco;
   env = criado.env;
@@ -42,6 +46,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (emNeon()) return;
   await dono?.end();
   await obterPool().end();
   await removerBancoDeExecucao(banco.nome);
@@ -127,7 +132,7 @@ const estadoDe = async (p: Pessoa) =>
     )
   ).rows[0];
 
-describe("revogarConviteNucleo", () => {
+describe.skipIf(emNeon())("revogarConviteNucleo", () => {
   it("Aceito: encerra todas as sessões e os códigos pendentes, mantém conta e dados, e a vizinha fica como estava", async () => {
     const admin = await convidarPessoa("admin", { papel: "admin", aceito: true });
     const alvo = await convidarPessoa("aceito", { aceito: true });
@@ -295,7 +300,7 @@ describe("revogarConviteNucleo", () => {
   });
 });
 
-describe("reenviarConviteNucleo", () => {
+describe.skipIf(emNeon())("reenviarConviteNucleo", () => {
   it("só reenvia Pendente; Aceito e Revogado são recusados e nada sai", async () => {
     const admin = await convidarPessoa("admin", { papel: "admin", aceito: true });
     const pendente = await convidarPessoa("reenvio-pendente");
