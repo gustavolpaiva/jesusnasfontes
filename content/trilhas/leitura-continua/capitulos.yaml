@@ -1,0 +1,536 @@
+# Os 89 capítulos dos quatro evangelhos, na ordem da Leitura contínua. Cada um vira um Estudo:
+# título, o que há no capítulo (foco) e a Passagem do capítulo inteiro. Gerado de legado/extraido/artifact.json.
+- slug: mateus-1
+  livro: 40
+  capitulo: 1
+  titulo: Mateus 1
+  ordem: 1
+  foco: "Genealogia e nascimento; José acolhe Maria."
+- slug: mateus-2
+  livro: 40
+  capitulo: 2
+  titulo: Mateus 2
+  ordem: 2
+  foco: "Os magos, a fuga para o Egito, Herodes."
+- slug: mateus-3
+  livro: 40
+  capitulo: 3
+  titulo: Mateus 3
+  ordem: 3
+  foco: "João Batista e o batismo de Jesus."
+- slug: mateus-4
+  livro: 40
+  capitulo: 4
+  titulo: Mateus 4
+  ordem: 4
+  foco: "Tentação no deserto; início na Galileia; primeiros discípulos."
+- slug: mateus-5
+  livro: 40
+  capitulo: 5
+  titulo: Mateus 5
+  ordem: 5
+  foco: "Sermão do Monte: bem-aventuranças e a justiça maior."
+- slug: mateus-6
+  livro: 40
+  capitulo: 6
+  titulo: Mateus 6
+  ordem: 6
+  foco: "Esmola, oração e jejum; o Pai-Nosso; tesouro e ansiedade."
+- slug: mateus-7
+  livro: 40
+  capitulo: 7
+  titulo: Mateus 7
+  ordem: 7
+  foco: "Não julgar; a regra de ouro; as duas casas."
+- slug: mateus-8
+  livro: 40
+  capitulo: 8
+  titulo: Mateus 8
+  ordem: 8
+  foco: "Curas do leproso e do servo do centurião; a tempestade."
+- slug: mateus-9
+  livro: 40
+  capitulo: 9
+  titulo: Mateus 9
+  ordem: 9
+  foco: "O paralítico; o chamado de Mateus; a filha do chefe."
+- slug: mateus-10
+  livro: 40
+  capitulo: 10
+  titulo: Mateus 10
+  ordem: 10
+  foco: "O envio dos Doze e o custo da missão."
+- slug: mateus-11
+  livro: 40
+  capitulo: 11
+  titulo: Mateus 11
+  ordem: 11
+  foco: "A dúvida de João Batista; \"venham a mim os cansados\"."
+- slug: mateus-12
+  livro: 40
+  capitulo: 12
+  titulo: Mateus 12
+  ordem: 12
+  foco: "Senhor do sábado; a acusação de Belzebu; o sinal de Jonas."
+- slug: mateus-13
+  livro: 40
+  capitulo: 13
+  titulo: Mateus 13
+  ordem: 13
+  foco: "As parábolas do Reino."
+- slug: mateus-14
+  livro: 40
+  capitulo: 14
+  titulo: Mateus 14
+  ordem: 14
+  foco: "Morte de João Batista; cinco mil alimentados; Jesus anda sobre o mar."
+- slug: mateus-15
+  livro: 40
+  capitulo: 15
+  titulo: Mateus 15
+  ordem: 15
+  foco: "Tradição e coração; a mulher cananeia; quatro mil alimentados."
+- slug: mateus-16
+  livro: 40
+  capitulo: 16
+  titulo: Mateus 16
+  ordem: 16
+  foco: "A confissão de Pedro; primeiro anúncio da paixão."
+- slug: mateus-17
+  livro: 40
+  capitulo: 17
+  titulo: Mateus 17
+  ordem: 17
+  foco: "Transfiguração; a cura do menino; o imposto do templo."
+- slug: mateus-18
+  livro: 40
+  capitulo: 18
+  titulo: Mateus 18
+  ordem: 18
+  foco: "O maior no Reino; a ovelha perdida; correção e perdão."
+- slug: mateus-19
+  livro: 40
+  capitulo: 19
+  titulo: Mateus 19
+  ordem: 19
+  foco: "Divórcio; as crianças; o jovem rico."
+- slug: mateus-20
+  livro: 40
+  capitulo: 20
+  titulo: Mateus 20
+  ordem: 20
+  foco: "Os trabalhadores da vinha; o pedido dos filhos de Zebedeu; os cegos de Jericó."
+- slug: mateus-21
+  livro: 40
+  capitulo: 21
+  titulo: Mateus 21
+  ordem: 21
+  foco: "Entrada em Jerusalém; o templo; a figueira; os lavradores maus."
+- slug: mateus-22
+  livro: 40
+  capitulo: 22
+  titulo: Mateus 22
+  ordem: 22
+  foco: "O banquete de casamento; o imposto a César; o maior mandamento."
+- slug: mateus-23
+  livro: 40
+  capitulo: 23
+  titulo: Mateus 23
+  ordem: 23
+  foco: "Os sete \"ais\" contra escribas e fariseus."
+- slug: mateus-24
+  livro: 40
+  capitulo: 24
+  titulo: Mateus 24
+  ordem: 24
+  foco: "O discurso sobre o fim: vigiar."
+- slug: mateus-25
+  livro: 40
+  capitulo: 25
+  titulo: Mateus 25
+  ordem: 25
+  foco: "As dez virgens; os talentos; ovelhas e cabritos."
+- slug: mateus-26
+  livro: 40
+  capitulo: 26
+  titulo: Mateus 26
+  ordem: 26
+  foco: "Unção em Betânia; a ceia; Getsêmani; prisão; negação de Pedro. Capítulo longo: divida em dois dias."
+- slug: mateus-27
+  livro: 40
+  capitulo: 27
+  titulo: Mateus 27
+  ordem: 27
+  foco: "Pilatos; a crucificação; a morte; o sepultamento."
+- slug: mateus-28
+  livro: 40
+  capitulo: 28
+  titulo: Mateus 28
+  ordem: 28
+  foco: "A ressurreição e o envio a todos os povos."
+- slug: marcos-1
+  livro: 41
+  capitulo: 1
+  titulo: Marcos 1
+  ordem: 29
+  foco: "João Batista; batismo; primeiros discípulos; um dia em Cafarnaum."
+- slug: marcos-2
+  livro: 41
+  capitulo: 2
+  titulo: Marcos 2
+  ordem: 30
+  foco: "O paralítico; Levi; o jejum; o sábado."
+- slug: marcos-3
+  livro: 41
+  capitulo: 3
+  titulo: Marcos 3
+  ordem: 31
+  foco: "A mão ressequida; os Doze; a verdadeira família."
+- slug: marcos-4
+  livro: 41
+  capitulo: 4
+  titulo: Marcos 4
+  ordem: 32
+  foco: "O semeador e outras parábolas; a tempestade."
+- slug: marcos-5
+  livro: 41
+  capitulo: 5
+  titulo: Marcos 5
+  ordem: 33
+  foco: "O endemoninhado geraseno; a mulher com hemorragia; a filha de Jairo."
+- slug: marcos-6
+  livro: 41
+  capitulo: 6
+  titulo: Marcos 6
+  ordem: 34
+  foco: "Rejeição em Nazaré; envio dos Doze; morte de João; cinco mil; Jesus anda sobre o mar."
+- slug: marcos-7
+  livro: 41
+  capitulo: 7
+  titulo: Marcos 7
+  ordem: 35
+  foco: "O que contamina de verdade; a mulher siro-fenícia; o surdo curado."
+- slug: marcos-8
+  livro: 41
+  capitulo: 8
+  titulo: Marcos 8
+  ordem: 36
+  foco: "Quatro mil; o cego de Betsaida; a confissão de Pedro; tomar a cruz."
+- slug: marcos-9
+  livro: 41
+  capitulo: 9
+  titulo: Marcos 9
+  ordem: 37
+  foco: "Transfiguração; \"creio, ajuda a minha incredulidade\"; quem é o maior."
+- slug: marcos-10
+  livro: 41
+  capitulo: 10
+  titulo: Marcos 10
+  ordem: 38
+  foco: "Divórcio; as crianças; o homem rico; servir; Bartimeu."
+- slug: marcos-11
+  livro: 41
+  capitulo: 11
+  titulo: Marcos 11
+  ordem: 39
+  foco: "Entrada em Jerusalém; a figueira; o templo."
+- slug: marcos-12
+  livro: 41
+  capitulo: 12
+  titulo: Marcos 12
+  ordem: 40
+  foco: "Os lavradores maus; César; o maior mandamento; a oferta da viúva."
+- slug: marcos-13
+  livro: 41
+  capitulo: 13
+  titulo: Marcos 13
+  ordem: 41
+  foco: "O discurso sobre o fim."
+- slug: marcos-14
+  livro: 41
+  capitulo: 14
+  titulo: Marcos 14
+  ordem: 42
+  foco: "Unção; a ceia; Getsêmani; o julgamento; a negação. Capítulo longo: divida em dois dias."
+- slug: marcos-15
+  livro: 41
+  capitulo: 15
+  titulo: Marcos 15
+  ordem: 43
+  foco: "Pilatos; a cruz; a morte; o sepultamento."
+- slug: marcos-16
+  livro: 41
+  capitulo: 16
+  titulo: Marcos 16
+  ordem: 44
+  foco: "O túmulo vazio. Os versículos 9 a 20 faltam nos manuscritos mais antigos."
+- slug: lucas-1
+  livro: 42
+  capitulo: 1
+  titulo: Lucas 1
+  ordem: 45
+  foco: "Prólogo; anúncios a Zacarias e a Maria; o Magnificat; nascimento de João. Capítulo longo: divida em dois dias."
+- slug: lucas-2
+  livro: 42
+  capitulo: 2
+  titulo: Lucas 2
+  ordem: 46
+  foco: "O nascimento; os pastores; Simeão e Ana; Jesus aos doze anos no templo."
+- slug: lucas-3
+  livro: 42
+  capitulo: 3
+  titulo: Lucas 3
+  ordem: 47
+  foco: "A pregação de João Batista; o batismo; a genealogia."
+- slug: lucas-4
+  livro: 42
+  capitulo: 4
+  titulo: Lucas 4
+  ordem: 48
+  foco: "Tentação; a sinagoga de Nazaré; curas em Cafarnaum."
+- slug: lucas-5
+  livro: 42
+  capitulo: 5
+  titulo: Lucas 5
+  ordem: 49
+  foco: "A pesca; o leproso; o paralítico; Levi."
+- slug: lucas-6
+  livro: 42
+  capitulo: 6
+  titulo: Lucas 6
+  ordem: 50
+  foco: "O sábado; os Doze; o sermão da planície."
+- slug: lucas-7
+  livro: 42
+  capitulo: 7
+  titulo: Lucas 7
+  ordem: 51
+  foco: "O centurião; a viúva de Naim; a pecadora perdoada."
+- slug: lucas-8
+  livro: 42
+  capitulo: 8
+  titulo: Lucas 8
+  ordem: 52
+  foco: "O semeador; a tempestade; o geraseno; a filha de Jairo."
+- slug: lucas-9
+  livro: 42
+  capitulo: 9
+  titulo: Lucas 9
+  ordem: 53
+  foco: "Envio dos Doze; cinco mil; confissão de Pedro; transfiguração; rumo a Jerusalém."
+- slug: lucas-10
+  livro: 42
+  capitulo: 10
+  titulo: Lucas 10
+  ordem: 54
+  foco: "O envio dos setenta e dois; o bom samaritano; Marta e Maria."
+- slug: lucas-11
+  livro: 42
+  capitulo: 11
+  titulo: Lucas 11
+  ordem: 55
+  foco: "O Pai-Nosso; pedir com insistência; os \"ais\" contra os fariseus."
+- slug: lucas-12
+  livro: 42
+  capitulo: 12
+  titulo: Lucas 12
+  ordem: 56
+  foco: "O rico insensato; a ansiedade; a vigilância."
+- slug: lucas-13
+  livro: 42
+  capitulo: 13
+  titulo: Lucas 13
+  ordem: 57
+  foco: "Chamado ao arrependimento; a figueira estéril; a porta estreita; lamento sobre Jerusalém."
+- slug: lucas-14
+  livro: 42
+  capitulo: 14
+  titulo: Lucas 14
+  ordem: 58
+  foco: "Os lugares à mesa; o grande banquete; o custo de ser discípulo."
+- slug: lucas-15
+  livro: 42
+  capitulo: 15
+  titulo: Lucas 15
+  ordem: 59
+  foco: "A ovelha, a moeda e o filho perdidos."
+- slug: lucas-16
+  livro: 42
+  capitulo: 16
+  titulo: Lucas 16
+  ordem: 60
+  foco: "O administrador infiel; o rico e Lázaro."
+- slug: lucas-17
+  livro: 42
+  capitulo: 17
+  titulo: Lucas 17
+  ordem: 61
+  foco: "O perdão; os dez leprosos; a vinda do Reino."
+- slug: lucas-18
+  livro: 42
+  capitulo: 18
+  titulo: Lucas 18
+  ordem: 62
+  foco: "A viúva persistente; o fariseu e o publicano; o rico; o cego de Jericó."
+- slug: lucas-19
+  livro: 42
+  capitulo: 19
+  titulo: Lucas 19
+  ordem: 63
+  foco: "Zaqueu; a parábola das minas; entrada em Jerusalém; o templo."
+- slug: lucas-20
+  livro: 42
+  capitulo: 20
+  titulo: Lucas 20
+  ordem: 64
+  foco: "A autoridade questionada; os lavradores maus; César; a ressurreição dos mortos."
+- slug: lucas-21
+  livro: 42
+  capitulo: 21
+  titulo: Lucas 21
+  ordem: 65
+  foco: "A oferta da viúva; o discurso sobre o fim."
+- slug: lucas-22
+  livro: 42
+  capitulo: 22
+  titulo: Lucas 22
+  ordem: 66
+  foco: "A ceia; a oração no Monte das Oliveiras; prisão; negação. Capítulo longo: divida em dois dias."
+- slug: lucas-23
+  livro: 42
+  capitulo: 23
+  titulo: Lucas 23
+  ordem: 67
+  foco: "Pilatos e Herodes; a cruz; o criminoso arrependido; a morte."
+- slug: lucas-24
+  livro: 42
+  capitulo: 24
+  titulo: Lucas 24
+  ordem: 68
+  foco: "O túmulo vazio; os discípulos de Emaús; a aparição; a ascensão."
+- slug: joao-1
+  livro: 43
+  capitulo: 1
+  titulo: João 1
+  ordem: 69
+  foco: "O prólogo; o testemunho de João; os primeiros discípulos."
+- slug: joao-2
+  livro: 43
+  capitulo: 2
+  titulo: João 2
+  ordem: 70
+  foco: "As bodas de Caná; a purificação do templo."
+- slug: joao-3
+  livro: 43
+  capitulo: 3
+  titulo: João 3
+  ordem: 71
+  foco: "Nicodemos; João Batista diminui para que Jesus cresça."
+- slug: joao-4
+  livro: 43
+  capitulo: 4
+  titulo: João 4
+  ordem: 72
+  foco: "A samaritana; o filho do oficial."
+- slug: joao-5
+  livro: 43
+  capitulo: 5
+  titulo: João 5
+  ordem: 73
+  foco: "A cura em Betesda; a relação entre o Filho e o Pai."
+- slug: joao-6
+  livro: 43
+  capitulo: 6
+  titulo: João 6
+  ordem: 74
+  foco: "Cinco mil alimentados; o pão da vida. Capítulo longo: divida em dois dias."
+- slug: joao-7
+  livro: 43
+  capitulo: 7
+  titulo: João 7
+  ordem: 75
+  foco: "A Festa das Tendas; a divisão sobre quem ele é."
+- slug: joao-8
+  livro: 43
+  capitulo: 8
+  titulo: João 8
+  ordem: 76
+  foco: "A mulher adúltera (7:53 a 8:11 falta nos manuscritos mais antigos); a luz do mundo; \"antes de Abraão, Eu Sou\"."
+- slug: joao-9
+  livro: 43
+  capitulo: 9
+  titulo: João 9
+  ordem: 77
+  foco: "O cego de nascença."
+- slug: joao-10
+  livro: 43
+  capitulo: 10
+  titulo: João 10
+  ordem: 78
+  foco: "O bom pastor; \"eu e o Pai somos um\"."
+- slug: joao-11
+  livro: 43
+  capitulo: 11
+  titulo: João 11
+  ordem: 79
+  foco: "Lázaro."
+- slug: joao-12
+  livro: 43
+  capitulo: 12
+  titulo: João 12
+  ordem: 80
+  foco: "Unção em Betânia; entrada em Jerusalém; o grão de trigo."
+- slug: joao-13
+  livro: 43
+  capitulo: 13
+  titulo: João 13
+  ordem: 81
+  foco: "O lava-pés; o mandamento novo."
+- slug: joao-14
+  livro: 43
+  capitulo: 14
+  titulo: João 14
+  ordem: 82
+  foco: "Caminho, verdade e vida; a promessa do Espírito."
+- slug: joao-15
+  livro: 43
+  capitulo: 15
+  titulo: João 15
+  ordem: 83
+  foco: "A videira; o ódio do mundo."
+- slug: joao-16
+  livro: 43
+  capitulo: 16
+  titulo: João 16
+  ordem: 84
+  foco: "A obra do Espírito; a tristeza que vira alegria."
+- slug: joao-17
+  livro: 43
+  capitulo: 17
+  titulo: João 17
+  ordem: 85
+  foco: "A oração de Jesus pelos seus."
+- slug: joao-18
+  livro: 43
+  capitulo: 18
+  titulo: João 18
+  ordem: 86
+  foco: "Prisão; Anás e Caifás; Pedro nega; Pilatos."
+- slug: joao-19
+  livro: 43
+  capitulo: 19
+  titulo: João 19
+  ordem: 87
+  foco: "Condenação; a cruz; a morte; o sepultamento."
+- slug: joao-20
+  livro: 43
+  capitulo: 20
+  titulo: João 20
+  ordem: 88
+  foco: "O túmulo vazio; Maria Madalena; Tomé."
+- slug: joao-21
+  livro: 43
+  capitulo: 21
+  titulo: João 21
+  ordem: 89
+  foco: "A pesca na Galileia; \"Pedro, você me ama?\"."

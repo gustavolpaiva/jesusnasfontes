@@ -6,6 +6,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
+import { LIVROS } from "../../src/modules/referencias/livros";
 import { type Intervalo, parsearReferencia } from "../../src/modules/referencias/parser";
 import { type AfirmacaoExtraida, ErroAfirmacao, extrairAfirmacoes } from "./afirmacoes";
 
@@ -54,6 +55,29 @@ const esquemaDivergencia = z
   })
   .strict();
 
+/** A Trilha em que cada capítulo dos quatro evangelhos é um Estudo, lida de `capitulos.yaml`. */
+export const TRILHA_LEITURA_CONTINUA = "leitura-continua";
+
+// Um capítulo da Leitura contínua: o Estudo é gerado dele (título, o que há no capítulo e a Passagem
+// do capítulo inteiro). O livro é o número da ordem protestante (40 a 43 nos evangelhos).
+export const esquemaCapitulos = z
+  .array(
+    z
+      .object({
+        slug: identificador,
+        livro: z.number().int().min(1).max(66),
+        capitulo: z.number().int().min(1).max(150),
+        titulo: textoNaoVazio,
+        ordem: z.number().int().min(1).max(32767),
+        foco: textoNaoVazio,
+      })
+      .strict(),
+  )
+  .min(1);
+
+// Os três conjuntos de três perguntas, na ordem em que giram a cada volta.
+export const esquemaPerguntas = z.array(z.array(textoNaoVazio).length(3)).length(3);
+
 export const GRAUS_DE_CERTEZA = ["consenso", "posicao-majoritaria", "disputada"] as const;
 
 export const esquemaFrontMatter = z
@@ -94,10 +118,18 @@ export type EstudoLido = {
   corpo: string;
   passagens: PassagemEstudo[];
   afirmacoes: AfirmacaoExtraida[];
+  /** Só na Leitura contínua: o livro (número) e o capítulo de onde o Estudo foi gerado. */
+  livro?: number;
+  capitulo?: number;
   conteudoHash: string;
 };
 
-export type ConteudoLido = { trilhas: Trilha[]; estudos: EstudoLido[] };
+export type ConteudoLido = {
+  trilhas: Trilha[];
+  estudos: EstudoLido[];
+  /** Os três conjuntos de perguntas da Leitura contínua; `null` quando a pasta não tem o arquivo. */
+  perguntas?: string[][] | null;
+};
 
 // Separa o front matter (entre duas cercas `---` no começo do arquivo) do corpo.
 export function separarFrontMatter(texto: string): { frontMatter: string; corpo: string } {
@@ -117,6 +149,7 @@ export function hashDoEstudo(
   fm: FrontMatter,
   corpo: string,
   passagens: readonly PassagemEstudo[],
+  capitulo?: { livro: number; capitulo: number },
 ): string {
   return createHash("sha256")
     .update(
@@ -134,6 +167,7 @@ export function hashDoEstudo(
         fm.grau_de_certeza?.revisado ?? false,
         passagens.map((p) => [p.ordem, p.inicio, p.fim, p.referenciaTexto]),
         fm.divergencias.map((d) => [d.tema, d.leituras.map((l) => [l.tradicao, l.resumo])]),
+        capitulo ? [capitulo.livro, capitulo.capitulo] : null,
       ]),
     )
     .digest("hex");
@@ -203,6 +237,10 @@ export async function lerPasta(dir: string): Promise<ConteudoLido> {
   for (const pasta of pastas) {
     if (!ids.has(pasta))
       throw new ErroConteudo(`trilhas/${pasta}: pasta sem Trilha correspondente em trilhas.yaml`);
+    if (pasta === TRILHA_LEITURA_CONTINUA) {
+      for (const e of await lerCapitulos(raizTrilhas, pasta, slugs, posicoes)) estudos.push(e);
+      continue;
+    }
     const arquivos = (await readdir(path.join(raizTrilhas, pasta)))
       .filter((n) => n.endsWith(".md"))
       .sort();
@@ -272,5 +310,110 @@ export async function lerPasta(dir: string): Promise<ConteudoLido> {
       });
     }
   }
-  return { trilhas, estudos };
+  return { trilhas, estudos, perguntas: await lerPerguntas(dir) };
+}
+
+/** `trilhas/leitura-continua/capitulos.yaml`: um Estudo por capítulo, com a Passagem do capítulo inteiro. */
+async function lerCapitulos(
+  raizTrilhas: string,
+  pasta: string,
+  slugs: Map<string, string>,
+  posicoes: Map<string, string>,
+): Promise<EstudoLido[]> {
+  const rotulo = `trilhas/${pasta}/capitulos.yaml`;
+  const arquivos = await readdir(path.join(raizTrilhas, pasta));
+  const soltos = arquivos.filter((n) => n.endsWith(".md"));
+  if (soltos.length > 0)
+    throw new ErroConteudo(
+      `trilhas/${pasta}/${soltos[0]}: a Leitura contínua vem de capitulos.yaml, não de arquivos .md`,
+    );
+  let bruto: unknown;
+  try {
+    bruto = parse(await readFile(path.join(raizTrilhas, pasta, "capitulos.yaml"), "utf8"));
+  } catch (erro) {
+    if ((erro as NodeJS.ErrnoException).code === "ENOENT") throw new ErroConteudo(`${rotulo} não existe`);
+    throw new ErroConteudo(`${rotulo} ilegível`);
+  }
+  const r = esquemaCapitulos.safeParse(bruto);
+  if (!r.success) throw new ErroConteudo(`${rotulo}: ${mensagensDe(r.error)}`);
+  const saida: EstudoLido[] = [];
+  for (const [i, c] of r.data.entries()) {
+    const onde = `${rotulo} (item ${i + 1}, ${c.slug})`;
+    const livro = LIVROS.find((l) => l.numero === c.livro);
+    if (!livro) throw new ErroConteudo(`${onde}: livro ${c.livro} não existe`);
+    if (c.capitulo > livro.capitulos)
+      throw new ErroConteudo(`${onde}: ${livro.nome} tem ${livro.capitulos} capítulos, não ${c.capitulo}`);
+    const outroSlug = slugs.get(c.slug);
+    if (outroSlug) throw new ErroConteudo(`${onde}: slug repetido, já em ${outroSlug}`);
+    slugs.set(c.slug, onde);
+    const posicao = `${pasta}#${c.ordem}`;
+    const outraPosicao = posicoes.get(posicao);
+    if (outraPosicao) throw new ErroConteudo(`${onde}: ordem repetida, já em ${outraPosicao}`);
+    posicoes.set(posicao, onde);
+    const referencia = `${livro.abreviacoes[0]} ${c.capitulo}`;
+    const fm: FrontMatter = esquemaFrontMatter.parse({
+      slug: c.slug,
+      trilha: pasta,
+      ordem: c.ordem,
+      titulo: c.titulo,
+      recorte: "devocional",
+      leitura: [referencia],
+    });
+    const corpo = `## O que há neste capítulo\n\n${c.foco.trim()}`;
+    let passagens: PassagemEstudo[];
+    try {
+      passagens = passagensDe(fm.leitura);
+    } catch (erro) {
+      throw new ErroConteudo(`${onde}: leitura inválida: ${(erro as Error).message}`);
+    }
+    // A Leitura contínua não leva Afirmações: o foco é um resumo do capítulo, sem marcação.
+    if (extrairAfirmacoes(corpo).length > 0)
+      throw new ErroConteudo(`${onde}: a Leitura contínua não leva Afirmações`);
+    saida.push({
+      arquivo: `${rotulo}#${c.slug}`,
+      frontMatter: fm,
+      corpo,
+      passagens,
+      afirmacoes: [],
+      livro: c.livro,
+      capitulo: c.capitulo,
+      conteudoHash: hashDoEstudo(fm, corpo, passagens, { livro: c.livro, capitulo: c.capitulo }),
+    });
+  }
+  return saida;
+}
+
+/** `perguntas/leitura-continua.yaml`: os três conjuntos de três perguntas; `null` se o arquivo não existe. */
+async function lerPerguntas(dir: string): Promise<string[][] | null> {
+  const rotulo = "perguntas/leitura-continua.yaml";
+  let bruto: unknown;
+  try {
+    bruto = parse(await readFile(path.join(dir, "perguntas", "leitura-continua.yaml"), "utf8"));
+  } catch (erro) {
+    if ((erro as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw new ErroConteudo(`${rotulo} ilegível`);
+  }
+  const r = esquemaPerguntas.safeParse(bruto);
+  if (!r.success) throw new ErroConteudo(`${rotulo}: ${mensagensDe(r.error)}`);
+  return r.data;
+}
+
+/** O que o conteúdo completo (a pasta `content/`) tem de ter: 8, 30 e 89 Estudos e 3 conjuntos de 3 perguntas. */
+export const CONTAGENS_ESPERADAS = {
+  "base-historica": 8,
+  "pontos-centrais": 30,
+  [TRILHA_LEITURA_CONTINUA]: 89,
+} as const;
+
+export function conferirContagens(conteudo: ConteudoLido): void {
+  const defeitos: string[] = [];
+  for (const [trilha, esperado] of Object.entries(CONTAGENS_ESPERADAS)) {
+    const achados = conteudo.estudos.filter((e) => e.frontMatter.trilha === trilha).length;
+    if (achados !== esperado) defeitos.push(`${trilha}: esperado ${esperado} Estudos, achados ${achados}`);
+  }
+  const perguntas = conteudo.perguntas ?? null;
+  if (perguntas === null || perguntas.length !== 3 || perguntas.some((c) => c.length !== 3))
+    defeitos.push("perguntas/leitura-continua.yaml: esperado 3 conjuntos de 3 perguntas");
+  if (defeitos.length > 0)
+    throw new ErroConteudo(`contagens do conteúdo completo não conferem: ${defeitos.join("; ")}`);
 }

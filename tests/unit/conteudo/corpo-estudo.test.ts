@@ -112,6 +112,8 @@ describe("CorpoEstudo: Afirmação e chip (TRIL-07)", () => {
     const chip = /<span data-slot="chip-fonte"[^>]*>/.exec(saida)?.[0] ?? "";
     expect(chip).not.toMatch(/role=|tabindex|href|onclick/i);
     expect(chip).toContain("border-dashed");
+    // O Rótulo (versalete e tamanho) não pode se perder na junção das classes.
+    expect(chip).toContain("text-label");
   });
 
   it("o resumo recolhido vem uma vez só, antes da primeira seção que tem Afirmação", () => {
@@ -134,7 +136,7 @@ describe("CorpoEstudo: Afirmação e chip (TRIL-07)", () => {
 });
 
 describe("CorpoEstudo: capitular", () => {
-  const c = (md: string) => html(estudo(md)).includes("first-letter:float-left");
+  const c = (md: string) => html(estudo(md)).includes("first-letter:[initial-letter:3]");
   it("vale quando o primeiro caractere do primeiro parágrafo é uma letra", () => {
     expect(c("## O ponto\n\nJesus é batizado.")).toBe(true);
     expect(c("## O ponto\n\n:afirmacao[Jesus é batizado]{#pc01-a1}.")).toBe(true);
@@ -230,5 +232,44 @@ describe("CorpoEstudo: Divergência (TRIL-08)", () => {
 
   it("sem Divergência não deixa título de seção vazio", () => {
     expect(html(estudo("## O ponto\n\nTexto."))).not.toContain("Divergência entre tradições");
+  });
+});
+
+describe("CorpoEstudo: Grau de certeza (TRIL-07)", () => {
+  const corpo = "## O ponto\n\nTexto.\n\n## Para hoje\n\nPergunta.";
+  const g = (grau: EstudoCompleto["grauDeCerteza"], md = corpo) =>
+    html(estudo(md, { grauDeCerteza: grau }));
+
+  it("só aparece com o valor classificado e revisado, antes de 'Para hoje'", () => {
+    const saida = g({ valor: "posicao-majoritaria", texto: "Uma explicação.", revisado: true });
+    expect(saida).toContain("Grau de certeza");
+    expect(saida).toContain("Posição majoritária");
+    expect(saida).toContain("Uma explicação.");
+    expect(saida.indexOf("Grau de certeza")).toBeLessThan(saida.indexOf("Para hoje"));
+    expect(saida.indexOf("Grau de certeza")).toBeGreaterThan(saida.indexOf("Texto."));
+  });
+
+  it("os três valores têm a mesma cor e nomes próprios", () => {
+    for (const [valor, nome] of [
+      ["consenso", "Consenso"],
+      ["posicao-majoritaria", "Posição majoritária"],
+      ["disputada", "Disputada"],
+    ] as const) {
+      const saida = g({ valor, texto: null, revisado: true });
+      expect(saida).toContain(`>${nome}</p>`);
+      expect(saida).toContain("text-rubric");
+    }
+  });
+
+  it("não aparece sem revisão do dono, mesmo com o valor, nem com o valor nulo", () => {
+    expect(g({ valor: "consenso", texto: "x", revisado: false })).not.toContain("Grau de certeza");
+    expect(g({ valor: null, texto: "x", revisado: true })).not.toContain("Grau de certeza");
+    expect(g({ valor: null, texto: "x", revisado: false })).not.toContain("Grau de certeza");
+    expect(g(null)).not.toContain("Grau de certeza");
+  });
+
+  it("sem a seção 'Para hoje' vai para o fim do corpo", () => {
+    const saida = g({ valor: "disputada", texto: null, revisado: true }, "## O ponto\n\nTexto.");
+    expect(saida.indexOf("Grau de certeza")).toBeGreaterThan(saida.indexOf("Texto."));
   });
 });

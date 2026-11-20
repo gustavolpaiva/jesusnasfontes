@@ -10,7 +10,13 @@ import { sanitizarErroDeBanco } from "../../src/db/erro-banco";
 import { registrarErro } from "../../src/lib/registro";
 import { abrirCarga, ErroCarga } from "../ingest/carregar-biblia";
 import { textoDaAfirmacao } from "./afirmacoes";
-import { type ConteudoLido, ErroConteudo, type EstudoLido, lerPasta } from "./esquema";
+import {
+  type ConteudoLido,
+  conferirContagens,
+  ErroConteudo,
+  type EstudoLido,
+  lerPasta,
+} from "./esquema";
 
 export type Contagem = { inseridos: number; atualizados: number; inalterados: number };
 export type ResultadoConteudo = {
@@ -18,6 +24,8 @@ export type ResultadoConteudo = {
   trilhas: Contagem;
   afirmacoes: Contagem & { removidas: number };
   divergencias: number;
+  /** Linhas de `conteudo.pergunta_volta` gravadas nesta carga (0 quando nada mudou). */
+  perguntas: number;
 };
 
 export const PASTA_PADRAO = path.join(
@@ -37,6 +45,7 @@ export async function carregarConteudo(
   const trilhas: Contagem = { inseridos: 0, atualizados: 0, inalterados: 0 };
   const afirmacoes = { inseridos: 0, atualizados: 0, inalterados: 0, removidas: 0 };
   let divergencias = 0;
+  let perguntas = 0;
   try {
     await c.query("begin");
     try {
@@ -95,13 +104,15 @@ export async function carregarConteudo(
           fm.grau_de_certeza?.texto ?? null,
           fm.grau_de_certeza?.revisado ?? false,
           e.conteudoHash,
+          e.livro ?? null,
+          e.capitulo ?? null,
         ];
         let estudoId: string;
         if (!linha) {
           const novo = await c.query<{ id: string }>(
             `insert into conteudo.estudo (slug, trilha_id, ordem, grupo, titulo, recorte, minutos, corpo_md,
-               grau_certeza_valor, grau_certeza_texto, grau_certeza_revisado, conteudo_hash)
-             values ($12, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) returning id`,
+               grau_certeza_valor, grau_certeza_texto, grau_certeza_revisado, conteudo_hash, livro, capitulo)
+             values ($14, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning id`,
             [...valores, fm.slug],
           );
           estudoId = (novo.rows[0] as { id: string }).id;
@@ -111,8 +122,9 @@ export async function carregarConteudo(
           await c.query(
             `update conteudo.estudo set trilha_id = $1, ordem = $2, grupo = $3, titulo = $4, recorte = $5,
                minutos = $6, corpo_md = $7, grau_certeza_valor = $8, grau_certeza_texto = $9,
-               grau_certeza_revisado = $10, conteudo_hash = $11, atualizado_em = now()
-             where id = $12`,
+               grau_certeza_revisado = $10, conteudo_hash = $11, livro = $12, capitulo = $13,
+               atualizado_em = now()
+             where id = $14`,
             [...valores, estudoId],
           );
           // Troca das Passagens do Estudo que mudou, escopada ao id dele e dentro da transação.
@@ -151,6 +163,7 @@ export async function carregarConteudo(
           );
         }
       }
+      if (conteudo.perguntas) perguntas = await gravarPerguntas(c, conteudo.perguntas);
       await c.query("commit");
     } catch (erro) {
       await c.query("rollback").catch(() => {});
@@ -159,7 +172,29 @@ export async function carregarConteudo(
   } finally {
     if (proprio) await c.end().catch(() => {});
   }
-  return { estudos, trilhas, afirmacoes, divergencias };
+  return { estudos, trilhas, afirmacoes, divergencias, perguntas };
+}
+
+/** Os três conjuntos de perguntas da Leitura contínua: substituídos só quando algo mudou. */
+async function gravarPerguntas(c: pg.Client, conjuntos: string[][]): Promise<number> {
+  const querido = conjuntos.flatMap((perguntas, conjunto) =>
+    perguntas.map((texto, i) => `${conjunto}|${i + 1}|${texto}`),
+  );
+  const atuais = await c.query<{ conjunto: number; ordem: number; texto: string }>(
+    "select conjunto, ordem, texto from conteudo.pergunta_volta order by conjunto, ordem",
+  );
+  const existente = atuais.rows.map((r) => `${r.conjunto}|${r.ordem}|${r.texto}`);
+  if (existente.length === querido.length && existente.every((v, i) => v === querido[i])) return 0;
+  await c.query("delete from conteudo.pergunta_volta");
+  for (const [conjunto, perguntas] of conjuntos.entries()) {
+    for (const [i, texto] of perguntas.entries()) {
+      await c.query(
+        "insert into conteudo.pergunta_volta (conjunto, ordem, texto) values ($1, $2, $3)",
+        [conjunto, i + 1, texto],
+      );
+    }
+  }
+  return querido.length;
 }
 
 /**
@@ -233,7 +268,11 @@ function lerDir(argumentos: string[]): string {
 }
 
 async function principal(): Promise<void> {
-  const conteudo = await lerPasta(lerDir(process.argv.slice(2)));
+  const dir = lerDir(process.argv.slice(2));
+  const conteudo = await lerPasta(dir);
+  // Na pasta padrão (o conteúdo completo) as contagens são lei: 8, 30 e 89 Estudos e 3 conjuntos de
+  // perguntas. Em outra pasta (fixtures de teste) só são relatadas.
+  if (dir === path.resolve(PASTA_PADRAO)) conferirContagens(conteudo);
   const r = await carregarConteudo(conteudo);
   console.log(
     `inseridos=${r.estudos.inseridos} atualizados=${r.estudos.atualizados} inalterados=${r.estudos.inalterados}`,
@@ -242,7 +281,11 @@ async function principal(): Promise<void> {
     `trilhas inseridas=${r.trilhas.inseridos} atualizadas=${r.trilhas.atualizados} inalteradas=${r.trilhas.inalterados}`,
   );
   console.log(
-    `afirmacoes inseridas=${r.afirmacoes.inseridos} atualizadas=${r.afirmacoes.atualizados} inalteradas=${r.afirmacoes.inalterados} removidas=${r.afirmacoes.removidas} divergencias=${r.divergencias}`,
+    `afirmacoes inseridas=${r.afirmacoes.inseridos} atualizadas=${r.afirmacoes.atualizados} inalteradas=${r.afirmacoes.inalterados} removidas=${r.afirmacoes.removidas} divergencias=${r.divergencias} perguntas=${r.perguntas}`,
+  );
+  const porTrilha = (id: string) => conteudo.estudos.filter((e) => e.frontMatter.trilha === id).length;
+  console.log(
+    `carregado: base-historica=${porTrilha("base-historica")} pontos-centrais=${porTrilha("pontos-centrais")} leitura-continua=${porTrilha("leitura-continua")} conjuntos-de-perguntas=${conteudo.perguntas?.length ?? 0}`,
   );
 }
 

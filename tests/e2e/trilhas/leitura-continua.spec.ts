@@ -186,3 +186,40 @@ test("a volta é de cada conta: B segue na volta 1 e não vê o bloco de A", asy
   await ca.close();
   await cb.close();
 });
+
+test("a nova volta troca o conjunto de três perguntas e mostra 'volta N' a partir da volta 2", async ({
+  page,
+}) => {
+  const email = emailDeTeste("p");
+  await convidarParaTeste(email);
+  await entrarPorLink(page, email);
+
+  const perguntas = page.getByRole("region", { name: "Três perguntas para responder" });
+  const textos = (conjunto: string) =>
+    [1, 2, 3].map((n) => `Conjunto ${conjunto}, pergunta ${["um", "dois", "três"][n - 1]}?`);
+
+  // Volta 1: o primeiro conjunto, sem rótulo de volta.
+  await page.goto("/estudos/mateus-5");
+  await expect(perguntas.getByRole("listitem")).toHaveText(textos("um"));
+  await expect(page.locator("[data-volta]")).toHaveCount(0);
+
+  // Terminar a volta 1 e começar a 2: o segundo conjunto, com o rótulo "volta 2", em qualquer capítulo.
+  for (const slug of ["mateus-5", "mateus-6", "marcos-5"]) await concluir(page, slug);
+  await abrirLeitura(page);
+  await clicarQuandoHidratado(page, "Começar a volta 2");
+  await expect(page.getByText("0 de 3 concluídos · volta 2")).toBeVisible();
+  for (const slug of ["mateus-5", "marcos-5"]) {
+    await page.goto(`/estudos/${slug}`);
+    await expect(perguntas.getByRole("listitem")).toHaveText(textos("dois"));
+    await expect(page.locator("[data-volta]")).toHaveText("volta 2");
+  }
+
+  // Volta 3: o terceiro conjunto.
+  for (const slug of ["mateus-5", "mateus-6", "marcos-5"]) await concluir(page, slug);
+  await abrirLeitura(page);
+  await clicarQuandoHidratado(page, "Começar a volta 3");
+  await expect(page.getByText("0 de 3 concluídos · volta 3")).toBeVisible();
+  await page.goto("/estudos/mateus-6");
+  await expect(perguntas.getByRole("listitem")).toHaveText(textos("três"));
+  await expect(page.locator("[data-volta]")).toHaveText("volta 3");
+});

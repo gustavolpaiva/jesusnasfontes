@@ -7,12 +7,12 @@ recorte: devocional
 minutos: 4
 grupo: Quem ele é
 leitura:
-  - Mt 3:13 a 4:11
+  - "Mt 3:13 a 4:11"
 ---
 
 ## O que acontece
 
-Jesus é batizado por João no Jordão e ouve a voz do Pai. Em seguida passa quarenta dias no deserto e é tentado três vezes.
+:afirmacao[Jesus é batizado por João no Jordão]{#pc03-a1} e ouve a voz do Pai. Em seguida :afirmacao[passa quarenta dias no deserto]{#pc03-a2} e é tentado três vezes.
 
 ## Pontos centrais
 
@@ -22,7 +22,7 @@ Jesus é batizado por João no Jordão e ouve a voz do Pai. Em seguida passa qua
 
 ## Palavra central (paráfrase)
 
-Não se vive só de pão, mas de toda palavra que vem de Deus.
+> Não se vive só de pão, mas de toda palavra que vem de Deus.
 
 ## Para hoje
 

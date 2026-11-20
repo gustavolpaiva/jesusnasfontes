@@ -31,7 +31,7 @@ divergencias:
 
 ## Palavra central (paráfrase)
 
-Deus amou tanto o mundo que deu o seu Filho único, para que quem crê nele não pereça, mas tenha vida eterna.
+> Deus amou tanto o mundo que deu o seu Filho único, para que quem crê nele não pereça, mas tenha vida eterna.
 
 ## Para hoje
 

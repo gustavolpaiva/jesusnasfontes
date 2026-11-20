@@ -4,7 +4,7 @@ import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/lo
 // Afirmação com "Fonte em preparação" (TRIL-07, D-07) e Divergência entre tradições (TRIL-08), de
 // ponta a ponta: o arquivo de content/ foi carregado no banco da execução e a página lê do banco.
 // Roda sobre o conteúdo real (`content/`): o Estudo "Nicodemos: nascer de novo" tem uma Afirmação e
-// uma Divergência; "Batismo e tentação" não tem Divergência.
+// uma Divergência; "O Verbo se fez carne" não tem nenhuma das duas.
 test.skip(
   !!process.env.E2E_CONTEUDO_DIR?.includes("conteudo-minimo"),
   "usa o conteúdo real: rode sem E2E_CONTEUDO_DIR",
@@ -157,8 +157,9 @@ test("Estudo sem Afirmação nem Divergência não deixa título de seção vazi
   page,
 }) => {
   await entrar(page);
-  await page.goto("/estudos/batismo-e-tentacao");
-  await expect(page.getByRole("heading", { level: 1, name: "Batismo e tentação" })).toBeVisible();
+  // "O Verbo se fez carne" é ensino sem acontecimento a marcar: sem Afirmação e sem Divergência.
+  await page.goto("/estudos/o-verbo-se-fez-carne");
+  await expect(page.getByRole("heading", { level: 1, name: "O Verbo se fez carne" })).toBeVisible();
   await expect(page.getByText("Divergência entre tradições")).toHaveCount(0);
   await expect(page.getByText("Fonte em preparação")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /O que é “Fonte em preparação”/ })).toHaveCount(0);

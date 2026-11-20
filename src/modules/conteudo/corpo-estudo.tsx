@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Afirmacao, ChipFonte, ResumoFonteEmPreparacao } from "./afirmacao";
 import { Divergencia } from "./divergencia";
 import type { EstudoCompleto } from "./estudo";
+import { GrauDeCerteza } from "./grau-de-certeza";
 import { remarkAfirmacao } from "./remark-afirmacao";
 
 // Corpo do Estudo (o Markdown do conteúdo), em Corpo de leitura. A assinatura é
@@ -109,18 +110,23 @@ function temCapitular(md: string): boolean {
 }
 
 // Capitular: três linhas de altura, Cormorant Garamond 600 em rubrica, derivada do Corpo de leitura
-// (não é um quinto tamanho). Com `::first-letter`, o leitor de tela lê a palavra inteira. As classes
-// ficam escritas por inteiro: o Tailwind só gera o que acha escrito no código, nunca o que se monta
-// por concatenação.
+// (não é um quinto tamanho). Com `::first-letter`, o leitor de tela lê a palavra inteira. Onde o
+// navegador tem `initial-letter` (Chromium e Safari), é ele quem acerta as três linhas pela linha de
+// base; onde não tem, vale a letra flutuante do contrato (3,4 vezes o Corpo, altura de linha 0,82).
+// O parágrafo vira `flow-root` para conter a letra flutuante: com menos de três linhas de texto, a
+// capitular não pode vazar para o bloco seguinte. As classes ficam escritas por inteiro: o Tailwind só
+// gera o que acha escrito no código, nunca o que se monta por concatenação.
 const CAPITULAR =
-  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:float-left " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:flow-root " +
   "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:font-display " +
   "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:font-semibold " +
   "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:text-rubric " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:[font-size:calc(var(--text-leitura)*3.4)] " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:leading-[0.82] " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:pt-1 " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:pr-2";
+  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:pr-2 " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:supports-[initial-letter:3]:first-letter:[initial-letter:3] " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:float-left " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:[font-size:calc(var(--text-leitura)*3.4)] " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:leading-[0.82] " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:pt-1";
 
 const TRILHA_DAS_PERGUNTAS = "leitura-continua";
 
@@ -135,6 +141,14 @@ export function CorpoEstudo({ estudo, volta = 1 }: { estudo: EstudoCompleto; vol
       ? (estudo.perguntas[conjunto] ?? [])
       : [];
 
+  // O Grau de certeza só aparece com o valor classificado E revisado pelo dono: nunca um valor não
+  // revisado como se fosse a classificação do centro. Vem antes de "Para hoje" (ou no fim, sem ela).
+  const grau = estudo.grauDeCerteza;
+  const mostrarGrau = grau !== null && grau.valor !== null && grau.revisado;
+  const antesDeParaHoje = secoes.findIndex((s) => s.titulo === "Para hoje");
+  const blocoDoGrau =
+    mostrarGrau && grau?.valor ? <GrauDeCerteza valor={grau.valor} texto={grau.texto} /> : null;
+
   return (
     <div
       className={cn("flex flex-col gap-4", secoes[0] && temCapitular(secoes[0].md) && CAPITULAR)}
@@ -143,6 +157,7 @@ export function CorpoEstudo({ estudo, volta = 1 }: { estudo: EstudoCompleto; vol
       {secoes.map((secao, indice) => (
         <div key={secao.titulo ?? "abertura"} className="flex flex-col gap-4" data-secao>
           {indice === primeiraComAfirmacao ? <ResumoFonteEmPreparacao /> : null}
+          {indice === antesDeParaHoje ? blocoDoGrau : null}
           <Markdown
             remarkPlugins={[remarkGfm, remarkDirective, remarkAfirmacao]}
             allowedElements={ELEMENTOS}
@@ -153,6 +168,7 @@ export function CorpoEstudo({ estudo, volta = 1 }: { estudo: EstudoCompleto; vol
           </Markdown>
         </div>
       ))}
+      {antesDeParaHoje < 0 ? blocoDoGrau : null}
       {perguntas.length > 0 ? (
         <section aria-labelledby="perguntas-titulo" className="flex flex-col gap-4" data-secao>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-3">

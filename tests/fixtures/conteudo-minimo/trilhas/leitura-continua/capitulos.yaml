@@ -1,0 +1,19 @@
+# Conteúdo mínimo de teste: três capítulos, escritos só para os testes de ponta a ponta.
+- slug: mateus-5
+  livro: 40
+  capitulo: 5
+  titulo: Mateus 5
+  ordem: 1
+  foco: "Texto de teste sobre Mateus 5."
+- slug: mateus-6
+  livro: 40
+  capitulo: 6
+  titulo: Mateus 6
+  ordem: 2
+  foco: "Texto de teste sobre Mateus 6."
+- slug: marcos-5
+  livro: 41
+  capitulo: 5
+  titulo: Marcos 5
+  ordem: 3
+  foco: "Texto de teste sobre Marcos 5."

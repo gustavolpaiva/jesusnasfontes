@@ -2,7 +2,6 @@ import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
 
 // Afirmação (TRIL-07, D-07): a frase que declara um fato histórico, marcada no conteúdo com um id
 // estável, e o aviso que ela leva até receber a Citação (Fase 2).
@@ -29,13 +28,15 @@ export function ChipFonte(props: ChipProps) {
     <span
       data-slot="chip-fonte"
       data-variante={props.variante}
-      className={cn(
-        // Logo abaixo do bloco, à esquerda, 8 px de folga; Rótulo, canto 2 px, 1 px de borda.
-        "text-label mt-2 block w-fit rounded-sm border px-2 py-1 text-ink-muted",
+      // `clear-both`: o chip fica abaixo da capitular (a letra de três linhas desce até a terceira linha
+      // do texto e, sem isto, o chip seguia ao lado dela, recuado e quebrado em duas linhas).
+      // Sem `cn`: o tailwind-merge toma `text-label` (tamanho do Rótulo) e `text-ink-muted` (cor) por
+      // duas cores e descarta a primeira, e o chip perdia o versalete e o tamanho.
+      className={`text-label clear-both mt-2 block w-fit rounded-sm border px-2 py-1 text-ink-muted ${
         props.variante === "preparacao"
           ? "border-dashed border-ink-muted"
-          : "border-solid border-ink",
-      )}
+          : "border-solid border-ink"
+      }`}
     >
       {rotulo}
     </span>
