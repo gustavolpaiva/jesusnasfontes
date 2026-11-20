@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
-import { obterDb } from "@/db/cliente";
 import { comEstudante, type Tx } from "@/db/com-estudante";
 import { convite } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
+import { travarProgresso } from "@/modules/trilhas/consultas";
 
 // Exportar todos os dados do Estudante (PRIV-03). As tabelas vêm do CATÁLOGO do banco, não de uma lista
 // escrita à mão: toda tabela do esquema `privado` com `estudante_id` entra sozinha, inclusive as que
@@ -47,17 +47,20 @@ export async function exportarDados(
   estudanteId: string,
   { porta = comEstudante, agora = () => new Date() }: { porta?: Porta; agora?: () => Date } = {},
 ): Promise<DadosExportados> {
-  const [conta] = await obterDb()
-    .select({ email: usuario.email, criadaEm: usuario.createdAt })
-    .from(usuario)
-    .where(eq(usuario.id, estudanteId));
-  if (!conta) throw new Error("Conta inexistente.");
-  const [conv] = await obterDb()
-    .select({ estado: convite.estado, criadoEm: convite.criadoEm, aceitoEm: convite.aceitoEm })
-    .from(convite)
-    .where(eq(convite.emailNorm, conta.email));
-
-  const tabelas = await porta(estudanteId, async (tx) => {
+  // Tudo numa só transação e atrás da mesma fila das escritas de progresso e do apagar a conta: quem
+  // apaga a conta em outra aba espera esta leitura terminar (ou esta acha a conta já apagada e para).
+  // Sem a fila, o arquivo podia trazer as Anotações e perder o resto, um estado que nunca existiu.
+  const { conta, conv, tabelas } = await porta(estudanteId, async (tx) => {
+    await travarProgresso(tx, estudanteId);
+    const [conta] = await tx
+      .select({ email: usuario.email, criadaEm: usuario.createdAt })
+      .from(usuario)
+      .where(eq(usuario.id, estudanteId));
+    if (!conta) throw new Error("Conta inexistente.");
+    const [conv] = await tx
+      .select({ estado: convite.estado, criadoEm: convite.criadoEm, aceitoEm: convite.aceitoEm })
+      .from(convite)
+      .where(eq(convite.emailNorm, conta.email));
     const saida: Record<string, Record<string, unknown>[]> = {};
     for (const t of await listarTabelasPrivadas(tx)) {
       const colunas = sql.join(
@@ -70,7 +73,7 @@ export async function exportarDados(
       );
       saida[t.nome] = linhas.rows;
     }
-    return saida;
+    return { conta, conv, tabelas: saida };
   });
 
   return {

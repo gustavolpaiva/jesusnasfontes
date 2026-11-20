@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { obterPool } from "@/db/cliente";
+import { comEstudante } from "@/db/com-estudante";
 import { exportarDados } from "@/modules/privacidade/exportar";
+import { travarProgresso } from "@/modules/trilhas/consultas";
 import { removerBancoDeExecucao } from "../../support/banco-local";
 import {
   comoDono,
@@ -49,6 +51,37 @@ describe.skipIf(emNeon())("exportarDados", () => {
     expect(dados.convite?.estado).toBe("aceito");
     // A coluna gerada da busca não vai ao arquivo.
     expect(dados.tabelas.anotacao?.[0]).not.toHaveProperty("tsv");
+  });
+
+  it("exportar espera quem está na fila de escrita da conta (apagar ou progresso) e sai inteiro", async () => {
+    let soltar = () => {};
+    const portao = new Promise<void>((r) => {
+      soltar = r;
+    });
+    let travou = () => {};
+    const jaTravou = new Promise<void>((r) => {
+      travou = r;
+    });
+    const dono = comEstudante(t.a.id, async (tx) => {
+      await travarProgresso(tx, t.a.id);
+      travou();
+      await portao;
+    });
+    await jaTravou;
+    let terminou = false;
+    const exportacao = exportarDados(t.a.id).then((d) => {
+      terminou = true;
+      return d;
+    });
+    // A conta vizinha não espera: a fila é por conta (controle positivo de que o banco responde).
+    expect((await exportarDados(t.b.id)).perfil.email).toBe(t.b.email);
+    await new Promise((r) => setTimeout(r, 400));
+    expect(terminou).toBe(false);
+    soltar();
+    await dono;
+    const dados = await exportacao;
+    expect(dados.perfil.email).toBe(t.a.email);
+    expect(dados.tabelas.conclusao).toHaveLength(2);
   });
 
   it("nada de B aparece no arquivo de A (e vice-versa), nem de sessões, segredos ou tokens", async () => {
