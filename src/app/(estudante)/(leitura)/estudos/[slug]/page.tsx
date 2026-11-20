@@ -5,6 +5,8 @@ import { OuvirProvider } from "@/modules/audio/contexto";
 import { OuvirControl } from "@/modules/audio/ouvir-control";
 import { estudoParaFala, passagemParaFala } from "@/modules/audio/texto-para-fala";
 import { dividirEmTrechos } from "@/modules/audio/trechos";
+import { AnotacaoEditor } from "@/modules/caderno/anotacao-editor";
+import { lerAnotacaoDoEstudo } from "@/modules/caderno/anotacao-nucleo";
 import { CorpoEstudo } from "@/modules/conteudo/corpo-estudo";
 import { type EstudoCompleto, lerEstudoPorSlug } from "@/modules/conteudo/estudo";
 import { exigirSessao } from "@/modules/identidade/sessao";
@@ -101,9 +103,11 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
 
   await registrarPosicao(usuario.id, { trilhaId: estudo.trilha.id, estudoId: estudo.id });
 
-  const [vizinhanca, estado] = await Promise.all([
+  const [vizinhanca, estado, anotacao] = await Promise.all([
     vizinhos(estudo),
     lerEstadoDoEstudo(usuario.id, { estudoId: estudo.id, trilhaId: estudo.trilha.id }),
+    // A Anotação é privada: só esta leitura com RLS a traz, e ela vai direto ao editor (nunca à voz do Ouvir).
+    lerAnotacaoDoEstudo(usuario.id, estudo.id),
   ]);
   const eyebrow = eyebrowDoEstudo({
     trilha: estudo.trilha,
@@ -146,6 +150,13 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
         <div id={ID_DO_ESTUDO} tabIndex={-1} className="scroll-mt-6 outline-none">
           <CorpoEstudo estudo={estudo} volta={estado.volta} />
         </div>
+        <AnotacaoEditor
+          // Troca de Estudo remonta o editor: o texto e o rascunho nunca vazam de um Estudo para outro.
+          key={`anotacao-${estudo.id}`}
+          estudanteId={usuario.id}
+          estudoId={estudo.id}
+          inicial={anotacao}
+        />
         <AcoesDoEstudo
           // Troca de Estudo remonta o componente: o estado local nunca vaza de um Estudo para outro.
           key={estudo.id}

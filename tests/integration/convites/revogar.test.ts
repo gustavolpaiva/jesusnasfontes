@@ -53,6 +53,8 @@ afterAll(async () => {
   rmSync(pastaDeEmail, { recursive: true, force: true });
 });
 
+const ESTUDO_DO_ARQUIVO = randomUUID();
+
 type Pessoa = { id: string; email: string; conviteId: string };
 
 async function convidarPessoa(
@@ -81,9 +83,21 @@ async function abrirSessoes(p: Pessoa, quantas = 2): Promise<void> {
 }
 
 async function semearDados(p: Pessoa): Promise<void> {
+  // `privado.anotacao` aponta para um Estudo de verdade (0013): um só, neste banco que é só deste arquivo.
+  const estudo = ESTUDO_DO_ARQUIVO;
   await dono.query(
-    "insert into privado.anotacao (estudante_id, estudo_id, corpo) values ($1, gen_random_uuid(), $2)",
-    [p.id, `corpo de ${p.email}`],
+    `insert into conteudo.trilha (id, nome, ordem, descricao) values ($1, 'Trilha', 1, 'x') on conflict (id) do nothing`,
+    ["trilha-revogar"],
+  );
+  await dono.query(
+    `insert into conteudo.estudo (id, slug, trilha_id, ordem, titulo, recorte, corpo_md, conteudo_hash)
+     values ($1, $2, 'trilha-revogar', 1, 'Estudo', 'devocional', 'x', $3)
+     on conflict (id) do nothing`,
+    [estudo, `revogar-${estudo}`, createHash("sha256").update(estudo).digest("hex")],
+  );
+  await dono.query(
+    "insert into privado.anotacao (estudante_id, estudo_id, corpo) values ($1, $2, $3)",
+    [p.id, estudo, `corpo de ${p.email}`],
   );
   // Um código de entrada e um link pendentes daquele endereço.
   await dono.query(

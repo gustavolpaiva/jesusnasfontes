@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import pg from "pg";
+import { semearEstudoDeTeste } from "./estudo-de-teste";
 import { prepararBanco } from "./preparar-banco";
 
 // Postgres 17 local e descartável. Cada execução cria um banco próprio dentro do mesmo contêiner,
@@ -180,6 +181,8 @@ export async function setup(projeto: {
   }
   const { banco, env } = await criarBancoPreparado();
   nomeCriado = banco.nome;
+  // O Estudo fixo das contas de teste que gravam Anotação no banco compartilhado (ver o arquivo).
+  await semearEstudoDeTeste(env);
   projeto.provide("urlBancoExecucao", banco.url);
   projeto.provide("envBancoExecucao", JSON.stringify(env));
 }

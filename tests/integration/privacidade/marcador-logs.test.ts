@@ -1,11 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { obterDb, obterPool } from "@/db/cliente";
 import { comEstudante } from "@/db/com-estudante";
 import { anotacao, usuario } from "@/db/schema/fundacao";
 import { registrarErro } from "@/lib/registro";
+import { ESTUDO_DE_TESTE } from "../../support/estudo-de-teste";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
+
+// Grava uma Anotação numa conta de teste: precisa do Estudo fixo do banco local compartilhado (e não cria
+// conta no Neon). No Neon o arquivo é ignorado; o catálogo cobre a RLS lá.
+const emNeon = () => inject("alvoBanco") === "neon";
 
 // Texto privado não pode aparecer em saída alguma quando uma operação privada falha pelos
 // caminhos do código. Captura console e os fluxos stdout/stderr do processo.
@@ -53,6 +58,7 @@ async function registrando(contexto: string, fn: () => Promise<unknown>): Promis
 }
 
 beforeAll(async () => {
+  if (emNeon()) return;
   aplicarEnvDeTeste();
   await obterDb()
     .insert(usuario)
@@ -63,13 +69,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (emNeon()) return;
   await obterDb()
     .delete(usuario)
     .where(inArray(usuario.id, [idA, idB]));
   await obterPool().end();
 });
 
-describe("texto privado fora dos registros", () => {
+describe.skipIf(emNeon())("texto privado fora dos registros", () => {
   it("controle do instrumento: a captura enxerga o que é escrito", async () => {
     capturado = [];
     await capturar(async () => {
@@ -80,7 +87,7 @@ describe("texto privado fora dos registros", () => {
   });
 
   it("violação de política, de unicidade e erro genérico não levam o marcador ao registro", async () => {
-    const estudo = randomUUID();
+    const estudo = ESTUDO_DE_TESTE.id;
     await comEstudante(idA, (tx) =>
       tx.insert(anotacao).values({ estudanteId: idA, estudoId: estudo, corpo: "base" }),
     );
@@ -94,7 +101,7 @@ describe("texto privado fora dos registros", () => {
           comEstudante(idB, (tx) =>
             tx
               .insert(anotacao)
-              .values({ estudanteId: idA, estudoId: randomUUID(), corpo: marcador }),
+              .values({ estudanteId: idA, estudoId: ESTUDO_DE_TESTE.id, corpo: marcador }),
           ),
         ),
       );

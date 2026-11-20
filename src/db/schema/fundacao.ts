@@ -9,6 +9,7 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
+import { estudo } from "./conteudo";
 
 // Declarações para o construtor de consultas. A fonte da verdade do esquema é db/migrations/*.sql.
 
@@ -42,7 +43,10 @@ export const anotacao = privado.table(
     estudanteId: uuid("estudante_id")
       .notNull()
       .references(() => usuario.id, { onDelete: "cascade" }),
-    estudoId: uuid("estudo_id").notNull(),
+    // `on delete restrict` (0013): um Estudo com Anotação não sai do conteúdo calado.
+    estudoId: uuid("estudo_id")
+      .notNull()
+      .references(() => estudo.id, { onDelete: "restrict" }),
     corpo: text("corpo").notNull(),
     versao: integer("versao").notNull().default(1),
     criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),

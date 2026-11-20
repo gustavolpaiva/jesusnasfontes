@@ -1,4 +1,5 @@
 import { StatusMessage } from "@/components/estado/status-message";
+import { LimparRascunhos } from "@/modules/caderno/limpar-rascunhos";
 import { FormularioEntrada } from "./formulario-email";
 
 // Primeira tela de quem ainda não entrou. O estado do formulário (etapa 1 e 2) mora no cliente.
@@ -26,6 +27,8 @@ export default async function PaginaEntrar({
 
   return (
     <div className="coluna-leitura flex flex-col gap-6">
+      {/* Sair e apagar a conta levam o rascunho de Anotação deste aparelho embora (aviso de privacidade). */}
+      <LimparRascunhos apagar={saiu === "1" || apagada === "1"} />
       {aviso ? <StatusMessage tipo={aviso.tipo}>{aviso.texto}</StatusMessage> : null}
       <FormularioEntrada />
     </div>
