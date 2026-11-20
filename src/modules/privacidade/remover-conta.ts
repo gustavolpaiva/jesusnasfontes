@@ -38,7 +38,8 @@ export function chavesDeLimiteDaConta(email: string, id: string): string[] {
 }
 
 // Um só Admin apagando por vez: sem isso, dois Admins apagando juntos deixariam o grupo sem nenhum.
-const CHAVE_TRAVA_DE_ADMINS = "jnf-admins";
+// Exportada: revogar o convite de um Admin (módulo de convites) toma a MESMA trava.
+export const CHAVE_TRAVA_DE_ADMINS = "jnf-admins";
 
 export async function removerConta(
   estudanteId: string,

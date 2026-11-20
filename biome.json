@@ -9,6 +9,7 @@
       "!**/coverage",
       "!**/.review",
       "!**/.cursor",
+      "!**/.gsd",
       "!**/content",
       "!**/pnpm-lock.yaml",
       "!**/next-env.d.ts",

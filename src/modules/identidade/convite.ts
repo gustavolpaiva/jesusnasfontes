@@ -31,13 +31,21 @@ export async function conviteAtivo(email: string): Promise<boolean> {
   return linhas.length > 0;
 }
 
+// O e-mail de convite: o endereço do site e a instrução de pedir o acesso, sem link de entrada. É o
+// único caminho que o envia (convidar e o reenvio da tela de convites passam por aqui). Devolve se a
+// mensagem saiu; nunca lança por falha de envio (o transporte já registra o código do erro).
+export async function enviarConvite(emailNorm: string): Promise<boolean> {
+  return enviarEmail(modeloConvite({ para: emailNorm, urlEntrar: `${urlBase()}/entrar` }));
+}
+
 // Grava o convite pendente e o usuário (a biblioteca recusa entrar com usuário inexistente) e
-// envia o e-mail de convite. Convite pendente ou aceito: ConviteDuplicado.
+// envia o e-mail de convite. Convite pendente ou aceito: ConviteDuplicado. Devolve se o e-mail saiu
+// (o convite fica registrado mesmo quando não sai; `enviar: false` conta como não enviado).
 export async function convidar(
   email: string,
   criadoPor: string | null,
   opcoes: { papel?: "estudante" | "admin"; enviar?: boolean } = {},
-): Promise<void> {
+): Promise<{ enviado: boolean }> {
   const emailNorm = normalizarEmail(email);
   const papel = opcoes.papel ?? "estudante";
   await obterDb().transaction(async (tx) => {
@@ -57,9 +65,8 @@ export async function convidar(
     }
     await tx.insert(usuario).values({ email: emailNorm, role: papel }).onConflictDoNothing();
   });
-  if (opcoes.enviar !== false) {
-    await enviarEmail(modeloConvite({ para: emailNorm, urlEntrar: `${urlBase()}/entrar` }));
-  }
+  if (opcoes.enviar === false) return { enviado: false };
+  return { enviado: await enviarConvite(emailNorm) };
 }
 
 // Marca o convite como aceito e apaga as verificações que sobraram daquele endereço (links e
