@@ -131,3 +131,25 @@ test("sessão que sobrou de um convite revogado não vale: a pessoa cai em /entr
   expect(await sessoesDe(vizinho)).toBe(1);
   await outro.close();
 });
+
+test("Sair fica à vista no Menu sem rolar, em tela baixa de notebook e de celular", async ({
+  page,
+}) => {
+  const endereco = emailDeTeste("sair-visivel");
+  await convidarParaTeste(endereco);
+  await entrarPorLink(page, endereco);
+  for (const tamanho of [
+    { width: 1280, height: 640 },
+    { width: 390, height: 560 },
+  ]) {
+    await page.setViewportSize(tamanho);
+    await page.goto("/trilhas");
+    await page.getByRole("button", { name: "Abrir menu" }).click();
+    const sair = page.getByRole("button", { name: "Sair", exact: true });
+    // Inteiro dentro da janela logo ao abrir: ninguém precisa descobrir que o Menu rola.
+    await expect(sair).toBeInViewport({ ratio: 1 });
+    // Controle: o item de cima ("Trilhas") também está à vista, ou seja, a folha abriu de fato.
+    await expect(page.getByRole("link", { name: "Trilhas", exact: true }).last()).toBeInViewport();
+    await page.getByRole("button", { name: "Fechar menu" }).click();
+  }
+});

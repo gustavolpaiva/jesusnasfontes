@@ -89,17 +89,19 @@ export function MenuSheet({ itens = [], acaoSair }: Props) {
                 </Link>
               </SheetClose>
             </li>
-            {acaoSair ? (
-              <li>
-                <form action={acaoSair}>
-                  <button type="submit" className={`${ligacao} w-full text-left`}>
-                    Sair
-                  </button>
-                </form>
-              </li>
-            ) : null}
           </ul>
         </div>
+        {/* Sair fica preso ao rodapé da folha: continua o último item, mas sempre à vista. Dentro da
+            rolagem ele ficava abaixo da dobra em tela de notebook, e nada indicava que havia mais. */}
+        {acaoSair ? (
+          <div className="sticky bottom-0 z-10 mt-auto border-t border-border bg-background px-4 py-3">
+            <form action={acaoSair}>
+              <button type="submit" className={`${ligacao} w-full text-left`}>
+                Sair
+              </button>
+            </form>
+          </div>
+        ) : null}
       </SheetContent>
     </Sheet>
   );
