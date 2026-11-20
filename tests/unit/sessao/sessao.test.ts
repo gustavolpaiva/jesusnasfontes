@@ -54,7 +54,8 @@ describe("formato da Sessão (fuso de São Paulo, não o do servidor)", () => {
     expect(minutosEntre(instante, new Date(instante.getTime() + 89_000))).toBe(1);
     expect(minutosEntre(instante, new Date(instante.getTime() + 20_000))).toBe(0);
     expect(minutosEntre(instante, new Date(instante.getTime() - 5 * 60_000))).toBe(0);
-    expect(formatarDuracao(17)).toBe("17 min");
+    // Espaço sem quebra: o número e "min" não se separam na quebra de linha.
+    expect(formatarDuracao(17)).toBe("17\u00a0min");
   });
 });
 

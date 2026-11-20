@@ -140,7 +140,8 @@ export function CheckoutSheet({ estudoSlugAtual, aoEncerrar }: Props) {
       </SheetTrigger>
       <SheetContent
         side="bottom"
-        className="max-h-dvh overflow-y-auto"
+        // Em tela larga a folha é uma coluna de leitura no centro da base, não uma faixa de ponta a ponta.
+        className="mx-auto max-h-dvh max-w-xl overflow-y-auto sm:border-x"
         style={estilo}
         onCloseAutoFocus={(evento) => {
           if (encerrou.current) {
@@ -174,10 +175,13 @@ export function CheckoutSheet({ estudoSlugAtual, aoEncerrar }: Props) {
             </Field>
             {aviso ? <StatusMessage tipo={aviso.tipo}>{aviso.texto}</StatusMessage> : null}
           </div>
-          <SheetFooter>
+          {/* Na mesma linha, na ordem visual: o primário e, depois, o "Voltar". Em coluna a folha passava de
+              560 px de altura quando aparecia uma mensagem. */}
+          <SheetFooter className="flex-row items-center">
             <Button
               type="submit"
               variant="primary"
+              className="flex-1"
               pendente={pendente}
               rotuloPendente="Encerrando…"
             >

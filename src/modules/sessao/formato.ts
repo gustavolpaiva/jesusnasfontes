@@ -27,5 +27,5 @@ export function minutosEntre(inicio: Date, fim: Date): number {
   return Math.max(0, Math.round((fim.getTime() - inicio.getTime()) / 60_000));
 }
 
-/** "17 min". */
-export const formatarDuracao = (minutos: number): string => `${minutos} min`;
+/** "17 min", com espaço sem quebra: o número nunca fica numa linha e "min" na outra. */
+export const formatarDuracao = (minutos: number): string => `${minutos}\u00a0min`;

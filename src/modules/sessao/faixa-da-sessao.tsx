@@ -5,6 +5,7 @@ import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { fazerCheckIn } from "./acoes";
 import { CheckoutSheet, type SessaoEncerrada } from "./checkout-sheet";
+import { formatarDuracao } from "./formato";
 
 // A faixa da Sessão (tela 6), parte do navegador: recebe tudo já formatado pelo servidor (fuso de São
 // Paulo) e cuida dos botões e das mensagens. Sem conexão, check-in e check-out mostram o erro de conexão e
@@ -57,7 +58,7 @@ export function FaixaDaSessao({ estado, estudoAtual }: Props) {
   function aoEncerrar(e: SessaoEncerrada) {
     setMensagem({
       tipo: "sucesso",
-      texto: `Sessão encerrada: ${e.minutos} min, de ${e.de} até ${e.ate}.`,
+      texto: `Sessão encerrada: ${formatarDuracao(e.minutos)}, de ${e.de} até ${e.ate}.`,
     });
   }
 

@@ -80,7 +80,7 @@ test("check-in num Estudo, navegar para outro, check-out com Anotação, mensage
   // Mensagem em linha, `role="status"`, com o Estudo de início e o de fim.
   const sucesso = page.getByRole("status").filter({ hasText: "Feito." });
   await expect(sucesso).toContainText(
-    /Sessão encerrada: \d+ min, de O nascimento até Batismo e tentação\./,
+    /Sessão encerrada: \d+\u00a0min, de O nascimento até Batismo e tentação\./,
   );
   await expect(folha(page)).toHaveCount(0);
   await expect(faixa(page).getByRole("button", { name: /Fazer check-in/ })).toBeVisible();
@@ -92,14 +92,16 @@ test("check-in num Estudo, navegar para outro, check-out com Anotação, mensage
   await expect(historico.getByRole("heading", { level: 2, name: "Sessões" })).toBeVisible();
   const linha = historico.getByRole("listitem").first();
   await expect(linha).toContainText(
-    /\d{2}\/\d{2}, \d{2}:\d{2} · \d+ min · de O nascimento até Batismo e tentação/,
+    /\d{2}\/\d{2}, \d{2}:\d{2} · \d+\u00a0min · de O nascimento até Batismo e tentação/,
   );
   const nota = linha.getByText("Li a tentação com calma.");
   await expect(nota).toBeVisible();
   await expect(nota).toHaveCSS("font-style", "italic");
   // Com a Sessão encerrada, a faixa das Trilhas mostra a última.
   await expect(
-    faixa(page).getByText(/^Última Sessão: \d{2}\/\d{2}, \d{2}:\d{2} a \d{2}:\d{2} \(\d+ min\)\.$/),
+    faixa(page).getByText(
+      /^Última Sessão: \d{2}\/\d{2}, \d{2}:\d{2} a \d{2}:\d{2} \(\d+\u00a0min\)\.$/,
+    ),
   ).toBeVisible();
 });
 
