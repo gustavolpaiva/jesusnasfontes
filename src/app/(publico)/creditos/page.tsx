@@ -53,7 +53,7 @@ export default function PaginaCreditos() {
                     <>
                       {" "}
                       (
-                      <a href={e.urlOrigem} className="underline">
+                      <a href={e.urlOrigem} className="break-all underline">
                         {e.urlOrigem.replace(/^https?:\/\//, "")}
                       </a>
                       )
