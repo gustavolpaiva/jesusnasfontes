@@ -9,9 +9,12 @@ export const TAMANHO_MAXIMO_DO_TRECHO = 200;
 // parênteses que fecham a frase.
 const FRASES = /[^.!?…]+(?:[.!?…]+["”’»)]*\s*|$)/gu;
 
+// O segmentador de frases do navegador (ausente em ambientes antigos, daí a reserva acima).
+const Segmentador = Intl.Segmenter as typeof Intl.Segmenter | undefined;
+
 function emFrases(paragrafo: string): string[] {
-  if (typeof Intl.Segmenter === "function") {
-    const segmentador = new Intl.Segmenter("pt", { granularity: "sentence" });
+  if (Segmentador) {
+    const segmentador = new Segmentador("pt", { granularity: "sentence" });
     return Array.from(segmentador.segment(paragrafo), (s) => s.segment);
   }
   return paragrafo.match(FRASES) ?? [paragrafo];
