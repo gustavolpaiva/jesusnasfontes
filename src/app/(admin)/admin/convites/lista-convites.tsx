@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { reenviarConvite, revogarConvite } from "@/modules/convites/acoes";
 import type { ConviteListado } from "@/modules/convites/consultas";
-import { dataLonga } from "@/modules/privacidade/sessao-recente";
 import { type Mensagem, mensagemDe, SEM_CONEXAO } from "./mensagens";
 import { RevogarDialogo } from "./revogar-dialogo";
 
@@ -26,10 +25,20 @@ function Chip({ estado }: { estado: ConviteListado["estado"] }) {
   return <Badge className="border-rule-strong text-ink-muted">{ROTULO.revogado}</Badge>;
 }
 
+// "19/11/2026", no fuso do Brasil: curta de propósito, para a linha de computador caber em 704 px.
+const FORMATO_DE_DATA = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "America/Sao_Paulo",
+});
+
 function dataDoEstado(c: ConviteListado): string {
-  if (c.estado === "aceito" && c.aceitoEm) return `aceito em ${dataLonga(c.aceitoEm)}`;
-  if (c.estado === "revogado" && c.revogadoEm) return `revogado em ${dataLonga(c.revogadoEm)}`;
-  return `convidado em ${dataLonga(c.criadoEm)}`;
+  if (c.estado === "aceito" && c.aceitoEm) return `aceito em ${FORMATO_DE_DATA.format(c.aceitoEm)}`;
+  if (c.estado === "revogado" && c.revogadoEm) {
+    return `revogado em ${FORMATO_DE_DATA.format(c.revogadoEm)}`;
+  }
+  return `convidado em ${FORMATO_DE_DATA.format(c.criadoEm)}`;
 }
 
 export function ListaConvites({ convites }: Props) {
@@ -102,22 +111,24 @@ export function ListaConvites({ convites }: Props) {
             <li
               key={c.id}
               data-estado={c.estado}
-              className="flex flex-col gap-2 py-4 md:flex-row md:items-center md:gap-4"
+              className="flex flex-col gap-2 py-4 md:grid md:grid-cols-[minmax(0,1fr)_10rem_13rem] md:items-center md:gap-4"
             >
+              {/* O estilo em linha vence o `hyphens: auto` do papel de leitura: endereço não se hifeniza. */}
               <p
-                className={`text-leitura min-w-0 hyphens-none [overflow-wrap:anywhere] md:flex-1 ${
+                style={{ hyphens: "none" }}
+                className={`text-leitura min-w-0 [overflow-wrap:anywhere] ${
                   c.estado === "revogado" ? "text-ink-muted line-through" : ""
                 }`}
               >
                 {c.email}
               </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 md:flex-col md:items-start">
                 <Chip estado={c.estado} />
                 <span className="text-meta text-ink-muted">{dataDoEstado(c)}</span>
                 {c.proprio ? <span className="text-meta text-ink-muted">Seu convite</span> : null}
               </div>
               {c.estado !== "revogado" && !c.proprio ? (
-                <div className="flex flex-wrap gap-2 md:ml-auto md:justify-end">
+                <div className="flex flex-wrap gap-2 md:col-start-3 md:justify-end">
                   {c.estado === "pendente" ? (
                     <Button
                       type="button"
