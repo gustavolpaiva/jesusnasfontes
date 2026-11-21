@@ -41,7 +41,11 @@ export default async function PaginaConta() {
             Ler o aviso
           </Link>
         </section>
-        <BlocosExportarEApagar email={usuario.email} sessaoCriadaEm={sessao.criadaEm} />
+        <BlocosExportarEApagar
+          estudanteId={usuario.id}
+          email={usuario.email}
+          sessaoCriadaEm={sessao.criadaEm}
+        />
         <section aria-labelledby="conta-sair" className={bloco}>
           <h2 id="conta-sair" className={titulo}>
             Sair

@@ -12,12 +12,13 @@ export const CLASSE_DO_BLOCO =
 export const CLASSE_DO_TITULO = "text-label text-ink-muted";
 
 type Props = {
+  estudanteId: string;
   email: string;
   // Quando a sessão foi criada: sessão antiga pede o código por e-mail para apagar.
   sessaoCriadaEm: Date;
 };
 
-export function BlocosExportarEApagar({ email, sessaoCriadaEm }: Props) {
+export function BlocosExportarEApagar({ estudanteId, email, sessaoCriadaEm }: Props) {
   return (
     <>
       <section aria-labelledby="conta-exportar" className={CLASSE_DO_BLOCO}>
@@ -39,6 +40,7 @@ export function BlocosExportarEApagar({ email, sessaoCriadaEm }: Props) {
           quiser guardar algo, baixe seus dados antes.
         </p>
         <ApagarConta
+          estudanteId={estudanteId}
           email={email}
           precisaCodigo={!sessaoRecente(sessaoCriadaEm)}
           prazoDasCopias={PRAZO_DAS_COPIAS}

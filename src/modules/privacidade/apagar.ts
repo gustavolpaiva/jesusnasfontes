@@ -26,7 +26,7 @@ const TIPO_DO_CODIGO = "email-verification" as const;
 export type ResultadoPedidoDeCodigo = { ok: true } | { ok: false; erro: "limite" | "falha" };
 
 export type EstadoApagar = {
-  erro?: "digitacao" | "codigo" | "limite" | "unico-admin" | "servidor";
+  erro?: "digitacao" | "codigo" | "limite" | "unico-admin" | "servidor" | "sessao-trocada";
   // O servidor decide se o código é necessário (a sessão pode ter envelhecido desde que a tela abriu).
   precisaCodigo?: boolean;
 };
@@ -88,6 +88,11 @@ export async function apagarConta(
 ): Promise<EstadoApagar> {
   const { usuario, sessao } = await exigirSessao({ exigirConsentimento: false });
   const precisaCodigo = !sessaoRecente(sessao.criadaEm);
+  // Apagar é irreversível: a conta que a tela mostrou tem de ser a da sessão de agora. Se o navegador entrou com outra
+  // conta depois de o diálogo abrir, nada é apagado (as ações da Anotação já fazem esta conferência).
+  if (String(formData.get("estudanteId") ?? "") !== usuario.id) {
+    return { erro: "sessao-trocada", precisaCodigo };
+  }
   if (String(formData.get("confirmacao") ?? "").trim() !== "APAGAR") {
     return { erro: "digitacao", precisaCodigo };
   }

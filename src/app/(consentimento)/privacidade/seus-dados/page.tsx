@@ -23,7 +23,11 @@ export default async function PaginaSeusDados() {
         você pode baixar os seus dados ou apagar a conta.
       </p>
       <div className="flex flex-col">
-        <BlocosExportarEApagar email={usuario.email} sessaoCriadaEm={sessao.criadaEm} />
+        <BlocosExportarEApagar
+          estudanteId={usuario.id}
+          email={usuario.email}
+          sessaoCriadaEm={sessao.criadaEm}
+        />
       </div>
       <Link
         href="/privacidade/aceitar"

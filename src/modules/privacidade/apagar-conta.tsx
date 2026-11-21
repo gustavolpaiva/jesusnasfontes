@@ -31,9 +31,13 @@ const ERROS: Record<NonNullable<EstadoLocal["erro"]>, string> = {
   "unico-admin":
     "Esta é a única conta de Admin do grupo. Nomeie outro Admin antes de apagar a conta.",
   servidor: "Não conseguimos apagar a conta agora. Nada foi apagado. Tente de novo.",
+  "sessao-trocada": "Este navegador entrou com outra conta. Nada foi apagado. Recarregue a página.",
 };
 
 type Props = {
+  // Quem abriu a tela: o pedido de apagar leva isto ao servidor, que recusa se a sessão de agora for de outra conta
+  // (a sessão é um cookie, comum a todas as abas do navegador).
+  estudanteId: string;
   // E-mail da conta: o código de 6 dígitos vai para ele.
   email: string;
   // A sessão não é recente: o código por e-mail é obrigatório.
@@ -44,7 +48,12 @@ type Props = {
 // Confirmação em diálogo no centro, com o foco inicial em "Cancelar" (o Radix o faz em AlertDialog) e
 // o botão destrutivo só preenchido dentro dele. O texto digitado não se perde em erro: o envio chama
 // a ação à mão (`onSubmit`), sem `action`, para o React não reiniciar o formulário.
-export function ApagarConta({ email, precisaCodigo: precisaDeInicio, prazoDasCopias }: Props) {
+export function ApagarConta({
+  estudanteId,
+  email,
+  precisaCodigo: precisaDeInicio,
+  prazoDasCopias,
+}: Props) {
   const [aberto, setAberto] = useState(false);
   const [codigo, setCodigo] = useState<"nenhum" | "enviando" | "enviado" | "limite" | "falha">(
     "nenhum",
@@ -100,6 +109,7 @@ export function ApagarConta({ email, precisaCodigo: precisaDeInicio, prazoDasCop
       </AlertDialogTrigger>
       <AlertDialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <form onSubmit={aoEnviar} noValidate className="grid gap-4">
+          <input type="hidden" name="estudanteId" value={estudanteId} />
           <AlertDialogHeader>
             <AlertDialogTitle>Apagar a conta?</AlertDialogTitle>
             <AlertDialogDescription>

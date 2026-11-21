@@ -332,3 +332,30 @@ test("axe: a Conta e o diálogo de apagar não têm violação", async ({ page }
     })),
   ).toEqual([]);
 });
+
+test("o diálogo de apagar aberto como A não apaga B depois de a conta trocar no navegador (revisão da fase, plano 01-20)", async ({
+  page,
+  context,
+}) => {
+  const a = await entrar(page, "apaga-troca-a");
+  await abrirDialogo(page);
+
+  // Outra aba do mesmo navegador sai e entra como B (a sessão é um cookie, comum a todas as abas).
+  const outra = await context.newPage();
+  await outra.goto("/trilhas");
+  await outra.getByRole("button", { name: "Abrir menu" }).click();
+  await outra.getByRole("button", { name: "Sair" }).click();
+  await expect(outra.getByText("Você saiu.")).toBeVisible();
+  const b = await entrar(outra, "apaga-troca-b");
+
+  // O diálogo de A, ainda aberto, confirma: a sessão de agora é a de B.
+  await dialogo(page).getByLabel("Digite APAGAR").fill("APAGAR");
+  await dialogo(page).getByRole("button", { name: "Apagar minha conta" }).click();
+  await expect(
+    dialogo(page).getByText(
+      "Este navegador entrou com outra conta. Nada foi apagado. Recarregue a página.",
+    ),
+  ).toBeVisible();
+  expect(await usuarios(b.id)).toBe(1);
+  expect(await usuarios(a.id)).toBe(1);
+});
