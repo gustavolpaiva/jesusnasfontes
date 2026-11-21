@@ -9,7 +9,7 @@ export default async function LayoutEstudante({ children }: { children: ReactNod
     { href: "/trilhas", rotulo: "Trilhas" },
     { href: "/caderno", rotulo: "Caderno" },
     { href: "/conta", rotulo: "Conta" },
-    ...(usuario.papel === "admin" ? [{ href: "/convites", rotulo: "Convites" }] : []),
+    ...(usuario.papel === "admin" ? [{ href: "/admin/convites", rotulo: "Convites" }] : []),
   ];
   return (
     <AppShell navegacao={itens} acaoSair={sair}>

@@ -389,3 +389,17 @@ test("os três estados se distinguem sem cor, o e-mail longo quebra sem estourar
   );
   expect(estouro).toBeLessThanOrEqual(0);
 });
+
+test("o link Convites da navegação das Trilhas leva à lista de convites do Admin", async ({
+  page,
+}) => {
+  await entrarComoAdmin(page);
+  await page.goto("/trilhas");
+  await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  const link = page.getByRole("navigation", { name: "Seções" }).getByRole("link", {
+    name: "Convites",
+  });
+  await expect(link).toHaveAttribute("href", "/admin/convites");
+  await link.click();
+  await expect(page.getByRole("heading", { level: 1, name: "Convites" })).toBeVisible();
+});
