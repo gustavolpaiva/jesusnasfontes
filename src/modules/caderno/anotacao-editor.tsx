@@ -9,10 +9,12 @@ import { ConflictPanel } from "./conflict-panel";
 import { ANOTACAO_MAX, estaVazio } from "./limite";
 import {
   apagarRascunho,
+  apagarRascunhoPorChave,
   apagarRascunhosDeOutros,
   apagarTodosRascunhos,
   guardarRascunho,
   lerRascunho,
+  lerRascunhosDeOutrasAbas,
 } from "./rascunho";
 import { type EstadoDeSalvamento, SaveStatus } from "./save-status";
 
@@ -59,6 +61,8 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
 
   const textoRef = useRef(texto);
   const baseRef = useRef<Base>(baseDe(inicial));
+  // O rascunho de OUTRA aba que esta adotou ao abrir: sai do aparelho só quando for resolvido aqui.
+  const adotadoRef = useRef<string | null>(null);
   const conflitoRef = useRef(false);
   // A versão do servidor que o painel de conflito mostra: sobre ela vale o que a pessoa escolher.
   const contaDoConflito = useRef<Base>(SEM_BASE);
@@ -75,10 +79,20 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     return t !== base.corpo;
   }, []);
 
+  // Resolvido aqui (enviado, igual ao servidor, descartado): sai o rascunho DESTA aba e o de outra aba que ela
+  // adotou. Nunca o de outra aba que ela não adotou: aquele texto ainda pode estar pendente lá.
+  const limparLocal = useCallback(() => {
+    apagarRascunho(estudanteId, estudoId);
+    if (adotadoRef.current) {
+      apagarRascunhoPorChave(adotadoRef.current);
+      adotadoRef.current = null;
+    }
+  }, [estudanteId, estudoId]);
+
   // O rascunho local acompanha o texto, sobre a base conhecida; sem diferença, não há rascunho.
   const guardarLocal = useCallback(() => {
     if (!sujo()) {
-      apagarRascunho(estudanteId, estudoId);
+      limparLocal();
       return;
     }
     const base = baseRef.current;
@@ -88,7 +102,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       baseId: base.id,
       salvoEm: Date.now(),
     });
-  }, [estudanteId, estudoId, sujo]);
+  }, [estudanteId, estudoId, limparLocal, sujo]);
 
   const limparTemporizador = useCallback(() => {
     if (temporizador.current) clearTimeout(temporizador.current);
@@ -227,26 +241,44 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     baseRef.current = baseDe(atual);
     textoRef.current = atual?.corpo ?? "";
     setTexto(textoRef.current);
-    apagarRascunho(estudanteId, estudoId);
-  }, [estudanteId, estudoId, sujo]);
+    limparLocal();
+  }, [estudanteId, estudoId, limparLocal, sujo]);
 
   // Ao abrir: rascunhos de outra conta saem; um rascunho desta conta é recuperado (mesma base) ou vira
   // conflito (o servidor andou depois dele). Sem rascunho, confere se a página não está velha.
   // biome-ignore lint/correctness/useExhaustiveDependencies: roda uma vez por Estudo e por conta; o resto vive em refs
   useEffect(() => {
     apagarRascunhosDeOutros(estudanteId);
-    const rascunho = lerRascunho(estudanteId, estudoId);
     const base = baseRef.current;
-    if (
-      rascunho &&
-      rascunho.corpo !== base.corpo &&
-      !(estaVazio(rascunho.corpo) && base.id === null)
-    ) {
+    const igualAoServidor = (r: { corpo: string }) =>
+      r.corpo === base.corpo || (estaVazio(r.corpo) && base.id === null);
+    // Qual rascunho a página recupera: o desta aba (sobrevive a recarregar); sem ele, o MAIS RECENTE de uma aba
+    // que já não escreve (fechada) ou escreve noutro lugar. Os outros continuam guardados e vêm nas próximas
+    // aberturas, um por vez: um rascunho só sai do aparelho quando foi enviado, ficou igual ao servidor ou a
+    // pessoa o descartou. O que já é igual ao servidor não tem o que perder e sai.
+    let rascunho = lerRascunho(estudanteId, estudoId);
+    if (rascunho && igualAoServidor(rascunho)) {
+      apagarRascunho(estudanteId, estudoId);
+      rascunho = null;
+    }
+    if (!rascunho) {
+      for (const outro of lerRascunhosDeOutrasAbas(estudanteId, estudoId)) {
+        if (igualAoServidor(outro.rascunho)) {
+          apagarRascunhoPorChave(outro.chave);
+          continue;
+        }
+        rascunho = outro.rascunho;
+        adotadoRef.current = outro.chave;
+        break;
+      }
+    }
+    if (rascunho) {
       const mesmaBase = rascunho.baseId === base.id && rascunho.versaoBase === base.versao;
       if (mesmaBase) {
         textoRef.current = rascunho.corpo;
         setTexto(rascunho.corpo);
         setEstado("recuperado");
+        guardarLocal();
         if (navigator.onLine) agendar(ESPERA_MS);
       } else {
         // O servidor mudou depois de este texto ser escrito: as duas versões vão à pessoa.
@@ -258,7 +290,6 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
         });
       }
     } else {
-      if (rascunho) apagarRascunho(estudanteId, estudoId);
       void conferirServidor();
     }
     return limparTemporizador;
@@ -324,7 +355,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     baseRef.current = conta;
     textoRef.current = conta.corpo;
     setTexto(conta.corpo);
-    apagarRascunho(estudanteId, estudoId);
+    limparLocal();
     conflitoRef.current = false;
     setConflito(null);
     setEstado("salvo");

@@ -18,7 +18,31 @@ export type Rascunho = {
   salvoEm: number;
 };
 
-const chave = (estudanteId: string, estudoId: string) => `${PREFIXO}${estudanteId}:${estudoId}`;
+// O rascunho é DA ABA: duas abas do mesmo navegador no mesmo Estudo dividem o `localStorage`, e com uma chave só
+// a confirmação de um envio numa aba apagava (e cada tecla sobrescrevia) o texto ainda pendente da outra. A
+// chave leva o id da aba, guardado no `sessionStorage` (sobrevive a recarregar a aba, não a fechá-la).
+const CHAVE_DA_ABA = "jnf:aba";
+let abaEmMemoria: string | null = null;
+
+function idDaAba(): string {
+  if (abaEmMemoria) return abaEmMemoria;
+  let id: string | null = null;
+  try {
+    id = window.sessionStorage.getItem(CHAVE_DA_ABA);
+    if (!id) {
+      id = crypto.randomUUID();
+      window.sessionStorage.setItem(CHAVE_DA_ABA, id);
+    }
+  } catch {
+    id = id ?? crypto.randomUUID();
+  }
+  abaEmMemoria = id;
+  return id;
+}
+
+const base = (estudanteId: string, estudoId: string) => `${PREFIXO}${estudanteId}:${estudoId}:`;
+const chave = (estudanteId: string, estudoId: string) =>
+  `${base(estudanteId, estudoId)}${idDaAba()}`;
 
 function armazem(): Storage | null {
   try {
@@ -37,8 +61,12 @@ export function guardarRascunho(estudanteId: string, estudoId: string, rascunho:
 }
 
 export function lerRascunho(estudanteId: string, estudoId: string): Rascunho | null {
+  return lerChave(chave(estudanteId, estudoId));
+}
+
+function lerChave(nomeDaChave: string): Rascunho | null {
   try {
-    const bruto = armazem()?.getItem(chave(estudanteId, estudoId));
+    const bruto = armazem()?.getItem(nomeDaChave);
     if (!bruto) return null;
     const lido: unknown = JSON.parse(bruto);
     if (typeof lido !== "object" || lido === null) return null;
@@ -55,6 +83,34 @@ export function lerRascunho(estudanteId: string, estudoId: string): Rascunho | n
   }
 }
 
+/**
+ * Rascunhos deste Estudante neste Estudo guardados por OUTRAS abas (uma aba fechada, ou ainda aberta), o mais
+ * recente primeiro. Nunca incluem o desta aba.
+ */
+export function lerRascunhosDeOutrasAbas(
+  estudanteId: string,
+  estudoId: string,
+): { chave: string; rascunho: Rascunho }[] {
+  const minha = chave(estudanteId, estudoId);
+  const achados: { chave: string; rascunho: Rascunho }[] = [];
+  for (const c of chavesDeRascunho()) {
+    if (!c.startsWith(base(estudanteId, estudoId)) || c === minha) continue;
+    const rascunho = lerChave(c);
+    if (rascunho) achados.push({ chave: c, rascunho });
+  }
+  return achados.sort((a, b) => b.rascunho.salvoEm - a.rascunho.salvoEm);
+}
+
+/** Apaga um rascunho pelo nome da chave (o de outra aba que esta aba adotou e já resolveu). */
+export function apagarRascunhoPorChave(nomeDaChave: string): void {
+  try {
+    armazem()?.removeItem(nomeDaChave);
+  } catch {
+    // Sem armazenamento, não há o que apagar.
+  }
+}
+
+/** Apaga SÓ o rascunho desta aba. */
 export function apagarRascunho(estudanteId: string, estudoId: string): void {
   try {
     armazem()?.removeItem(chave(estudanteId, estudoId));
