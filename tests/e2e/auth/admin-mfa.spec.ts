@@ -399,10 +399,18 @@ test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as 
   const enderecoDe = (r: string) => EXEMPLOS[r] ?? r;
 
   const a = await cadastrarAdmin(page);
-  const { contexto, aba } = await novoAparelho(browser, a.endereco);
+  const { contexto } = await novoAparelho(browser, a.endereco);
+  // Pedido direto com os cookies do aparelho, sem seguir o redirecionamento: o que se prova é ONDE a
+  // rota manda quem só tem o primeiro fator. Navegar com a aba renderizava e hidratava a página de
+  // destino uma vez por rota (e de novo no laço abaixo): o teste crescia com o número de rotas e, com o
+  // servidor de desenvolvimento ocupado, estourava os 30 s sem que nenhuma asserção falhasse.
   for (const rota of protegidas) {
-    await aba.goto(enderecoDe(rota));
-    await expect(aba, rota).toHaveURL(/\/admin\/segundo-fator$/);
+    const r = await contexto.request.get(enderecoDe(rota), { maxRedirects: 0 });
+    expect(r.status(), rota).toBeGreaterThanOrEqual(300);
+    expect(r.status(), rota).toBeLessThan(400);
+    expect(new URL(r.headers().location ?? "", "http://x").pathname, rota).toBe(
+      "/admin/segundo-fator",
+    );
   }
   // Controle positivo: com a sessão verificada, as mesmas rotas abrem.
   for (const rota of protegidas) {
@@ -413,8 +421,9 @@ test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as 
       expect(r.status(), rota).toBe(200);
       continue;
     }
-    await page.goto(enderecoDe(rota));
-    await expect(page, rota).not.toHaveURL(/segundo-fator|entrar/);
+    const r = await page.request.get(enderecoDe(rota), { maxRedirects: 0 });
+    expect(r.headers().location ?? "", rota).not.toMatch(/segundo-fator|entrar/);
+    expect(r.status(), rota).toBeLessThan(400);
   }
 
   // As rotas da biblioteca: 404 para quem tem só o primeiro fator (e para a sessão verificada).
