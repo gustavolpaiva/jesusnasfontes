@@ -120,6 +120,12 @@ extrair_regras() { # arquivo...
 }
 if [ -n "$EXTRA" ]; then extrair_regras "$CONFIG" "$EXTRA" > "$TMP/regras.tsv"; else extrair_regras "$CONFIG" > "$TMP/regras.tsv"; fi
 [ -s "$TMP/regras.tsv" ] || indisponivel "nenhuma regra de texto lida da configuração"
+# Regras internas obrigatórias: configuração do alvo que perdeu uma delas (edição por engano) é leitura cega.
+# Limite declarado: o portão confia na configuração e no script do repositório que examina, ambos versionados nele;
+# quem controla o repositório controla o instrumento. A defesa disso é o publicador rodar uma cópia confiável do portão.
+for id_obrig in termo-interno email-corporativo; do
+  cut -f1 "$TMP/regras.tsv" | grep -qx "$id_obrig" || indisponivel "regra obrigatória ausente da configuração: $id_obrig"
+done
 
 # Lê stdin; imprime o id de cada regra que casa (sem o texto). Exit 1 se alguma casou.
 casar_regras() { # arquivo-de-regras
@@ -180,6 +186,20 @@ case $RC_PERL in 0) ;; 3) NOME_COM_QUEBRA=1 ;; *) indisponivel "perl falhou ao l
 NARQ=$(g ls-files -z | tr -cd '\0' | wc -c | tr -d ' ')
 [ "$NOME_COM_QUEBRA" -eq 1 ] || [ "$(wc -l < "$TMP/arquivos.txt" | tr -d ' ')" -ge "$NARQ" ] || indisponivel "extração de nomes de arquivo incompleta"
 
+# Objetos de tag alcançáveis por qualquer ref, inclusive os que só aparecem como alvo de outra tag (cadeia de tags
+# anotadas): são publicados com o ref e nenhuma listagem de ref os mostra. O texto bruto de cada um entra nos metadados.
+g for-each-ref --format='%(refname)' > "$TMP/refs.txt" || indisponivel "git for-each-ref falhou"
+: > "$TMP/tags-cadeia.txt"
+while IFS= read -r ref; do
+  [ -n "$ref" ] || continue
+  obj=$(g rev-parse --verify "$ref" 2>/dev/null) || indisponivel "não resolveu o ref"
+  while [ "$(g cat-file -t "$obj" 2>/dev/null)" = tag ]; do
+    g cat-file -p "$obj" >> "$TMP/tags-cadeia.txt" || indisponivel "git cat-file falhou"
+    obj=$(g cat-file -p "$obj" | sed -n 's/^object //p' | head -1)
+    [ -n "$obj" ] || indisponivel "objeto de tag sem alvo"
+  done
+done < "$TMP/refs.txt"
+
 # --- Verificação 1
 v1_ok=1
 for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
@@ -213,6 +233,9 @@ g for-each-ref refs/tags --format='%(taggeremail)' | tr -d '<>' | grep -v '^$' >
 [ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "for-each-ref falhou"
 g for-each-ref refs/tags --format='%(taggername)' | grep -v '^$' >> "$TMP/nomes.txt"
 [ "${PIPESTATUS[0]}" -eq 0 ] || indisponivel "for-each-ref falhou"
+# Tagger de objetos de tag da cadeia (linha "tagger Nome <e-mail> data fuso").
+sed -n 's/^tagger \(.*\) <\(.*\)> [0-9]* [+-][0-9]*$/\2/p' "$TMP/tags-cadeia.txt" >> "$TMP/emails.txt"
+sed -n 's/^tagger \(.*\) <\(.*\)> [0-9]* [+-][0-9]*$/\1/p' "$TMP/tags-cadeia.txt" >> "$TMP/nomes.txt"
 v2_ok=1
 if grep -Evi "$IDENTIDADE_OK" "$TMP/emails.txt" | grep -q .; then
   echo "verificacao 2: VAZAMENTO autor-ou-committer-com-email-fora-do-noreply"; v2_ok=0
@@ -228,6 +251,7 @@ if [ $? -eq 1 ]; then echo "verificacao 2: VAZAMENTO autor-casa-regra: $(paste -
   g for-each-ref --format='%(refname)'
   g for-each-ref refs/tags --format='%(contents)'
   g for-each-ref refs/tags --format='%(taggername) %(taggeremail)'
+  cat "$TMP/tags-cadeia.txt"
   g log --all --format='%an %ae%n%cn %ce'
   cat "$TMP/arquivos.txt"
 } > "$TMP/textos.txt" 2>/dev/null || indisponivel "git log/for-each-ref falhou"
@@ -290,7 +314,6 @@ if [ "$CONFIG_CALA" -eq 1 ]; then
 fi
 # Ref cujo objeto final não é commit (tag para blob ou árvore, também por tag anotada): `git log --all` não a percorre,
 # mas `git push --tags` publica o objeto. Todo ref tem de apontar, no fim da cadeia, para um commit.
-g for-each-ref --format='%(refname)' > "$TMP/refs.txt" || indisponivel "git for-each-ref falhou"
 REF_NAO_COMMIT=0
 while IFS= read -r ref; do
   [ -n "$ref" ] || continue

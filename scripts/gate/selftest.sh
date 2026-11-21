@@ -533,5 +533,24 @@ R=$(novo_repo tag-commit-limpa); base_limpa "$R"
 git -C "$R" tag etiqueta-leve; git -C "$R" tag -a -m "ok" etiqueta-anotada
 esperar "tags-de-commit-continuam-limpas" limpo "$R"
 
+# --- tag anotada que aponta para outra tag anotada cuja ref própria foi apagada: o objeto interno é publicado com a externa
+R=$(novo_repo tag-aninhada); base_limpa "$R"
+git -C "$R" tag -a -m "token=$SEG" interna
+git -C "$R" -c advice.nestedTag=false tag -a -m "externa" externa interna
+git -C "$R" tag -d interna >/dev/null
+esperar "tag-aninhada-com-segredo-na-mensagem-interna" vaza "$R"
+
+R=$(novo_repo tag-aninhada-autor); base_limpa "$R"
+git -C "$R" -c user.email="fulano""@redeide""ia.com.br" tag -a -m "interna" interna
+git -C "$R" -c advice.nestedTag=false tag -a -m "externa" externa interna
+git -C "$R" tag -d interna >/dev/null
+esperar "tag-aninhada-com-tagger-corporativo" vaza "$R"
+
+# --- configuração do alvo sem as regras internas obrigatórias (retirada por engano): leitura cega, exit 2
+R=$(novo_repo config-sem-regra-interna); base_limpa "$R"
+perl -0pe 's/\[\[rules\]\]\s*id = "termo-interno".*?\x27\x27\x27\n//s' "$CFG_REAL" > "$R/.gitleaks.toml"
+commitar "$R" "chore: config"
+esperar "config-do-alvo-sem-regra-interna-obrigatoria" indeterminado "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0
