@@ -128,7 +128,9 @@ export default async function PaginaTrilhas() {
                         <CapituloGrid livro={g.nome} casas={g.casas} />
                       </div>
                     ))}
-                    {t.total > 0 && t.concluidos === t.total ? <NovaVolta volta={t.volta} /> : null}
+                    {t.total > 0 && t.concluidos === t.total ? (
+                      <NovaVolta volta={t.volta} estudanteId={usuario.id} />
+                    ) : null}
                   </>
                 ) : (
                   emGrupos(t.estudos).map((g) => (

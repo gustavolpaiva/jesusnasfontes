@@ -19,7 +19,7 @@ export type ResultadoProgresso =
 
 export type ResultadoNovaVolta =
   | { ok: true; volta: number }
-  | { ok: false; erro: "incompleta" | "falha" };
+  | { ok: false; erro: "incompleta" | "falha" | "sessao-trocada" };
 
 const idDoEstudo = z.uuid();
 
@@ -71,8 +71,11 @@ export async function desmarcarConclusao(estudoId: string): Promise<ResultadoPro
   }
 }
 
-export async function comecarNovaVolta(): Promise<ResultadoNovaVolta> {
+// A nova volta não se desfaz: a tela leva o id de quem a abriu, e se a sessão de agora é de outra conta (o navegador
+// entrou com outra depois de a tela abrir) nada é iniciado.
+export async function comecarNovaVolta(estudanteId: string): Promise<ResultadoNovaVolta> {
   const { usuario } = await exigirSessao();
+  if (estudanteId !== usuario.id) return { ok: false, erro: "sessao-trocada" };
   try {
     const resultado = await iniciarNovaVolta(usuario.id);
     if (resultado.ok) revalidatePath("/trilhas");

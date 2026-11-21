@@ -223,3 +223,41 @@ test("a nova volta troca o conjunto de três perguntas e mostra 'volta N' a part
   await expect(perguntas.getByRole("listitem")).toHaveText(textos("três"));
   await expect(page.locator("[data-volta]")).toHaveText("volta 3");
 });
+
+test("Começar a volta 2 aberto como A não avança a volta de B depois de a conta trocar no navegador (revisão da fase, plano 01-20)", async ({
+  browser,
+}) => {
+  const a = emailDeTeste("troca-va");
+  const b = emailDeTeste("troca-vb");
+  await convidarParaTeste(a);
+  await convidarParaTeste(b);
+  const contexto = await browser.newContext();
+  const pa = await contexto.newPage();
+  await entrarPorLink(pa, a);
+  for (const slug of ["mateus-5", "mateus-6", "marcos-5"]) await concluir(pa, slug);
+  await abrirLeitura(pa);
+  await expect(pa.getByRole("button", { name: "Começar a volta 2" })).toBeVisible();
+
+  // Outra aba do mesmo navegador sai e entra como B, que também terminou a volta 1.
+  const pb = await contexto.newPage();
+  await pb.goto("/trilhas");
+  await pb.getByRole("button", { name: "Abrir menu" }).click();
+  await pb.getByRole("button", { name: "Sair" }).click();
+  await expect(pb.getByText("Você saiu.")).toBeVisible();
+  await entrarPorLink(pb, b);
+  for (const slug of ["mateus-5", "mateus-6", "marcos-5"]) await concluir(pb, slug);
+  const idB = await idDoUsuario(b);
+
+  // A volta é irreversível: o botão de A, ainda aberto, age sobre a sessão de agora (a de B).
+  await clicarQuandoHidratado(pa, "Começar a volta 2");
+  await expect(
+    pa.getByText("Este navegador entrou com outra conta. Recarregue a página."),
+  ).toBeVisible();
+  expect(
+    await contar(
+      "select coalesce(max(volta_atual), 1) as n from privado.volta_leitura where estudante_id = $1",
+      [idB],
+    ),
+  ).toBe(1);
+  await contexto.close();
+});

@@ -11,7 +11,7 @@ import { comecarNovaVolta } from "./progresso";
 
 const SEM_CONEXAO = "Sem conexão. Tente de novo quando a conexão voltar.";
 
-export function NovaVolta({ volta }: { volta: number }) {
+export function NovaVolta({ volta, estudanteId }: { volta: number; estudanteId: string }) {
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
@@ -19,8 +19,14 @@ export function NovaVolta({ volta }: { volta: number }) {
     iniciar(async () => {
       setErro(null);
       try {
-        const resultado = await comecarNovaVolta();
-        if (!resultado.ok) setErro("Não foi possível começar a nova volta. Tente de novo.");
+        const resultado = await comecarNovaVolta(estudanteId);
+        if (!resultado.ok) {
+          setErro(
+            resultado.erro === "sessao-trocada"
+              ? "Este navegador entrou com outra conta. Recarregue a página."
+              : "Não foi possível começar a nova volta. Tente de novo.",
+          );
+        }
       } catch {
         // A chamada nem chegou ao servidor. Sem fila: a pessoa tenta de novo quando a conexão voltar.
         setErro(SEM_CONEXAO);
