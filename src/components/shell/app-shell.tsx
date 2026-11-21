@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { OfflineBanner } from "@/components/estado/offline-banner";
 import { Cabecalho } from "./cabecalho";
 import { LinkDeSalto } from "./link-de-salto";
 import { MenuSheet } from "./menu-sheet";
@@ -26,6 +27,7 @@ export function AppShell({ children, navegacao = [], acaoSair }: Props) {
         }
       />
       <main id="conteudo" tabIndex={-1} className={`flex-1 py-8 outline-none md:py-12 ${margens}`}>
+        <OfflineBanner />
         {children}
       </main>
       {navegacao.length > 0 ? <Navegacao itens={navegacao} posicao="rodape" /> : null}
