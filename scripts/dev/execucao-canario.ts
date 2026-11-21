@@ -3,7 +3,7 @@ import type pg from "pg";
 import { desabilitar, habilitar, lerEstado, type Papel } from "./canario";
 import { contarLinhasPrivadas, limparTudo } from "./limpeza-canario";
 import { conferirContaCanario, emailDoCanario, RecusaCanario } from "./protecao-canario";
-import { soltarTrava, tomarTrava, travaViva } from "./trava-canario";
+import { OutraExecucao, soltarTrava, tomarTrava, travaViva } from "./trava-canario";
 
 // Uma EXECUÇÃO de teste com contas canário (plano 01-19). Três garantias, nesta ordem:
 //
@@ -182,6 +182,46 @@ export class ExecucaoCanario {
     this.sessoes = this.sessoes.filter((s) => s.id !== id);
   }
 
+  // SEM a trava na mão, nenhuma escrita na conta canário (nem desabilitar). Confere que esta sessão ainda
+  // segura todas as travas; se a conexão caiu, tenta retomá-las SEM esperar (`pg_try_advisory_lock`):
+  // conseguindo, segue (quem escreve reconfere a proteção e o id); outra execução com a conta, não escreve.
+  private async garantirTrava(): Promise<void> {
+    if (this.travados.length === 0) return;
+    const viva = async (): Promise<boolean> => {
+      if (!this.trava) return false;
+      try {
+        for (const email of this.travados) {
+          if (!(await travaViva(this.trava.cliente, email))) return false;
+        }
+        return true;
+      } catch {
+        return false; // conexão derrubada
+      }
+    };
+    if (await viva()) return;
+    const velha = this.trava;
+    this.trava = null;
+    await velha?.fechar().catch(() => undefined);
+    const nova = await this.fabrica.trava();
+    const tomadas: string[] = [];
+    try {
+      for (const email of this.travados) {
+        await tomarTrava(nova.cliente, email);
+        tomadas.push(email);
+      }
+    } catch (erro) {
+      for (const email of tomadas) await soltarTrava(nova.cliente, email).catch(() => undefined);
+      await nova.fechar().catch(() => undefined);
+      if (erro instanceof OutraExecucao) {
+        throw new OutraExecucao(
+          "OutraExecucao: a trava se perdeu e outra execução detém a conta canário; esta não escreveu nada.",
+        );
+      }
+      throw erro;
+    }
+    this.trava = nova;
+  }
+
   // O `afterAll`: sessões registradas, todas as linhas privadas da conta e o desabilitar medido. Cada
   // etapa roda mesmo se a anterior falhar (desabilitar é o sentido seguro); a trava é solta por último.
   async finalizar(): Promise<void> {
@@ -196,15 +236,30 @@ export class ExecucaoCanario {
         erros.push(`${rotulo}: ${erro instanceof Error ? erro.message : String(erro)}`);
       }
     };
-    for (const s of [...this.sessoes]) await tentar("sessão", () => this.apagarSessao(s.id));
+    for (const s of [...this.sessoes]) {
+      await tentar("sessão", async () => {
+        await this.garantirTrava();
+        await this.apagarSessao(s.id);
+      });
+    }
     for (const conta of this.habilitados.values()) {
-      // Só com a preparação autorizada E concluída, a trava ainda na mão e a conta ainda canário marcado.
+      // Sem a trava, nada é escrito nesta conta: nem a limpeza, nem o desabilitar.
+      let comTrava = true;
+      await tentar(`trava ${conta.papel}`, async () => {
+        try {
+          await this.garantirTrava();
+        } catch (erro) {
+          comTrava = false;
+          throw erro;
+        }
+      });
+      if (!comTrava) continue;
+      // A limpeza só roda com a preparação autorizada E concluída, e depois de conferir de novo que a
+      // conta ainda é um canário marcado e a mesma da preparação.
       if (this.preparado && conta.usuarioId) {
         const { usuarioId } = conta;
         await tentar(`limpeza ${conta.papel}`, async () => {
-          if (!this.trava || !(await travaViva(this.trava.cliente, conta.email))) {
-            throw new RecusaCanario("RecusaDeLimpeza: a trava da conta não está mais na mão");
-          }
+          await this.garantirTrava();
           await this.comDono(async (dono) => {
             const lido = await conferirContaCanario(dono, conta.email, conta.papel);
             if (lido.usuarioId !== usuarioId) {
@@ -219,6 +274,7 @@ export class ExecucaoCanario {
         });
       }
       await tentar(`desabilitar ${conta.papel}`, async () => {
+        await this.garantirTrava();
         const pool = this.fabrica.pool();
         const r = await desabilitar(pool, conta.email, conta.papel);
         const e = await lerEstado(pool, conta.email);

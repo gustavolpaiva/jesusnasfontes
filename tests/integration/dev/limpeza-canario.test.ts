@@ -356,32 +356,72 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
     await x3.finalizar();
   });
 
-  it("trava perdida no meio: a limpeza é recusada, a linha fica, e o desabilitar ainda roda", async () => {
-    const e = novoEmail("perdida");
-    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real10");
+  async function prepararComTravaDerrubavel(e: string) {
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real-trava");
     process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
-    let pidDaTrava = 0;
     const base = fabricaLocal();
+    const pids: number[] = [];
     const x = new ExecucaoCanario({
       ...base,
       trava: async () => {
         const c = await conexaoDireta();
         (c.cliente as pg.Client).on("error", () => undefined); // a derrubada é o próprio teste
-        pidDaTrava = (c.cliente as unknown as { processID: number }).processID;
+        pids.push((c.cliente as unknown as { processID: number }).processID);
         return c;
       },
     });
     await x.preparar(["estudante"]);
+    usuarios.push(e);
     const id = (
       await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
         e,
       ])
     ).rows[0]?.id as string;
-    usuarios.push(e);
-    await darAceite(id, "nova");
-    await dono.query("select pg_terminate_backend($1)", [pidDaTrava]);
-    await expect(x.finalizar()).rejects.toThrow(/limpeza/);
+    const derrubar = () => dono.query("select pg_terminate_backend($1)", [pids[0]]);
+    return { x, id, derrubar };
+  }
+
+  it("trava perdida e livre: o fim a retoma sem esperar, reconfere tudo e conclui", async () => {
+    const e = novoEmail("retoma");
+    const { x, id, derrubar } = await prepararComTravaDerrubavel(e);
+    await darAceite(id, "desta-execucao");
+    await derrubar();
+    await x.finalizar();
+    expect(await consentimentos(id)).toBe(0);
+    expect(
+      await contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado = 'revogado'",
+        [e],
+      ),
+    ).toBe(1);
+    // A trava retomada foi solta ao fim: uma execução nova a toma.
+    const y = new ExecucaoCanario(fabricaLocal());
+    await y.preparar(["estudante"]);
+    await y.finalizar();
+  });
+
+  it("trava perdida e outra execução com a conta: o fim não escreve NADA, nem desabilita, e diz quem detém", async () => {
+    const e = novoEmail("outra-detem");
+    const { x: a, id, derrubar } = await prepararComTravaDerrubavel(e);
+    await derrubar(); // A perde a conexão da trava
+    const b = new ExecucaoCanario(fabricaLocal());
+    await b.preparar(["estudante"]); // B toma a trava e prepara a mesma conta
+    const sessaoDeB = await b.criarSessao("estudante");
+    await darAceite(id, "de-B");
+    await expect(a.finalizar()).rejects.toThrow(/OutraExecucao.*detém a conta/);
+    // Nada de B foi tocado: convite ativo, sessão, linha.
+    expect(
+      await contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado <> 'revogado'",
+        [e],
+      ),
+    ).toBe(1);
+    expect(
+      await contar("select count(*) as n from auth.session where id = $1", [sessaoDeB.id]),
+    ).toBe(1);
     expect(await consentimentos(id)).toBe(1);
+    await b.finalizar(); // B segue dona e conclui normalmente
+    expect(await consentimentos(id)).toBe(0);
     expect(
       await contar(
         "select count(*) as n from admin.convite where email_norm = $1 and estado = 'revogado'",
