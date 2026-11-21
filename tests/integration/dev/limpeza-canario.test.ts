@@ -3,6 +3,7 @@ import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it, vi } from "vitest";
 import { obterPool } from "@/db/cliente";
 import { desabilitar, habilitar } from "../../../scripts/dev/canario";
+import { desabilitarNoCliente, habilitarNoCliente } from "../../../scripts/dev/escritas-canario";
 import {
   ExecucaoCanario,
   ExecucaoEncerrada,
@@ -84,7 +85,6 @@ const conexaoDireta = async () => {
   return { cliente, fechar: () => cliente.end() };
 };
 const fabricaLocal = (): Fabrica => ({
-  pool: () => obterPool(),
   dono: conexaoDireta,
   trava: conexaoDireta,
 });
@@ -231,6 +231,149 @@ describe.skipIf(emNeon())("limpeza de todas as linhas privadas da conta canário
     for (let i = 0; i < 11; i++) await darAceite(id, `v${i}`);
     await expect(limparTudo(dono, id)).rejects.toBeInstanceOf(AlvoAMais);
     expect(await consentimentos(id)).toBe(11);
+  });
+});
+
+describe.skipIf(emNeon())("escritas na conexão da trava", () => {
+  it("habilitar e desabilitar no cliente: estudante e Admin chegam ao estado final medido", async () => {
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real-esc");
+    const est = novoEmail("esc-est");
+    const adm = novoEmail("esc-adm");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = est;
+    process.env.JNF_CANARIO_ADMIN_EMAIL = adm;
+    usuarios.push(est, adm);
+    // Estudante: conta nova, convite pendente, papel certo; de novo é idempotente.
+    const r1 = await habilitarNoCliente(dono, est, "estudante");
+    expect(r1.criado).toBe(true);
+    expect(r1.estado).toMatchObject({ convite: "pendente", entradaPermitida: true });
+    expect((await habilitarNoCliente(dono, est, "estudante")).criado).toBe(false);
+    const d1 = await desabilitarNoCliente(dono, est, "estudante");
+    expect(d1.confirmado).toBe(true);
+    expect(d1.estado.convite).toBe("revogado");
+    expect((await habilitarNoCliente(dono, est, "estudante")).criado).toBe(true); // reativa o revogado
+    // Admin com tudo o que o segundo fator deixa: fator, sessão, verificação pendente.
+    const id = await criarConta(adm, "admin");
+    const sujar = async () => {
+      await dono.query(
+        "insert into auth.two_factor (user_id, secret, backup_codes) values ($1, 'x', 'y')",
+        [id],
+      );
+      await dono.query('update auth."user" set two_factor_enabled = true where id = $1', [id]);
+      await dono.query(
+        "insert into auth.session (user_id, token, expires_at) values ($1, $2, now() + interval '1 hour')",
+        [id, randomUUID()],
+      );
+      await dono.query(
+        "insert into auth.verification (identifier, value, expires_at) values ($1, 'h', now() + interval '1 hour')",
+        [`sign-in-otp-${adm}`],
+      );
+    };
+    await sujar();
+    const h = await habilitarNoCliente(dono, adm, "admin");
+    expect(h.estado).toMatchObject({ convite: "pendente", sessoes: 0 });
+    expect(await contar("select count(*) as n from auth.two_factor where user_id = $1", [id])).toBe(
+      0,
+    );
+    await sujar();
+    const d = await desabilitarNoCliente(dono, adm, "admin");
+    expect(d).toMatchObject({ confirmado: true, sessoesAnteriores: 1, segundosFatores: 0 });
+    expect(d.estado.convite).toBe("revogado");
+    expect(
+      await contar("select count(*) as n from auth.verification where identifier = $1", [
+        `sign-in-otp-${adm}`,
+      ]),
+    ).toBe(0);
+    expect(
+      await contar('select count(*) as n from auth."user" where id = $1 and two_factor_enabled', [
+        id,
+      ]),
+    ).toBe(0);
+  });
+
+  it("a conexão da trava cai ENTRE a conferência e a escrita: nada é escrito (sessão)", async () => {
+    const e = novoEmail("queda-escrita");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real-qe");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const base = fabricaLocal();
+    let armada = false;
+    let pid = 0;
+    const x = new ExecucaoCanario({
+      ...base,
+      trava: async () => {
+        const t = await base.trava();
+        pid = (t.cliente as unknown as { processID: number }).processID;
+        (t.cliente as pg.Client).on("error", () => undefined);
+        const query = t.cliente.query.bind(t.cliente) as (...a: unknown[]) => Promise<unknown>;
+        return {
+          ...t,
+          cliente: {
+            query: async (sql: string, p?: unknown[]) => {
+              // Já passou a conferência da escrita; um instante antes do INSERT a conexão cai.
+              if (armada && /^insert into auth\.session/.test(sql)) {
+                await dono.query("select pg_terminate_backend($1)", [pid]);
+                await new Promise((r) => setTimeout(r, 100));
+              }
+              return query(sql, p);
+            },
+          } as never,
+        };
+      },
+    });
+    await x.preparar(["estudante"]);
+    usuarios.push(e);
+    const id = (
+      await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
+        e,
+      ])
+    ).rows[0]?.id as string;
+    armada = true;
+    await expect(x.criarSessao("estudante")).rejects.toThrow();
+    armada = false;
+    expect(await contar("select count(*) as n from auth.session where user_id = $1", [id])).toBe(0);
+    expect(x.registro.sessoes).toEqual([]);
+    await x.finalizar().catch(() => undefined);
+  });
+
+  it("a conexão da trava cai ENTRE a conferência e o DELETE da limpeza: nada é apagado", async () => {
+    const e = novoEmail("queda-limpeza");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real-ql");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const base = fabricaLocal();
+    let armada = false;
+    let pid = 0;
+    const x = new ExecucaoCanario({
+      ...base,
+      trava: async () => {
+        const t = await base.trava();
+        pid = (t.cliente as unknown as { processID: number }).processID;
+        (t.cliente as pg.Client).on("error", () => undefined);
+        const query = t.cliente.query.bind(t.cliente) as (...a: unknown[]) => Promise<unknown>;
+        return {
+          ...t,
+          cliente: {
+            query: async (sql: string, p?: unknown[]) => {
+              if (armada && /^delete from privado\./.test(sql)) {
+                await dono.query("select pg_terminate_backend($1)", [pid]);
+                await new Promise((r) => setTimeout(r, 100));
+              }
+              return query(sql, p);
+            },
+          } as never,
+        };
+      },
+    });
+    await x.preparar(["estudante"]);
+    usuarios.push(e);
+    const id = (
+      await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
+        e,
+      ])
+    ).rows[0]?.id as string;
+    await darAceite(id, "nao-pode-sumir");
+    armada = true;
+    await expect(x.finalizar()).rejects.toThrow(/limpeza/);
+    armada = false;
+    expect(await consentimentos(id)).toBe(1); // a transação morreu com a conexão: nada foi apagado
   });
 });
 
@@ -512,8 +655,9 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
     process.env.JNF_CANARIO_ADMIN_EMAIL = eAdmin;
     usuarios.push(e, eAdmin);
     const base = fabricaLocal();
-    // As conexões que decidem são a da trava: a falha vem na 6ª leitura do marcador dev dela (2 travas,
-    // 2 conferências da pré-condição, o Admin depois de habilitar e o estudante depois de habilitar).
+    // Tudo passa pela conexão da trava: a falha vem na 10ª leitura do marcador dev dela, a do estudante
+    // depois de habilitar (2 travas, 2 pré-condições, e por conta: conferência da escrita, do habilitar e
+    // da pré-condição de depois; as contas vão em ordem alfabética, o Admin antes).
     const x = new ExecucaoCanario({
       ...base,
       trava: async () => {
@@ -524,7 +668,7 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
           ...t,
           cliente: {
             query: async (sql: string, p?: unknown[]) => {
-              if (/acervo\.ambiente/.test(sql) && ++ambientes === 6) {
+              if (/acervo\.ambiente/.test(sql) && ++ambientes === 10) {
                 throw new Error("falha simulada na preparação");
               }
               return query(sql, p);
@@ -616,8 +760,9 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
           ...t,
           cliente: {
             query: async (sql: string, p?: unknown[]) => {
-              // 1ª leitura: a trava; 2ª: a pré-condição; 3ª: depois de habilitar. Antes dela, entra um dado.
-              if (/acervo\.ambiente/.test(sql) && ++ambientes === 3) {
+              // 1ª leitura: a trava; 2ª: a pré-condição; 3ª e 4ª: a escrita de habilitar; 5ª: a leitura de depois.
+              // Antes dela entra um dado.
+              if (/acervo\.ambiente/.test(sql) && ++ambientes === 5) {
                 const id = (
                   await dono.query<{ id: string }>(
                     'select id::text as id from auth."user" where email = $1',

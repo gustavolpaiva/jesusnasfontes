@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type pg from "pg";
-import { desabilitar, habilitar, lerEstado, type Papel } from "./canario";
+import type { Papel } from "./canario";
+import { desabilitarNoCliente, habilitarNoCliente } from "./escritas-canario";
 import { contarLinhasPrivadas, limparTudo } from "./limpeza-canario";
 import { conferirContaCanario, emailDoCanario, RecusaCanario } from "./protecao-canario";
 import { OutraExecucao, soltarTrava, tomarTrava, travaViva } from "./trava-canario";
@@ -25,7 +26,6 @@ import { OutraExecucao, soltarTrava, tomarTrava, travaViva } from "./trava-canar
 // teste prova que todos recusam sem a trava.
 
 type Dono = Pick<pg.Client, "query">;
-type Pool = Pick<pg.Pool, "query" | "connect">;
 type Conexao = { cliente: Dono; fechar: () => Promise<void> };
 
 // Registra um ouvinte de evento do cliente (pg.Client tem `on`; um cliente de teste pode não ter).
@@ -36,10 +36,11 @@ function ouvir(cliente: Dono, evento: "error" | "end", ouvinte: () => void): voi
 export type Fabrica = {
   /** Conexão do dono do banco (ignora a RLS), aberta e fechada a cada uso. */
   dono: () => Promise<Conexao>;
-  /** Conexão DEDICADA, direta, mantida aberta até o fim da execução: é onde mora a trava. */
+  /**
+   * Conexão DEDICADA, direta e como dono do banco, mantida aberta até o fim da execução: é onde mora a
+   * trava E por onde passa TODA escrita (sem conexão separada para escrever).
+   */
   trava: () => Promise<Conexao>;
-  /** Conexão agrupada do aplicativo, a que `habilitar` e `desabilitar` usam. */
-  pool: () => Pool;
 };
 
 type Conta = { papel: Papel; email: string; usuarioId: string | null };
@@ -56,8 +57,6 @@ export const METODOS_QUE_ESCREVEM = [
   "encerrarSessao",
   "finalizar",
 ] as const;
-
-type Escritor = { dono: Dono; pool: Pool };
 
 // De USO ÚNICO: `preparar` roda uma vez e `finalizar` encerra a instância; qualquer chamada depois dela
 // lança erro (estado velho de uma execução não pode autorizar escrita numa seguinte).
@@ -92,7 +91,7 @@ export class ExecucaoCanario {
     }
   }
 
-  // Conexão do dono para um uso. O ouvinte de `error` impede que uma queda ociosa vire exceção sem dono.
+  // Conexão do dono para um uso, SÓ PARA LER (a proteção antes da trava). Nenhuma escrita passa por aqui.
   async #comDono<T>(fn: (c: Dono) => Promise<T>): Promise<T> {
     const { cliente, fechar } = await this.fabrica.dono();
     ouvir(cliente, "error", () => undefined);
@@ -156,17 +155,18 @@ export class ExecucaoCanario {
     this.#adotarTrava(nova);
   }
 
-  // O ÚNICO caminho de escrita. Confere a trava, a proteção (banco dev, endereço marcado, não é o Admin
-  // inicial, papel certo) e o id da conta ANTES de chamar `fn`, que é quem recebe o cliente que escreve.
-  async #escrever<T>(conta: Conta, fn: (e: Escritor) => Promise<T>): Promise<T> {
+  // O ÚNICO caminho de escrita, e ele roda NA CONEXÃO QUE SEGURA A TRAVA: não há conexão separada para
+  // escrever. Confere a trava (retomando-a se caiu), o banco dev, a proteção contra conta real e o id
+  // da conta nessa mesma conexão e só então chama `fn` com ela. Se a conexão cair em qualquer ponto
+  // depois da conferência, a escrita falha junto com a trava (a transação não chega ao commit).
+  async #escrever<T>(conta: Conta, fn: (c: Dono) => Promise<T>): Promise<T> {
     await this.#garantirTrava();
-    return this.#comDono(async (dono) => {
-      const lido = await conferirContaCanario(dono, conta.email, conta.papel);
-      if (conta.usuarioId !== null && lido.usuarioId !== conta.usuarioId) {
-        throw new RecusaCanario("RecusaDeConta: a conta canário não é mais a da preparação");
-      }
-      return fn({ dono, pool: this.fabrica.pool() });
-    });
+    const cliente = (this.#trava as Conexao).cliente;
+    const lido = await conferirContaCanario(cliente, conta.email, conta.papel);
+    if (conta.usuarioId !== null && lido.usuarioId !== conta.usuarioId) {
+      throw new RecusaCanario("RecusaDeConta: a conta canário não é mais a da preparação");
+    }
+    return fn(cliente);
   }
 
   // Conferências, trava e pré-condição ANTES de qualquer escrita; depois habilita cada conta.
@@ -226,9 +226,7 @@ export class ExecucaoCanario {
       const email = emails.get(papel) as string;
       const conta: Conta = { papel, email, usuarioId: null };
       this.#habilitados.set(papel, conta);
-      const { estado } = await this.#escrever(conta, ({ pool }) =>
-        habilitar(pool, email, papel, false),
-      );
+      const { estado } = await this.#escrever(conta, (c) => habilitarNoCliente(c, email, papel));
       if (!estado.entradaPermitida) throw new Error(`o canário ${papel} não ficou habilitado`);
       const usuarioId = await exigirVazia(papel, email);
       if (!usuarioId) throw new Error(`o canário ${papel} não tem conta depois de habilitar`);
@@ -245,7 +243,7 @@ export class ExecucaoCanario {
       throw new RecusaCanario("RecusaDeSessao: a preparação não foi autorizada e concluída");
     }
     const usuarioId = conta.usuarioId;
-    return this.#escrever(conta, async ({ dono }) => {
+    return this.#escrever(conta, async (dono) => {
       const token = randomBytes(32).toString("base64url");
       const r = await dono.query<{ id: string }>(
         "insert into auth.session (user_id, token, expires_at) values ($1, $2, now() + interval '30 minutes') returning id::text as id",
@@ -268,7 +266,7 @@ export class ExecucaoCanario {
     if (!alvo) throw new RecusaCanario("RecusaDeSessao: sessão que esta execução não abriu");
     const conta = [...this.#habilitados.values()].find((c) => c.usuarioId === alvo.usuarioId);
     if (!conta) throw new RecusaCanario("RecusaDeSessao: conta fora do registro");
-    await this.#escrever(conta, async ({ dono }) => {
+    await this.#escrever(conta, async (dono) => {
       await dono.query("delete from auth.session where id = $1 and user_id = $2", [
         id,
         alvo.usuarioId,
@@ -298,7 +296,7 @@ export class ExecucaoCanario {
       if (this.#preparado && conta.usuarioId) {
         const { usuarioId } = conta;
         await tentar(`limpeza ${conta.papel}`, () =>
-          this.#escrever(conta, async ({ dono }) => {
+          this.#escrever(conta, async (dono) => {
             await limparTudo(dono, usuarioId);
             const resto = await contarLinhasPrivadas(dono, usuarioId);
             if (resto.total !== 0) throw new Error("sobrou linha privada depois da limpeza");
@@ -306,12 +304,9 @@ export class ExecucaoCanario {
         );
       }
       await tentar(`desabilitar ${conta.papel}`, () =>
-        this.#escrever(conta, async ({ pool }) => {
-          const r = await desabilitar(pool, conta.email, conta.papel);
-          const e = await lerEstado(pool, conta.email);
-          if (!r.confirmado || e.sessoes !== 0 || e.entradaPermitida) {
-            throw new Error("não confirmado desabilitado");
-          }
+        this.#escrever(conta, async (c) => {
+          const r = await desabilitarNoCliente(c, conta.email, conta.papel);
+          if (!r.confirmado) throw new Error("não confirmado desabilitado");
         }),
       );
     }

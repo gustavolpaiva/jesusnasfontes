@@ -3,7 +3,6 @@ import { type Browser, type BrowserContext, expect, type Page } from "@playwrigh
 import pg from "pg";
 import type { Papel } from "../../../scripts/dev/canario";
 import { ExecucaoCanario } from "../../../scripts/dev/execucao-canario";
-import { obterPool } from "../../../src/db/cliente";
 import { esperarHidratado } from "../../support/hidratacao";
 import { gerarTotp } from "../../support/totp";
 
@@ -32,7 +31,6 @@ function exigir(nome: string): string {
 // único (o `afterAll` a encerra), e o Playwright preserva o cache de módulos entre arquivos do mesmo worker.
 export function novaExecucao(): ExecucaoCanario {
   return new ExecucaoCanario({
-    pool: () => obterPool(),
     dono: async () => {
       const cliente = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
       await cliente.connect();
