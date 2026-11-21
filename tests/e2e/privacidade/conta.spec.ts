@@ -359,3 +359,61 @@ test("o diálogo de apagar aberto como A não apaga B depois de a conta trocar n
   expect(await usuarios(b.id)).toBe(1);
   expect(await usuarios(a.id)).toBe(1);
 });
+
+// Contas sem aceite do aviso: os testes do próprio consentimento é que as pedem.
+async function entrarSemAceite(
+  page: Page,
+  prefixo: string,
+): Promise<{ email: string; id: string }> {
+  const email = emailDeTeste(prefixo);
+  await convidarParaTeste(email, { semConsentimento: true });
+  await entrarPorLink(page, email, "Antes de começar");
+  return { email, id: await idDoUsuario(email) };
+}
+
+test("o aviso aberto como A não grava o consentimento de B depois de a conta trocar, e a versão vista é a gravada (revisão da fase, plano 01-20)", async ({
+  page,
+  context,
+}) => {
+  const a = await entrarSemAceite(page, "aceite-troca-a");
+  const caixaA = page.getByRole("checkbox");
+  await expect(caixaA).toBeVisible();
+
+  const outra = await context.newPage();
+  await outra.goto("/trilhas");
+  await outra.getByRole("button", { name: "Abrir menu" }).click();
+  await outra.getByRole("button", { name: "Sair" }).click();
+  await expect(outra.getByText("Você saiu.")).toBeVisible();
+  const b = await entrarSemAceite(outra, "aceite-troca-b");
+  const aceites = (id: string) =>
+    contar("select count(*) as n from privado.consentimento where estudante_id = $1", [id]);
+
+  // A marca a caixa na tela dela: quem consente é a sessão de agora, a de B, que não leu nada.
+  await expect(async () => {
+    await caixaA.click();
+    await expect(caixaA).toBeChecked({ timeout: 1000 });
+  }).toPass();
+  await page.getByRole("button", { name: "Concordar e continuar" }).click();
+  await expect(
+    page.getByText(
+      "Este navegador entrou com outra conta. Nada foi registrado. Recarregue a página.",
+    ),
+  ).toBeVisible();
+  expect(await aceites(b.id)).toBe(0);
+  expect(await aceites(a.id)).toBe(0);
+
+  // A versão: o formulário leva a versão que a tela mostrou; se o servidor já tem outra, nada é gravado.
+  await page.reload();
+  await expect(async () => {
+    await caixaA.click();
+    await expect(caixaA).toBeChecked({ timeout: 1000 });
+  }).toPass();
+  await page.locator('input[name="versao"]').evaluate((el) => {
+    (el as HTMLInputElement).value = "versao-antiga-de-teste";
+  });
+  await page.getByRole("button", { name: "Concordar e continuar" }).click();
+  await expect(
+    page.getByText("O aviso mudou enquanto você lia. Recarregue a página para ler a versão atual."),
+  ).toBeVisible();
+  expect(await aceites(b.id)).toBe(0);
+});

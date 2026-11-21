@@ -10,7 +10,9 @@ import { gravarConsentimento } from "./consentimento";
 // Server Actions do consentimento (PRIV-01). Ficam fora do portão (`exigirConsentimento: false`):
 // são justamente o caminho para consentir ou sair. A sessão continua obrigatória.
 
-export type EstadoConsentimento = { erro?: "caixa" | "gravacao" };
+export type EstadoConsentimento = {
+  erro?: "caixa" | "gravacao" | "sessao-trocada" | "aviso-mudou";
+};
 
 /** Concordar e continuar: a caixa é obrigatória; sem ela devolve o erro e nada é gravado. */
 export async function aceitarAviso(
@@ -18,6 +20,10 @@ export async function aceitarAviso(
   formData: FormData,
 ): Promise<EstadoConsentimento> {
   const { usuario } = await exigirSessao({ exigirConsentimento: false });
+  // Consentir é um ato de quem leu: a tela leva o id de quem a abriu e a versão do aviso que mostrou. Se o navegador entrou
+  // com outra conta depois (a sessão é um cookie, comum às abas), ou o servidor já tem outra versão, nada é gravado.
+  if (String(formData.get("estudanteId") ?? "") !== usuario.id) return { erro: "sessao-trocada" };
+  if (String(formData.get("versao") ?? "") !== VERSAO_AVISO) return { erro: "aviso-mudou" };
   if (formData.get("consinto") !== "on") return { erro: "caixa" };
   try {
     await gravarConsentimento(usuario.id, { versao: VERSAO_AVISO, hash: hashDoAviso() });

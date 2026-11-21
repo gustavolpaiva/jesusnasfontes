@@ -38,7 +38,7 @@ export default async function PaginaAceitar() {
         </section>
       ) : null}
       <TextoDoAviso />
-      <FormularioConsentimento />
+      <FormularioConsentimento estudanteId={usuario.id} versao={VERSAO_AVISO} />
       <Link
         href="/privacidade/seus-dados"
         className="text-ui inline-flex min-h-11 items-center justify-center underline"
