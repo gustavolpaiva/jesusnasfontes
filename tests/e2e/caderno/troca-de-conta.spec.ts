@@ -326,3 +326,31 @@ test("a página refeita com outra conta (marcar concluído na aba de A) troca o 
     ]),
   ).toBe(0);
 });
+
+test("a página do Caderno refeita com outra conta remonta: a lista de A não fica na tela de B (revisão da fase, plano 01-20)", async ({
+  page,
+  context,
+}) => {
+  const a = await conta(page, "lista-a");
+  const palavra = `soDeA${randomUUID().slice(0, 8)}`;
+  await escrever(
+    `insert into privado.anotacao (estudante_id, estudo_id, corpo)
+     select $1, id, $2 from conteudo.estudo where slug = 'o-nascimento'`,
+    [a.id, `texto de A com ${palavra}`],
+  );
+  await page.goto("/caderno");
+  await expect(page.locator("main").getByText(palavra)).toBeVisible();
+
+  const outra = await context.newPage();
+  await outra.goto("/trilhas");
+  await outra.getByRole("button", { name: "Abrir menu" }).click();
+  await outra.getByRole("button", { name: "Sair" }).click();
+  await expect(outra.getByText("Você saiu.")).toBeVisible();
+  await conta(outra, "lista-b");
+
+  // A aba de A refaz a página no servidor (o mesmo `refresh` do "Tentar de novo"); a sessão agora é a de B.
+  await page.evaluate(() => {
+    (window as unknown as { next: { router: { refresh: () => void } } }).next.router.refresh();
+  });
+  await expect(page.locator("main").getByText(palavra)).toHaveCount(0);
+});

@@ -24,7 +24,9 @@ export default async function PaginaCaderno() {
         <h1 className="text-display">Caderno</h1>
         <p className="text-leitura">Todas as suas Anotações, num só lugar.</p>
       </header>
-      <BuscaCaderno estudanteId={usuario.id} inicial={inicial} />
+      {/* A chave é a conta: se a página se refaz com outra sessão (conta trocada em outra aba), o componente
+          remonta. Sem ela, a lista de A ficaria na tela e "Mostrar mais" buscaria como B, misturando as duas. */}
+      <BuscaCaderno key={usuario.id} estudanteId={usuario.id} inicial={inicial} />
     </div>
   );
 }
