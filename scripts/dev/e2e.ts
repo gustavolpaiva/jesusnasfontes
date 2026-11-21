@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import path from "node:path";
 import { criarBancoPreparado, removerBancoDeExecucao } from "../../tests/support/banco-local";
@@ -24,9 +24,12 @@ function portaLivre(): Promise<number> {
 async function main(): Promise<number> {
   const id = `${process.pid}-${randomBytes(3).toString("hex")}`;
   const distDir = `.next-e2e-${id}`;
-  // O `next dev` acrescenta ao tsconfig.json as pastas de tipos do distDir desta execução;
-  // o arquivo volta ao conteúdo original no fim para não sujar a árvore.
-  const tsconfigOriginal = readFileSync("tsconfig.json", "utf8");
+  // O `next dev` reescreve o arquivo de configuração do TypeScript que usa (acrescenta as pastas de tipos do distDir).
+  // Cada execução usa o SEU arquivo, que estende o tsconfig.json e é removido no fim: nenhuma execução toca o
+  // arquivo compartilhado, e duas ao mesmo tempo não restauram instantâneos uma por cima da outra (revisão da fase,
+  // plano 01-20).
+  const tsconfigDaExecucao = `.next-e2e-${id}.tsconfig.json`;
+  writeFileSync(tsconfigDaExecucao, `${JSON.stringify({ extends: "./tsconfig.json" })}\n`);
   mkdirSync("test-results", { recursive: true });
   // Cria e prepara; se a preparação falhar o banco já foi removido e o erro sobe.
   const { banco, env: envBanco } = await criarBancoPreparado();
@@ -47,6 +50,7 @@ async function main(): Promise<number> {
         DATABASE_URL_OWNER: banco.url,
         PORTA_E2E: String(porta),
         NEXT_DIST_DIR: distDir,
+        NEXT_TSCONFIG: tsconfigDaExecucao,
         // Segredo da biblioteca de entrada: aleatório por execução, nunca o do cofre.
         BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
         MAIL_TRANSPORT: "arquivo",
@@ -76,7 +80,7 @@ async function main(): Promise<number> {
     } catch (erro) {
       console.error(`Não foi possível remover ${distDir}: ${String(erro)}`);
     }
-    writeFileSync("tsconfig.json", tsconfigOriginal);
+    rmSync(tsconfigDaExecucao, { force: true });
   }
   return codigo;
 }

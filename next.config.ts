@@ -8,6 +8,9 @@ const config: NextConfig = {
   cacheComponents: false,
   // Cada execução de teste usa o seu diretório de build para não colidir com outra.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  // O e2e dá a cada execução o seu arquivo de configuração do TypeScript: o `next dev` o reescreve, e o tsconfig.json
+  // compartilhado fica intacto (scripts/dev/e2e.ts).
+  typescript: { tsconfigPath: process.env.NEXT_TSCONFIG ?? "tsconfig.json" },
   poweredByHeader: false,
   // O `next dev` imprime cada chamada de Server Action COM os argumentos (`ƒ salvarAnotacao({"corpo": ...})`):
   // o texto de uma Anotação, de uma Anotação da Sessão e o termo da busca iriam ao registro do servidor. Achado
