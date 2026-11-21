@@ -494,5 +494,44 @@ PATH="$RAIZ_TMP/fakebin:$PATH" esperar "trava-de-extracao-dispara" indeterminado
 
 if [ ! -e "$RAIZ_TMP/fsmonitor-executou" ]; then echo "PASSOU config-local-nao-executa-programa"; else echo "FALHOU config-local-nao-executa-programa"; FALHAS=$((FALHAS+1)); fi
 
+# --- configuração do alvo que cala o gitleaks (rodada da fase, plano 01-20): allowlist, e config sem os detectores padrão
+CFG_REAL="$AQUI/../../.gitleaks.toml"
+R=$(novo_repo allowlist-na-config); base_limpa "$R"
+{ cat "$CFG_REAL"; printf '\n[allowlist]\nregexes = [\x27\x27\x27.*\x27\x27\x27]\n'; } > "$R/.gitleaks.toml"
+echo "token=$SEG" > "$R/config.txt"; commitar "$R" "feat: config"
+esperar "allowlist-na-config-do-alvo" vaza "$R"
+
+R=$(novo_repo allowlist-de-regra); base_limpa "$R"
+{ cat "$CFG_REAL"; printf '\n[[rules.allowlists]]\nregexes = [\x27\x27\x27.*\x27\x27\x27]\n'; } > "$R/.gitleaks.toml"
+echo "contato: dev""@ide""iabusiness.com.br" > "$R/contato.md"; commitar "$R" "docs: contato"
+esperar "allowlist-por-regra-na-config-do-alvo" vaza "$R"
+
+R=$(novo_repo config-sem-padrao); base_limpa "$R"
+perl -0pe 's/\[extend\]\s*useDefault = true\s*//' "$CFG_REAL" > "$R/.gitleaks.toml"
+echo "token=$SEG" > "$R/config.txt"; commitar "$R" "feat: config"
+esperar "config-do-alvo-sem-detectores-padrao" indeterminado "$R"
+
+# --- ref cujo objeto final não é commit: `git log --all` não a percorre, mas ela é publicada com `git push --tags`
+R=$(novo_repo tag-blob); base_limpa "$R"
+echo "token=$SEG" > "$RAIZ_TMP/segredo-solto.txt"
+BLOB=$(git -C "$R" hash-object -w "$RAIZ_TMP/segredo-solto.txt")
+git -C "$R" tag etiqueta-blob "$BLOB"
+esperar "tag-aponta-para-blob" vaza "$R"
+
+R=$(novo_repo tag-anotada-blob); base_limpa "$R"
+BLOB=$(git -C "$R" hash-object -w "$RAIZ_TMP/segredo-solto.txt")
+git -C "$R" tag -a -m "x" etiqueta-anotada "$BLOB"
+esperar "tag-anotada-aponta-para-blob" vaza "$R"
+
+R=$(novo_repo tag-arvore); base_limpa "$R"
+echo "token=$SEG" > "$R/oculto.txt"; git -C "$R" add oculto.txt
+ARV=$(git -C "$R" write-tree); git -C "$R" reset -q
+git -C "$R" tag etiqueta-arvore "$ARV"
+esperar "tag-aponta-para-arvore" vaza "$R"
+
+R=$(novo_repo tag-commit-limpa); base_limpa "$R"
+git -C "$R" tag etiqueta-leve; git -C "$R" tag -a -m "ok" etiqueta-anotada
+esperar "tags-de-commit-continuam-limpas" limpo "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0

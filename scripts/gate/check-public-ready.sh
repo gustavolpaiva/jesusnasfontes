@@ -96,6 +96,21 @@ mkdir "$TMP/neutro" || indisponivel "sem diretório neutro"
 gl() { ( cd "$TMP/neutro" && gitleaks "$@" ); }
 VAZOU=0
 
+# A configuração que o portão usa pode vir do próprio alvo, e quem a edita controla o que o scanner enxerga. Duas defesas:
+# (1) palavra que cala ou desliga detector (allowlist em qualquer nível, disabledRules) reprova;
+# (2) controle positivo: com a configuração em uso, o gitleaks tem de achar um token de prova montado aqui, em tempo de
+# execução. Config sem os detectores padrão, ou que cala por outra via, é leitura cega: exit 2, nunca limpo.
+CONFIG_CALA=0
+for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
+  if grep -Eiq 'allowlist|disabledRules' "$cfg"; then CONFIG_CALA=1; fi
+done
+if [ "$CONFIG_CALA" -eq 0 ]; then
+  printf 'token=%s%s\n' "gh""p_" "aB3dE5gH7jK9mN1pQ3sT5vX7zC9eF1hJ3kL5" > "$TMP/controle-positivo.txt"
+  gl stdin --config "$CONFIG" --ignore-gitleaks-allow --redact --no-banner --no-color --exit-code 1 \
+    < "$TMP/controle-positivo.txt" >/dev/null 2>&1
+  [ $? -eq 1 ] || indisponivel "controle positivo: o gitleaks não achou o token de prova com a configuração em uso"
+fi
+
 # --- regras de texto (id<TAB>regex), lidas das regras [[rules]] dos .toml
 extrair_regras() { # arquivo...
   perl -ne '
@@ -269,6 +284,21 @@ if grep -Eiq 'gitleaks[^/]*baseline|baseline[^/]*gitleaks' "$TMP/arquivos.txt"; 
 fi
 if grep -Ei '(^|/)\.?gitleaks[^/]*\.toml$' "$TMP/arquivos.txt" | grep -Evx '\.gitleaks\.toml' | grep -q .; then
   echo "verificacao 4: VAZAMENTO config-alternativa-do-gitleaks-versionada"; v4_ok=0
+fi
+if [ "$CONFIG_CALA" -eq 1 ]; then
+  echo "verificacao 4: VAZAMENTO config-do-gitleaks-cala-ou-desliga-detector"; v4_ok=0
+fi
+# Ref cujo objeto final não é commit (tag para blob ou árvore, também por tag anotada): `git log --all` não a percorre,
+# mas `git push --tags` publica o objeto. Todo ref tem de apontar, no fim da cadeia, para um commit.
+g for-each-ref --format='%(refname)' > "$TMP/refs.txt" || indisponivel "git for-each-ref falhou"
+REF_NAO_COMMIT=0
+while IFS= read -r ref; do
+  [ -n "$ref" ] || continue
+  tipo=$(g cat-file -t "$ref^{}" 2>/dev/null) || indisponivel "não resolveu o objeto final do ref"
+  [ "$tipo" = commit ] || REF_NAO_COMMIT=1
+done < "$TMP/refs.txt"
+if [ "$REF_NAO_COMMIT" -eq 1 ]; then
+  echo "verificacao 4: VAZAMENTO ref-aponta-para-objeto-que-nao-e-commit (conteudo publicado e nao examinado)"; v4_ok=0
 fi
 VERIF=4
 checar_cpf_email "$TMP/adicionadas.txt" "no-historico" || v4_ok=0
