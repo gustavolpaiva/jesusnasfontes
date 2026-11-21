@@ -264,7 +264,9 @@ test("limpar a busca antes de a resposta de outra busca chegar: a resposta atras
 }) => {
   const { id } = await entrar(page, "limpa");
   // Só letras: o termo é uma palavra para a busca (números e hífens a dividiriam).
-  const sufixo = randomUUID().replace(/[^a-f]/g, "").slice(0, 8);
+  const sufixo = randomUUID()
+    .replace(/[^a-f]/g, "")
+    .slice(0, 8);
   const um = `palavraum${sufixo}`;
   const dois = `palavradois${sufixo}`;
   await semearSessoes(id, 2, um);
