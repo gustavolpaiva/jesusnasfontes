@@ -67,6 +67,20 @@ export async function carregarConteudo(
         descricao: string;
       }>("select id, nome, ordem, descricao from conteudo.trilha");
       const porId = new Map(trilhasAtuais.rows.map((r) => [r.id, r]));
+      // Trocar a ordem de duas Trilhas (1 e 2) já carregadas violaria UNIQUE(ordem) no primeiro upsert e desfaria a carga
+      // inteira, embora o resultado final fosse válido. As que mudam de ordem saem antes da posição (negativa, única
+      // entre si); o upsert grava a definitiva. A posição provisória nunca sobrevive: tudo roda na mesma transação.
+      const trilhasQueMudamDeOrdem = conteudo.trilhas
+        .filter((t) => {
+          const atual = porId.get(t.id);
+          return atual !== undefined && atual.ordem !== t.ordem;
+        })
+        .map((t) => t.id);
+      if (trilhasQueMudamDeOrdem.length > 0) {
+        await c.query("update conteudo.trilha set ordem = -ordem - 1 where id = any($1::text[])", [
+          trilhasQueMudamDeOrdem,
+        ]);
+      }
       for (const t of conteudo.trilhas) {
         const atual = porId.get(t.id);
         if (!atual) trilhas.inseridos++;
@@ -82,6 +96,31 @@ export async function carregarConteudo(
              descricao = excluded.descricao`,
           [t.id, t.nome, t.ordem, t.descricao],
         );
+      }
+
+      // O mesmo para os Estudos: UNIQUE(trilha, ordem) e dois Estudos que trocam de posição (ou um que ocupa a posição de
+      // outro que também muda). Só os que serão reescritos e mudam de Trilha ou de ordem saem da posição.
+      const posicoes = await c.query<{
+        slug: string;
+        trilha_id: string;
+        ordem: number;
+        conteudo_hash: string;
+      }>("select slug, trilha_id, ordem, conteudo_hash from conteudo.estudo");
+      const posicaoPorSlug = new Map(posicoes.rows.map((r) => [r.slug, r]));
+      const estudosQueMudamDePosicao = conteudo.estudos
+        .filter((e) => {
+          const atual = posicaoPorSlug.get(e.frontMatter.slug);
+          return (
+            atual !== undefined &&
+            atual.conteudo_hash !== e.conteudoHash &&
+            (atual.ordem !== e.frontMatter.ordem || atual.trilha_id !== e.frontMatter.trilha)
+          );
+        })
+        .map((e) => e.frontMatter.slug);
+      if (estudosQueMudamDePosicao.length > 0) {
+        await c.query("update conteudo.estudo set ordem = -ordem - 1 where slug = any($1::text[])", [
+          estudosQueMudamDePosicao,
+        ]);
       }
 
       for (const e of conteudo.estudos) {
