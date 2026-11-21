@@ -197,3 +197,47 @@ test("o rascunho de um aparelho velho, aberto depois de a conta andar, vira conf
   expect(await corpoDe(id)).toBe("Versão que chegou enquanto isso.");
   await fechar();
 });
+
+test("com o conflito aberto o rascunho fica, mesmo com o campo igual à base antiga: recarregar antes da escolha não perde a versão local (revisão, rodada 11)", async ({
+  page,
+  browser,
+}) => {
+  const { id, outra, fechar } = await doisAparelhos(page, browser);
+  await campo(page).fill("T0 desta aba.");
+  await expect(estado(page)).toHaveText("Salvo");
+  await outra.reload();
+  await esperarHidratado(campo(outra));
+  await expect(campo(outra)).toHaveValue("T0 desta aba.");
+
+  // O próximo envio desta aba fica seguro a caminho.
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      await portao;
+    }
+    await rota.continue();
+  });
+  await campo(page).fill("T1 desta aba.");
+  await expect(estado(page)).toHaveText("Salvando…");
+  // O campo volta ao T0 (igual à base que esta aba conhecia) enquanto o outro aparelho grava o T2.
+  await campo(page).fill("T0 desta aba.");
+  await campo(outra).fill("T2 do outro aparelho.");
+  await expect(estado(outra)).toHaveText("Salvo");
+  liberar();
+  await expect(painel(page)).toBeVisible();
+  // O conflito está aberto: o rascunho fica até a escolha.
+  expect(await chavesDeRascunho(page)).toHaveLength(1);
+
+  await page.unroute("**/*");
+  await page.reload();
+  await esperarHidratado(campo(page));
+  await expect(painel(page)).toBeVisible();
+  await expect(painel(page).getByText("T0 desta aba.")).toBeVisible();
+  await expect(painel(page).getByText("T2 do outro aparelho.")).toBeVisible();
+  expect(await corpoDe(id)).toBe("T2 do outro aparelho.");
+  await fechar();
+});

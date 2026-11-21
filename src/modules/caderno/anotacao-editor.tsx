@@ -106,10 +106,17 @@ export function AnotacaoEditor({
   const saidaRef = useRef<string | null>(null);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Há algo que o servidor não confirmou ter: o campo difere da base, ou o último envio ficou sem resposta.
+  // Há algo que o servidor não confirmou ter: o campo difere da base, o último envio ficou sem resposta, ou há
+  // um conflito aberto. Com o conflito aberto, a base é a de antes dele e já não é o servidor: o rascunho fica,
+  // seja qual for o texto, até a pessoa escolher no painel.
   const sujo = useCallback(() => {
     const base = baseRef.current;
-    return incertoRef.current || base.corpo === null || !mesmoTexto(textoRef.current, base.corpo);
+    return (
+      incertoRef.current ||
+      conflitoRef.current ||
+      base.corpo === null ||
+      !mesmoTexto(textoRef.current, base.corpo)
+    );
   }, []);
 
   const limparTemporizador = useCallback(() => {
