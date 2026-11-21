@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { lerAnotacao, salvarAnotacao } from "./anotacao";
 import type { AnotacaoDoEstudo, ContaDoConflito } from "./anotacao-nucleo";
 import { ConflictPanel } from "./conflict-panel";
-import { ANOTACAO_MAX, estaVazio } from "./limite";
+import { ANOTACAO_MAX, estaVazio, semNulo } from "./limite";
 import {
   apagarRascunho,
   apagarRascunhosDeOutros,
@@ -403,7 +403,9 @@ export function AnotacaoEditor({
   }, [conferirServidor, encerrar, saiu, setEstado, sujo]);
 
   function aoDigitar(evento: ChangeEvent<HTMLTextAreaElement>) {
-    const valor = evento.target.value;
+    // O servidor tira o NUL antes de gravar (`semNulo`): o campo e o rascunho tiram também, senão o campo nunca
+    // seria igual ao que o servidor confirmou e o editor salvaria de novo a cada pausa, para sempre.
+    const valor = semNulo(evento.target.value);
     textoRef.current = valor;
     setTexto(valor);
     // O primeiro caractere já vai para o rascunho local; o servidor espera a pausa.

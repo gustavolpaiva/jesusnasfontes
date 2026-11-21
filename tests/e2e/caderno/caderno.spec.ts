@@ -81,7 +81,16 @@ test("a lista reúne Anotações de dois Estudos e uma Anotação de Sessão, a 
   const { id } = await entrar(page);
   await escreverNoEstudo(page, "o-nascimento", "Primeira Anotação.");
   await escreverNoEstudo(page, "batismo-e-tentacao", "Segunda Anotação.");
-  await semearSessoes(id, 1, "Terminei a Sessão com gratidão");
+  // A Sessão num instante FIXO (10/11, 13:00 a 13:20 UTC; 10:00 a 10:20 em São Paulo): a tela é conferida
+  // pelo texto exato, sem depender da hora em que o teste roda (perto da meia-noite o intervalo mudava de dia).
+  await escrever(
+    `insert into privado.sessao (estudante_id, check_in_em, check_out_em, estudo_inicio_id, estudo_fim_id, anotacao)
+     values ($1, '2026-11-10T13:00:00Z', '2026-11-10T13:20:00Z',
+             (select id from conteudo.estudo where slug = 'o-nascimento'),
+             (select id from conteudo.estudo where slug = 'batismo-e-tentacao'),
+             'Terminei a Sessão com gratidão 1')`,
+    [id],
+  );
   await abrirCaderno(page);
 
   await expect(entradas(page)).toHaveCount(3);
@@ -95,7 +104,7 @@ test("a lista reúne Anotações de dois Estudos e uma Anotação de Sessão, a 
   const daSessao = page.locator('[data-slot="entrada-caderno"][data-tipo="sessao"]');
   await expect(daSessao).toHaveCount(1);
   await expect(
-    daSessao.getByText(/^Anotação da Sessão · \d{2}\/\d{2}, \d{2}:\d{2} a \d{2}:\d{2}$/),
+    daSessao.getByText("Anotação da Sessão · 10/11, 10:00 a 10:20", { exact: true }),
   ).toBeVisible();
   await expect(daSessao.getByText("de O nascimento até Batismo e tentação")).toBeVisible();
   await expect(daSessao.getByRole("link")).toHaveCount(0);

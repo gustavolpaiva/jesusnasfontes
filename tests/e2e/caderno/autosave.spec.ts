@@ -316,3 +316,24 @@ test("a tela de entrada apaga os rascunhos depois de sair ou de apagar a conta, 
   await expect(page.getByText("Sua conta foi apagada.")).toBeVisible();
   await expect.poll(quantos).toBe(0);
 });
+
+test("texto com o caractere NUL: o campo fica igual ao que o servidor guarda e não salva de novo a cada pausa (revisão, rodada 14)", async ({
+  page,
+}) => {
+  const { id } = await entrar(page);
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  let envios = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST" && (r.postData() ?? "").includes("versaoBase")) envios += 1;
+  });
+  await campo(page).fill("antes\u0000depois");
+  await expect(estado(page)).toHaveText("Salvo");
+  expect(await corpoDe(id)).toBe("antesdepois");
+  const depoisDoSalvo = envios;
+  // Mais que duas pausas de 1,5 s: nada mais vai ao servidor.
+  await page.waitForTimeout(3500);
+  expect(envios).toBe(depoisDoSalvo);
+  await expect(estado(page)).toHaveText("Salvo");
+  expect(await chavesDeRascunho(page)).toHaveLength(0);
+});
