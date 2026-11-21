@@ -80,7 +80,7 @@ export function AnotacaoEditor({
     estudoId: estudoIdDaTela,
   }));
   const [texto, setTexto] = useState(inicial?.corpo ?? "");
-  const [estado, setEstado] = useState<EstadoDeSalvamento>("ocioso");
+  const [estado, definirEstado] = useState<EstadoDeSalvamento>("ocioso");
   const [conflito, setConflito] = useState<Conflito | null>(null);
 
   // Muda a cada montagem e desmontagem: toda continuação assíncrona guarda a geração em que nasceu e, se ela
@@ -104,6 +104,10 @@ export function AnotacaoEditor({
   const trocadaRef = useRef(false);
   // A marca da saída que este editor viu ao abrir (`rascunho.ts`): se mudar, alguém saiu da conta.
   const saidaRef = useRef<string | null>(null);
+  // ENCERRADO é terminal: depois dele nenhuma resposta, erro, temporizador ou evento muda o estado da tela.
+  const setEstado = useCallback((novo: EstadoDeSalvamento) => {
+    if (!trocadaRef.current) definirEstado(novo);
+  }, []);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Há algo que o servidor não confirmou ter: o campo difere da base, o último envio ficou sem resposta, ou há
@@ -131,7 +135,7 @@ export function AnotacaoEditor({
       trocadaRef.current = true;
       limparTemporizador();
       if (donoRef.current) apagarRascunho(estudanteId, estudoId, montagemRef.current);
-      setEstado(motivo);
+      definirEstado(motivo);
     },
     [estudanteId, estudoId, limparTemporizador],
   );
@@ -215,7 +219,7 @@ export function AnotacaoEditor({
       });
     } catch {
       // Sem resposta (a chamada caiu, ou a resposta se perdeu): segue incerto e o texto segue neste aparelho.
-      if (nascida !== geracao.current) return;
+      if (nascida !== geracao.current || trocadaRef.current) return;
       emVooRef.current = false;
       if (typeof navigator !== "undefined" && !navigator.onLine) setEstado("offline");
       else {
@@ -224,8 +228,8 @@ export function AnotacaoEditor({
       }
       return;
     }
-    // O editor que enviou já saiu da tela: a resposta não é mais dele (quem o retomou envia o seguinte).
-    if (nascida !== geracao.current) return;
+    // O editor que enviou já saiu da tela (quem o retomou envia o seguinte), ou se encerrou: a resposta não muda nada.
+    if (nascida !== geracao.current || trocadaRef.current) return;
     emVooRef.current = false;
 
     if (resposta.ok) {
@@ -273,7 +277,7 @@ export function AnotacaoEditor({
         setEstado("falha");
         agendar(NOVA_TENTATIVA_MS);
     }
-  }, [agendar, encerrar, estudanteId, estudoId, guardarLocal, limparTemporizador, sujo]);
+  }, [agendar, encerrar, estudanteId, estudoId, guardarLocal, limparTemporizador, setEstado, sujo]);
 
   useEffect(() => {
     enviarRef.current = enviar;
@@ -292,7 +296,7 @@ export function AnotacaoEditor({
     } catch {
       return;
     }
-    if (nascida !== geracao.current) return;
+    if (nascida !== geracao.current || trocadaRef.current) return;
     if (!lida.ok) {
       encerrar("sessao-trocada");
       return;
@@ -314,7 +318,7 @@ export function AnotacaoEditor({
     let soltar = () => {};
     apagarRascunhosDeOutros(estudanteId);
     const textoAoAbrir = textoRef.current;
-    const vivo = () => nascida === geracao.current;
+    const vivo = () => nascida === geracao.current && !trocadaRef.current;
     const virarDono = (solta: () => void, montagem: string) => {
       soltar = solta;
       montagemRef.current = montagem;
@@ -396,7 +400,7 @@ export function AnotacaoEditor({
       window.removeEventListener("storage", aoMudarArmazenamento);
       document.removeEventListener("visibilitychange", aoMudarVisibilidade);
     };
-  }, [conferirServidor, encerrar, saiu, sujo]);
+  }, [conferirServidor, encerrar, saiu, setEstado, sujo]);
 
   function aoDigitar(evento: ChangeEvent<HTMLTextAreaElement>) {
     const valor = evento.target.value;

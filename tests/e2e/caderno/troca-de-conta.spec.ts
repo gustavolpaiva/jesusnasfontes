@@ -144,6 +144,53 @@ test("sair em outra aba encerra o editor de A: o reenvio dele não recria o rasc
   await expect(campo(page)).toHaveValue(segredo);
 });
 
+test("editor encerrado é terminal: a resposta atrasada de um envio não troca 'encerrada' por 'Salvo' nem reabre o campo (revisão, rodada 12)", async ({
+  page,
+  context,
+}) => {
+  await conta(page, "terminal-a");
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  // O envio desta aba chega ao servidor (ainda com a sessão de A) e a RESPOSTA fica segura no caminho de volta.
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  let respondido = () => {};
+  const chegou = new Promise<void>((r) => {
+    respondido = r;
+  });
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      const resposta = await rota.fetch();
+      await portao;
+      await rota.fulfill({ response: resposta });
+      respondido();
+      return;
+    }
+    await rota.continue();
+  });
+  await campo(page).fill(`TEXTO-DE-A-${randomUUID()}`);
+  await expect(estado(page)).toHaveText("Salvando…");
+
+  // Outra aba: A sai. O editor desta aba se encerra.
+  const outra = await context.newPage();
+  await outra.goto("/trilhas");
+  await outra.getByRole("button", { name: "Abrir menu" }).click();
+  await outra.getByRole("button", { name: "Sair" }).click();
+  await expect(outra.getByText("Você saiu.")).toBeVisible();
+  await expect(estado(page)).toContainText("A conta saiu deste navegador");
+
+  // A resposta do envio chega agora (a sessão ainda era de A quando ele saiu): não muda nada.
+  liberar();
+  await chegou;
+  await page.waitForTimeout(800);
+  await expect(estado(page)).toContainText("A conta saiu deste navegador");
+  await expect(campo(page)).toHaveAttribute("readonly", "");
+  expect(await chaves(page)).toEqual([]);
+});
+
 test("o rascunho de A neste aparelho nunca aparece nem é reenviado para B no mesmo navegador", async ({
   page,
   context,
