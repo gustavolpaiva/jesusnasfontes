@@ -421,9 +421,13 @@ test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as 
       expect(r.status(), rota).toBe(200);
       continue;
     }
-    const r = await page.request.get(enderecoDe(rota), { maxRedirects: 0 });
-    expect(r.headers().location ?? "", rota).not.toMatch(/segundo-fator|entrar/);
+    // Segue os redirecionamentos: um primeiro salto inocente que depois cai no aviso, na entrada ou no
+    // segundo fator tem de reprovar (a navegação de antes pegava o bloqueio final).
+    const r = await page.request.get(enderecoDe(rota));
     expect(r.status(), rota).toBeLessThan(400);
+    expect(new URL(r.url()).pathname, rota).not.toMatch(
+      /^\/(entrar|admin\/segundo-fator|privacidade\/aceitar)(\/|$)/,
+    );
   }
 
   // As rotas da biblioteca: 404 para quem tem só o primeiro fator (e para a sessão verificada).
