@@ -10,9 +10,10 @@ import {
   lerTexto,
 } from "../../support/login-e2e";
 
-// Revisão do Codex, rodada 2 (P1, perda de texto): duas abas do mesmo navegador no MESMO Estudo dividem o
-// `localStorage`. O rascunho de cada aba tem de ser da aba: a confirmação de um envio numa aba nunca apaga,
-// nem sobrescreve, o texto ainda pendente de outra. Roda sobre o conteúdo mínimo
+// Os cenários das nove rodadas da revisão do Codex sobre o editor da Anotação (perda e vazamento de texto entre
+// abas, entre montagens e com resposta perdida). Desde a rodada 10 o modelo é: cada montagem do editor é um
+// escritor (id e número de envio), o servidor ordena os envios, e o rascunho tem um dono só, que segura a trava
+// do escritor; quem retoma um escritor que sumiu continua do número seguinte. Roda sobre o conteúdo mínimo
 // (E2E_CONTEUDO_DIR=tests/fixtures/conteudo-minimo).
 test.skip(
   !process.env.E2E_CONTEUDO_DIR?.includes("conteudo-minimo"),
@@ -25,6 +26,11 @@ const estado = (p: Page) => p.locator('[data-slot="save-status"]');
 const painel = (p: Page) => p.locator('[data-slot="conflict-panel"]');
 const chaves = (p: Page) =>
   p.evaluate(() => Object.keys(window.localStorage).filter((c) => c.startsWith("jnf:rascunho:")));
+// A Anotação apagada guarda a linha com o corpo vazio (0014): conta só a que tem texto.
+const comTextoDe = (id: string) =>
+  contar("select count(*) as n from privado.anotacao where estudante_id = $1 and corpo <> ''", [
+    id,
+  ]);
 
 async function entrar(page: Page): Promise<string> {
   const email = emailDeTeste("abas");
@@ -59,7 +65,7 @@ test("a confirmação de um envio numa aba não apaga o texto pendente de outra 
   await page.goto(ESTUDO);
   await esperarHidratado(campo(page));
   const b = await abrir(context);
-  await cortarEnvio(b);
+  const religarB = await cortarEnvio(b);
   const pendente = `PENDENTE-DE-B-${randomUUID()}`;
   await campo(b).fill(pendente);
   await expect(estado(b)).toContainText("Não foi possível salvar");
@@ -71,10 +77,14 @@ test("a confirmação de um envio numa aba não apaga o texto pendente de outra 
     await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
   ).toBe("Texto salvo pela aba A.");
 
-  // A aba B é recarregada (o envio dela continua cortado): o texto pendente não se perdeu. Como a Anotação
-  // do servidor andou, ele volta como as DUAS versões lado a lado, nunca enviado calado.
+  // A aba B é recarregada (o envio dela continua cortado): o texto pendente não se perdeu, volta no campo.
   await b.reload();
   await esperarHidratado(campo(b));
+  await expect(campo(b)).toHaveValue(pendente);
+  await expect(estado(b)).toContainText("Não foi possível salvar");
+  // Quando o envio passa, o servidor (que andou) responde com as DUAS versões lado a lado: nada é sobrescrito.
+  await religarB();
+  await b.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect(painel(b)).toBeVisible();
   await expect(painel(b).getByText(pendente)).toBeVisible();
   await expect(painel(b).getByText("Texto salvo pela aba A.")).toBeVisible();
@@ -89,21 +99,21 @@ test("o rascunho de uma aba fechada volta na aba nova, e quando há mais de um o
 }) => {
   const id = await entrar(page);
   await page.close();
-  // Duas abas com texto pendente (servidor vazio), uma depois da outra, e as duas fechadas.
+  // Duas abas abertas ao mesmo tempo (cada uma é o seu escritor), com texto pendente (servidor vazio), uma
+  // escrita depois da outra, e as duas fechadas.
   const antigo = `ANTIGO-${randomUUID()}`;
   const novo = `NOVO-${randomUUID()}`;
-  for (const texto of [antigo, novo]) {
-    const p = await abrir(context);
+  const abas = [await abrir(context), await abrir(context)];
+  for (const [i, texto] of [antigo, novo].entries()) {
+    const p = abas[i] as Page;
     await cortarEnvio(p);
     await campo(p).fill(texto);
     await expect(estado(p)).toContainText("Não foi possível salvar");
     await p.waitForTimeout(30);
-    await p.close();
   }
+  for (const p of abas) await p.close();
   const d = await abrir(context);
-  // Os dois rascunhos das abas fechadas, mais a cópia que a aba nova guarda do que recuperou.
-  expect(await chaves(d)).toHaveLength(3);
-  // A aba nova recupera o MAIS RECENTE e o envia; o outro continua guardado.
+  // A aba nova RETOMA o escritor mais recente (o mesmo rascunho, sem cópia) e o envia; o outro fica guardado.
   await expect(campo(d)).toHaveValue(novo);
   await expect(estado(d)).toHaveText("Salvo");
   expect(
@@ -112,7 +122,7 @@ test("o rascunho de uma aba fechada volta na aba nova, e quando há mais de um o
   expect(await chaves(d)).toHaveLength(1);
   await d.close();
 
-  // Na abertura seguinte o que sobrou (escrito antes da versão que está no servidor) vem como conflito.
+  // Na abertura seguinte o que sobrou (escrito sem ver a versão que está no servidor) vem como conflito.
   const e = await abrir(context);
   await expect(painel(e)).toBeVisible();
   await expect(painel(e).getByText(antigo)).toBeVisible();
@@ -164,47 +174,51 @@ test("duplicar a aba (o sessionStorage é copiado) não faz duas abas dividirem 
   await religarB();
 });
 
-test("a aba que adota o rascunho de outra e o confirma não apaga o que a dona original escreveu depois", async ({
+test("uma aba aberta nunca retoma o rascunho de outra aba ainda viva: o que a dona escreve depois não se perde", async ({
   page,
   context,
 }) => {
   const id = await entrar(page);
   await page.close();
   const b = await abrir(context);
-  await cortarEnvio(b);
+  const religarB = await cortarEnvio(b);
   const v1 = `V1-${randomUUID()}`;
   const v2 = `V2-${randomUUID()}`;
   await campo(b).fill(v1);
   await expect(estado(b)).toContainText("Não foi possível salvar");
 
-  // A aba A abre, adota o v1 de B e o envia; o envio fica SEGURO a caminho enquanto B escreve o v2.
+  // A aba A abre com B viva: não retoma o v1 (a trava do escritor de B está segura), não envia nada dele.
+  const envios: string[] = [];
   const a = await context.newPage();
-  let liberar = () => {};
-  const portao = new Promise<void>((r) => {
-    liberar = r;
-  });
-  await a.route("**/*", async (rota) => {
-    const pedido = rota.request();
-    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase"))
-      await portao;
-    await rota.continue();
+  a.on("request", (r) => {
+    if (r.method() === "POST" && (r.postData() ?? "").includes("versaoBase"))
+      envios.push(r.postData() ?? "");
   });
   await a.goto(ESTUDO);
-  await expect(campo(a)).toHaveValue(v1);
-  await expect(estado(a)).toHaveText("Salvando…");
+  await esperarHidratado(campo(a));
+  await a.waitForTimeout(2200);
+  await expect(campo(a)).toHaveValue("");
+  expect(envios).toEqual([]);
+  // B escreve o v2; A escreve e salva o dela.
   await campo(b).fill(v2);
   await expect(estado(b)).toContainText("Não foi possível salvar");
-  liberar();
+  await campo(a).fill("Texto da aba A.");
   await expect(estado(a)).toHaveText("Salvo");
+  expect(envios.some((e) => e.includes(v1) || e.includes(v2))).toBe(false);
   expect(
     await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
-  ).toBe(v1);
+  ).toBe("Texto da aba A.");
 
-  // O v2, ainda não enviado, não se perdeu: ao recarregar B ele volta (o servidor tem o v1, então como conflito).
+  // O v2, ainda não enviado, não se perdeu: ao recarregar B ela retoma o próprio escritor e o envia; o
+  // servidor tem o texto de A, então vem como conflito, com as duas versões.
   await b.reload();
   await esperarHidratado(campo(b));
+  await expect(campo(b)).toHaveValue(v2);
+  await religarB();
+  await b.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect(painel(b)).toBeVisible();
   await expect(painel(b).getByText(v2)).toBeVisible();
+  await expect(painel(b).getByText("Texto da aba A.")).toBeVisible();
 });
 
 test("a resposta de um envio que chega depois de o editor sair da tela não mexe no rascunho do editor novo do mesmo Estudo", async ({
@@ -219,7 +233,7 @@ test("a resposta de um envio que chega depois de o editor sair da tela não mexe
     liberar = r;
   });
   let envios = 0;
-  await page.route("**/*", async (rota) => {
+  const tratador = async (rota: Route) => {
     const pedido = rota.request();
     if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
       envios += 1;
@@ -228,7 +242,8 @@ test("a resposta de um envio que chega depois de o editor sair da tela não mexe
         await rota.continue();
       } else await rota.abort("connectionfailed");
     } else await rota.continue();
-  });
+  };
+  await page.route("**/*", tratador);
   await page.goto(estudo);
   await esperarHidratado(campo(page));
   const t1 = `T1-${randomUUID()}`;
@@ -254,11 +269,18 @@ test("a resposta de um envio que chega depois de o editor sair da tela não mexe
     await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
   ).toBe(t1);
 
-  // Recarregar antes do próximo envio: o T3 não se perdeu (o servidor tem o T1, então vem como conflito).
+  // Recarregar antes do próximo envio: o T3 não se perdeu. O T1, o T2 e o T3 são do MESMO escritor (o editor
+  // da volta o retomou), então o T3 continua o T1 no servidor: sem conflito, e o servidor termina com o T3.
   await page.reload();
   await esperarHidratado(campo(page));
-  await expect(painel(page)).toBeVisible();
-  await expect(painel(page).getByText(t3)).toBeVisible();
+  await expect(campo(page)).toHaveValue(t3);
+  await page.unroute("**/*", tratador);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(estado(page)).toHaveText("Salvo");
+  await expect(painel(page)).toHaveCount(0);
+  expect(
+    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(t3);
 });
 
 test("digitar e apagar tudo antes de 1,5 s num Estudo sem Anotação não deixa rascunho: ao recarregar nada volta nem é enviado", async ({
@@ -339,17 +361,36 @@ test("apagar tudo durante um envio e navegar antes da resposta não perde a excl
   // O servidor mostra o efeito do envio (tem o texto): a edição guardada, apagar tudo, é enviada.
   await expect(estado(page)).toHaveText("Salvo");
   await expect(campo(page)).toHaveValue("");
-  await expect
-    .poll(() => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]))
-    .toBe(0);
+  expect(await comTextoDe(id)).toBe(0);
 });
 
-test("sair e voltar ANTES de o envio chegar: a releitura ainda vazia não confirma nada, o rascunho de exclusão fica e, quando o servidor mostra o efeito, o apagar é enviado", async ({
+test("sair e voltar ANTES de o envio chegar: a exclusão vai primeiro e o envio velho, quando chega, é recusado pelo servidor", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
   const id = await entrar(page);
-  const liberar = await segurarPrimeiroEnvio(page);
+  // O primeiro envio fica seguro e, solto, segue ao servidor; sabe-se quando a resposta dele voltou.
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  let respondido = () => {};
+  const chegou = new Promise<void>((r) => {
+    respondido = r;
+  });
+  let envios = 0;
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      envios += 1;
+      if (envios === 1) {
+        await portao;
+        await rota.fulfill({ response: await rota.fetch() });
+        respondido();
+        return;
+      }
+    }
+    await rota.continue();
+  });
   await page.goto("/estudos/batismo-e-tentacao");
   await esperarHidratado(campo(page));
   const x = `X-${randomUUID()}`;
@@ -363,31 +404,15 @@ test("sair e voltar ANTES de o envio chegar: a releitura ainda vazia não confir
   await page.goBack();
   await expect(page).toHaveURL(/\/estudos\/batismo-e-tentacao$/);
   await esperarHidratado(campo(page));
-  // O servidor ainda está vazio: a releitura não mostra o efeito do envio e NÃO confirma nada.
-  await page.waitForTimeout(1500);
-  expect(await chaves(page)).toHaveLength(1);
-  expect(
-    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
-  ).toBe(0);
+  // O editor da volta retoma o escritor e envia o campo de agora (vazio) com o número seguinte.
+  await expect(estado(page)).toHaveText("Salvo");
+  await expect(campo(page)).toHaveValue("");
+  expect(await chaves(page)).toEqual([]);
 
-  // O envio antigo chega agora e grava o texto; a edição guardada (apagar) tem de ser enviada depois.
+  // O envio antigo chega AGORA: é velho para aquele escritor e o servidor o recusa.
   liberar();
-  await expect
-    .poll(
-      () => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
-      {
-        timeout: 45_000,
-      },
-    )
-    .toBe(1);
-  await expect
-    .poll(
-      () => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
-      {
-        timeout: 45_000,
-      },
-    )
-    .toBe(0);
+  await chegou;
+  expect(await comTextoDe(id)).toBe(0);
   await expect(campo(page)).toHaveValue("");
 });
 
@@ -404,13 +429,11 @@ test("se o campo mudou durante o envio, a resposta não declara Salvo: o editor 
   liberar();
   await expect(estado(page)).toHaveText("Salvo");
   // O que o servidor guarda é o campo de agora (nada), e não o texto que estava a caminho.
-  await expect
-    .poll(() => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]))
-    .toBe(0);
+  expect(await comTextoDe(id)).toBe(0);
   expect(await chaves(page)).toEqual([]);
 });
 
-test("resposta perdida depois de o servidor gravar: o editor fica incerto, relê o servidor e envia a exclusão que a pessoa fez", async ({
+test("resposta perdida depois de o servidor gravar: o editor fica incerto e envia a exclusão que a pessoa fez, que o servidor aceita como continuação", async ({
   page,
 }) => {
   const id = await entrar(page);
@@ -439,16 +462,14 @@ test("resposta perdida depois de o servidor gravar: o editor fica incerto, relê
 
   // A pessoa apaga tudo: o campo é igual à base que o editor conhecia (vazio), mas o servidor TEM o texto.
   await campo(page).fill("");
-  // Próxima oportunidade (a conexão volta): o editor relê o servidor antes de decidir e envia a exclusão.
+  // Incerto, o campo conta como não confirmado: a exclusão vai com o número seguinte, sem palpite.
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await expect(estado(page)).toHaveText("Salvo");
-  await expect
-    .poll(() => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]))
-    .toBe(0);
+  expect(await comTextoDe(id)).toBe(0);
   expect(await chaves(page)).toEqual([]);
 });
 
-test("resposta perdida sem o servidor ter gravado: relê, vê que nada chegou e segue com o envio de sempre", async ({
+test("resposta perdida sem o servidor ter gravado: o envio seguinte grava sobre a base de sempre", async ({
   page,
 }) => {
   const id = await entrar(page);
@@ -479,50 +500,95 @@ test("resposta perdida sem o servidor ter gravado: relê, vê que nada chegou e 
   ).toBe(texto);
 });
 
-test("rascunho marcado como a caminho: dentro do prazo fica sem ser enviado; passado o prazo (2 minutos) o envio é dado como perdido e ele volta a ser um rascunho comum", async ({
+// ───────────── rodada 9 da revisão (os dois P1 abertos) ─────────────
+
+const comTexto = (id: string, corpo: string) =>
+  contar("select count(*) as n from privado.anotacao where estudante_id = $1 and corpo = $2", [
+    id,
+    corpo,
+  ]);
+
+test("rodada 9 (a): apagar, perder a resposta da exclusão e redigitar o mesmo texto não declara Salvo com o servidor vazio", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
   const id = await entrar(page);
-  const estudoId = await lerTexto(
-    "select id::text as t from conteudo.estudo where slug = 'o-nascimento'",
-  );
-  const semear = (corpo: string, haMs: number) =>
-    page.evaluate(
-      ([dono, estudo, texto, atras]) => {
-        window.localStorage.setItem(
-          `jnf:rascunho:${dono}:${estudo}:semeado-${texto}`,
-          JSON.stringify({
-            corpo: texto,
-            versaoBase: 0,
-            baseId: null,
-            salvoEm: Date.now(),
-            aCaminho: { texto: "o que estava a caminho", em: Date.now() - Number(atras) },
-          }),
-        );
-      },
-      [id, estudoId, corpo, String(haMs)],
-    );
-  await page.goto("/trilhas");
-
-  // Dentro do prazo e sem o efeito do envio no servidor: nada é enviado e o rascunho fica.
-  await semear("RECENTE", 10_000);
   await page.goto(ESTUDO);
   await esperarHidratado(campo(page));
-  await page.waitForTimeout(8000);
-  expect(
-    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
-  ).toBe(0);
-  expect(await chaves(page)).toHaveLength(1);
+  const x = `X-${randomUUID()}`;
+  await campo(page).fill(x);
+  await expect(estado(page)).toHaveText("Salvo");
+  // O envio seguinte (a exclusão) chega ao servidor, que grava, e a resposta é derrubada no caminho de volta.
+  let envios = 0;
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      envios += 1;
+      if (envios === 1) {
+        await rota.fetch();
+        await rota.abort("connectionfailed");
+        return;
+      }
+    }
+    await rota.continue();
+  });
   await campo(page).fill("");
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+  expect(await comTexto(id, x)).toBe(0);
+  // A pessoa escreve de novo o mesmo texto: igual à base que o editor conhecia, mas o servidor está vazio.
+  await campo(page).fill(x);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(estado(page)).toHaveText("Salvo");
+  expect(await comTexto(id, x)).toBe(1);
+});
 
-  // Passado o prazo: o envio foi dado como perdido e o rascunho, que difere do servidor, é enviado.
-  await page.evaluate(() => window.localStorage.clear());
-  await semear("EXPIRADO", 3 * 60_000);
-  await page.reload();
+test("rodada 9 (b): voltar ao Estudo pela página guardada (vazia) com o rascunho de um envio que já chegou não apaga o texto do servidor", async ({
+  page,
+}) => {
+  const id = await entrar(page);
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  let respondido = () => {};
+  const chegou = new Promise<void>((r) => {
+    respondido = r;
+  });
+  let envios = 0;
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      envios += 1;
+      if (envios === 1) {
+        await portao;
+        const resposta = await rota.fetch();
+        await rota.fulfill({ response: resposta });
+        respondido();
+        return;
+      }
+    }
+    await rota.continue();
+  });
+  await page.goto("/estudos/batismo-e-tentacao");
   await esperarHidratado(campo(page));
-  await expect(estado(page)).toHaveText("Salvo", { timeout: 20_000 });
-  expect(
-    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
-  ).toBe("EXPIRADO");
+  const x = `X-${randomUUID()}`;
+  await campo(page).fill(x);
+  await expect(estado(page)).toHaveText("Salvando…");
+  // Durante o envio o campo muda e volta a ser o texto a caminho.
+  await campo(page).fill(`${x}a`);
+  await campo(page).fill(x);
+
+  await page.getByRole("link", { name: "Anterior" }).click();
+  await expect(page).toHaveURL(/\/estudos\/o-nascimento$/);
+  liberar();
+  await chegou;
+  expect(await comTexto(id, x)).toBe(1);
+
+  // Volta pelo histórico: a página vem da memória do navegador, de antes do envio (campo vazio).
+  await page.goBack();
+  await expect(page).toHaveURL(/\/estudos\/batismo-e-tentacao$/);
+  await esperarHidratado(campo(page));
+  await expect(campo(page)).toHaveValue(x);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await page.waitForTimeout(2500);
+  expect(await comTexto(id, x)).toBe(1);
 });

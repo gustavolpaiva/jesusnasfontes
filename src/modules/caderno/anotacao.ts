@@ -32,6 +32,9 @@ const entradaDeSalvar = z.object({
   corpo: z.string(),
   versaoBase: z.number().int().min(0).max(2_000_000_000),
   baseId: z.uuid().nullable(),
+  // O escritor (a montagem do editor) e o número do envio: a ordem é decidida pelo servidor (núcleo).
+  montagem: z.uuid(),
+  seq: z.number().int().min(1).max(2_000_000_000),
 });
 
 // A conta foi apagada (em outra aba) entre a guarda de sessão e a escrita: a chave estrangeira para

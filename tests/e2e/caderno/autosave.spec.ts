@@ -106,7 +106,9 @@ test("digitar, ver Salvo, recarregar e ver o texto; editar de novo incrementa a 
   expect(await anotacoesDe(id)).toBe(1);
 });
 
-test("apagar todo o texto remove a Anotação do servidor", async ({ page }) => {
+test("apagar todo o texto apaga o texto do servidor (a linha fica vazia, para guardar a ordem) e o Caderno não a mostra", async ({
+  page,
+}) => {
   const { id } = await entrar(page);
   await page.goto(ESTUDO);
   await esperarHidratado(campo(page));
@@ -115,8 +117,11 @@ test("apagar todo o texto remove a Anotação do servidor", async ({ page }) => 
   expect(await anotacoesDe(id)).toBe(1);
   await campo(page).fill("");
   await expect(estado(page)).toHaveText("Salvo");
-  expect(await anotacoesDe(id)).toBe(0);
-  await page.reload();
+  expect(await corpoDe(id)).toBe("");
+  await page.goto("/caderno");
+  await expect(page.getByText("Seu Caderno está vazio")).toBeVisible();
+  await expect(page.locator('[data-slot="entrada-caderno"]')).toHaveCount(0);
+  await page.goto(ESTUDO);
   await esperarHidratado(campo(page));
   await expect(campo(page)).toHaveValue("");
 });

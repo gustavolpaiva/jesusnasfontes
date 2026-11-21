@@ -11,6 +11,7 @@ import {
   type ResultadoDeSalvar,
   salvarAnotacaoDoEstudo,
 } from "@/modules/caderno/anotacao-nucleo";
+import { listarCaderno } from "@/modules/caderno/caderno";
 import { ANOTACAO_MAX } from "@/modules/caderno/limite";
 import { exportarDados } from "@/modules/privacidade/exportar";
 import { removerConta } from "@/modules/privacidade/remover-conta";
@@ -123,22 +124,34 @@ function observar<T>(promessa: Promise<T>): () => boolean {
 
 const ESPERA_DA_FILA_MS = 400;
 
-// Salva como a tela faz: com a base do que ela mostrava.
+// Salva como a tela faz: com a base do que ela mostrava. Sem escritor dito, cada chamada é um escritor novo
+// (outra aba, outro aparelho), no primeiro envio dele.
 const salvar = (
   id: string,
   estudoId: string,
   corpo: string,
   base: AnotacaoDoEstudo | null,
   extra?: Parameters<typeof salvarAnotacaoDoEstudo>[2],
+  escritor: { montagem: string; seq: number } = { montagem: randomUUID(), seq: 1 },
 ) =>
   salvarAnotacaoDoEstudo(
     id,
-    { estudoId, corpo, versaoBase: base?.versao ?? 0, baseId: base?.id ?? null },
+    { estudoId, corpo, versaoBase: base?.versao ?? 0, baseId: base?.id ?? null, ...escritor },
     extra,
   );
 
+// Um escritor (uma montagem do editor): o mesmo id e o número de envio que só cresce.
+function escritor() {
+  const montagem = randomUUID();
+  let seq = 0;
+  return {
+    proximo: () => ({ montagem, seq: ++seq }),
+    numero: (n: number) => ({ montagem, seq: n }),
+  };
+}
+
 function aceito(r: ResultadoDeSalvar): AnotacaoDoEstudo {
-  if (!r.ok || !r.anotacao) throw new Error("esperava uma Anotação gravada");
+  if (!r.ok) throw new Error("esperava uma Anotação gravada");
   return r.anotacao;
 }
 
@@ -252,17 +265,17 @@ describe.skipIf(emNeon())("salvar e ler a Anotação", () => {
     expect(await corpoReal(a, e1.id)).toBe("já existia");
   });
 
-  it("apagada em outro aparelho e recriada do zero (versão 1 de novo): a aba velha recebe conflito, não sobrescreve", async () => {
+  it("apagar guarda a linha vazia e a versão continua: apagar e escrever de novo nunca volta a uma versão que a aba velha tenha", async () => {
     const a = await novaConta();
     const antiga = aceito(await salvar(a, e1.id, "a que a aba velha mostra", null));
-    // Outro aparelho apaga e escreve do zero: a versão volta a 1, com outro id.
-    await salvar(a, e1.id, "", antiga);
-    const nova = aceito(await salvar(a, e1.id, "a nova, do outro aparelho", null));
-    expect(nova.versao).toBe(1);
-    expect(nova.id).not.toBe(antiga.id);
-    // A aba velha ainda acha que a Anotação é a `antiga` (mesma versão 1).
+    // Outro aparelho apaga e escreve de novo: a linha é a mesma, a versão segue (2 e 3).
+    const apagada = aceito(await salvar(a, e1.id, "", antiga));
+    expect(apagada).toMatchObject({ id: antiga.id, corpo: "", versao: 2 });
+    const nova = aceito(await salvar(a, e1.id, "a nova, do outro aparelho", apagada));
+    expect(nova).toMatchObject({ id: antiga.id, versao: 3 });
+    // A aba velha ainda acha que a Anotação é a `antiga` (versão 1).
     const r = await salvar(a, e1.id, "texto da aba velha", antiga);
-    expect(r).toMatchObject({ ok: false, erro: "conflito", conta: { id: nova.id, versao: 1 } });
+    expect(r).toMatchObject({ ok: false, erro: "conflito", conta: { id: nova.id, versao: 3 } });
     expect(await corpoReal(a, e1.id)).toBe("a nova, do outro aparelho");
   });
 
@@ -271,22 +284,25 @@ describe.skipIf(emNeon())("salvar e ler a Anotação", () => {
     const v1 = aceito(await salvar(a, e1.id, "vai sumir", null));
     await salvar(a, e1.id, "", v1);
     const r = await salvar(a, e1.id, "texto novo da aba velha", v1);
-    expect(r).toEqual({
+    expect(r).toMatchObject({
       ok: false,
       erro: "conflito",
-      conta: { id: null, corpo: "", versao: 0, atualizadoEm: null },
+      conta: { id: v1.id, corpo: "", versao: 2 },
     });
-    expect(await linhasReais(a)).toBe(0);
+    expect(await corpoReal(a, e1.id)).toBe("");
   });
 
-  it("corpo vazio, ou só espaços, apaga a linha: é assim que o Estudante apaga a própria Anotação", async () => {
+  it("corpo vazio, ou só espaços, é a Anotação apagada: a linha fica com o corpo vazio e o Caderno não a mostra", async () => {
     const a = await novaConta();
     const v1 = aceito(await salvar(a, e1.id, "para apagar", null));
-    expect(await salvar(a, e1.id, "   \n ", v1)).toEqual({ ok: true, anotacao: null });
-    expect(await linhasReais(a)).toBe(0);
-    expect(await lerAnotacaoDoEstudo(a, e1.id)).toBeNull();
-    // Apagar o que já não existe, com a base de quem nunca viu nada, é nada a fazer.
-    expect(await salvar(a, e1.id, "", null)).toEqual({ ok: true, anotacao: null });
+    expect(await listarCaderno(a)).toMatchObject({ total: 1 });
+    const apagada = aceito(await salvar(a, e1.id, "   \n ", v1));
+    expect(apagada).toMatchObject({ corpo: "", versao: 2 });
+    expect(await corpoReal(a, e1.id)).toBe("");
+    expect(await lerAnotacaoDoEstudo(a, e1.id)).toEqual(apagada);
+    expect(await listarCaderno(a)).toEqual({ entradas: [], total: 0, proximo: null });
+    // Apagar o que já está apagado, com a base de quem nunca viu nada, é nada a decidir.
+    expect(await salvar(a, e1.id, "", null)).toEqual({ ok: true, anotacao: apagada });
   });
 
   it("20 000 caracteres passam inteiros; 20 001 são recusados e nada muda", async () => {
@@ -330,6 +346,68 @@ describe.skipIf(emNeon())("salvar e ler a Anotação", () => {
       erro: "nao-encontrado",
     });
     expect(await linhasReais(a)).toBe(0);
+  });
+
+  it("a ordem é do servidor: o envio velho de um escritor, chegando depois de um mais novo dele, é recusado e não ressuscita o que foi apagado", async () => {
+    const a = await novaConta();
+    const m = escritor();
+    // O escritor mandou "X" (número 1) sem resposta e, com a pessoa tendo apagado tudo, manda o vazio (número 2).
+    // O número 2 chega primeiro; o 1, atrasado, chega depois.
+    const apagado = aceito(await salvar(a, e1.id, "", null, undefined, m.numero(2)));
+    expect(apagado).toMatchObject({ corpo: "", versao: 1 });
+    const atrasado = await salvar(a, e1.id, "X", null, undefined, m.numero(1));
+    expect(atrasado).toMatchObject({
+      ok: false,
+      erro: "conflito",
+      conta: { corpo: "", versao: 1 },
+    });
+    expect(await corpoReal(a, e1.id)).toBe("");
+    // Número repetido também é velho, mesmo com a base certa.
+    const repetido = await salvar(a, e1.id, "Y", apagado, undefined, m.numero(2));
+    expect(repetido).toMatchObject({ ok: false, erro: "conflito" });
+    expect(await corpoReal(a, e1.id)).toBe("");
+  });
+
+  it("o escritor que gravou por último continua com a base velha: a resposta perdida não vira conflito nem palpite", async () => {
+    const a = await novaConta();
+    const m = escritor();
+    // "X" gravou, mas a resposta se perdeu: o escritor ainda tem a base vazia.
+    aceito(await salvar(a, e1.id, "X", null, undefined, m.proximo()));
+    // Apaga tudo (com a base vazia) e depois escreve "X" de novo, sempre sem ter visto resposta.
+    expect(aceito(await salvar(a, e1.id, "", null, undefined, m.proximo()))).toMatchObject({
+      corpo: "",
+      versao: 2,
+    });
+    expect(aceito(await salvar(a, e1.id, "X", null, undefined, m.proximo()))).toMatchObject({
+      corpo: "X",
+      versao: 3,
+    });
+    expect(await corpoReal(a, e1.id)).toBe("X");
+  });
+
+  it("a continuação não atravessa outro escritor: depois que outro gravou, a base velha é conflito", async () => {
+    const a = await novaConta();
+    const m = escritor();
+    const v1 = aceito(await salvar(a, e1.id, "de M", null, undefined, m.proximo()));
+    aceito(await salvar(a, e1.id, "de N", v1));
+    const r = await salvar(a, e1.id, "de M de novo", v1, undefined, m.proximo());
+    expect(r).toMatchObject({ ok: false, erro: "conflito", conta: { corpo: "de N", versao: 2 } });
+    // E outro escritor sem base, numa Anotação que existe, também: nunca sobrescreve.
+    const semBase = await salvar(a, e1.id, "de quem não via nada", null);
+    expect(semBase).toMatchObject({ ok: false, erro: "conflito", conta: { corpo: "de N" } });
+    expect(await corpoReal(a, e1.id)).toBe("de N");
+  });
+
+  it("o escritor e o número ficam no servidor e não voltam à tela", async () => {
+    const a = await novaConta();
+    const gravada = aceito(await salvar(a, e1.id, "texto", null));
+    expect(Object.keys(gravada).sort()).toEqual(["atualizadoEm", "corpo", "id", "versao"]);
+    expect(Object.keys((await lerAnotacaoDoEstudo(a, e1.id)) ?? {}).sort()).toEqual([
+      "atualizadoEm",
+      "corpo",
+      "id",
+      "versao",
+    ]);
   });
 
   it("uma Anotação por Estudo: dois Estudos, duas linhas independentes", async () => {

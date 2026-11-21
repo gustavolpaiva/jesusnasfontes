@@ -101,6 +101,8 @@ export async function listarCaderno(
         from privado.anotacao a
         join conteudo.estudo e on e.id = a.estudo_id
         where a.estudante_id = ${estudanteId}::uuid
+          -- A Anotação apagada guarda a linha com o corpo vazio (0014): não é entrada do Caderno.
+          and a.corpo <> ''
         union all
         select 'sessao'::text, s.id::text, s.check_in_em, s.check_out_em,
                null::text, null::text, ei.titulo, coalesce(ef.titulo, ei.titulo),

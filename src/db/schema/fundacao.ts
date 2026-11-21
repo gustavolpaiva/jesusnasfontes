@@ -49,6 +49,9 @@ export const anotacao = privado.table(
       .references(() => estudo.id, { onDelete: "restrict" }),
     corpo: text("corpo").notNull(),
     versao: integer("versao").notNull().default(1),
+    // 0014: o escritor (montagem do editor) que gravou por último e o número desse envio. Ver o núcleo.
+    montagem: uuid("montagem"),
+    seq: integer("seq").notNull().default(0),
     criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
     atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
     tsv: tsvector("tsv").generatedAlwaysAs(sql`to_tsvector('public.pt_unaccent', corpo)`),

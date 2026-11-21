@@ -153,14 +153,20 @@ test("Anotação apagada no outro aparelho: escrever aqui mostra a conta vazia e
   await campo(outra).fill("");
   await expect(estado(outra)).toHaveText("Salvo");
   expect(
-    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+    await contar(
+      "select count(*) as n from privado.anotacao where estudante_id = $1 and corpo <> ''",
+      [id],
+    ),
   ).toBe(0);
 
   await campo(page).fill("Vai ser apagada lá. E eu acrescentei.");
   await expect(painel(page)).toBeVisible();
   await expect(painel(page).getByText("(Anotação apagada)")).toBeVisible();
   expect(
-    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+    await contar(
+      "select count(*) as n from privado.anotacao where estudante_id = $1 and corpo <> ''",
+      [id],
+    ),
   ).toBe(0);
   await fechar();
 });
