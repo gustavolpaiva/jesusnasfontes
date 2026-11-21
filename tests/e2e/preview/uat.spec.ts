@@ -1,14 +1,13 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import pg from "pg";
+import type { ExecucaoCanario } from "../../../scripts/dev/execucao-canario";
 import { esperarHidratado } from "../../support/hidratacao";
 import {
   abrirSessao,
   aceitarAviso,
-  desabilitarCanarios,
   escreverAnotacao,
-  habilitarCanarios,
-  MARCA,
+  novaExecucao,
   PAPEIS,
   prepararAdmin,
 } from "./suporte-canario";
@@ -27,19 +26,23 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-const MARCADOR = `MARCADOR-${MARCA}`;
+// A execução e a marca nascem no `beforeAll` (instância de uso único, uma por suíte).
+let execucao: ExecucaoCanario;
+let MARCADOR = "";
 const ESTUDO = "nicodemos-nascer-de-novo";
 const TITULO = "Nicodemos: nascer de novo";
 const CAPTURAS = "test-results/preview-uat";
 
 test.beforeAll(async () => {
   mkdirSync(CAPTURAS, { recursive: true });
-  await habilitarCanarios(PAPEIS);
+  execucao = novaExecucao();
+  await execucao.preparar(PAPEIS);
+  MARCADOR = `MARCADOR-${execucao.marca}`;
   writeFileSync("test-results/marcador-uat.txt", `${MARCADOR}\n`, { mode: 0o600 });
 });
 
 test.afterAll(async () => {
-  await desabilitarCanarios();
+  await execucao?.finalizar();
 });
 
 async function clicarQuandoHidratado(page: Page, nome: string | RegExp): Promise<void> {
@@ -53,7 +56,7 @@ test("Estudante canário: aviso, Trilhas 8/30/89, Estudo com Afirmação e Diver
   baseURL,
 }) => {
   test.setTimeout(300_000);
-  const s = await abrirSessao(browser, "estudante", baseURL as string);
+  const s = await abrirSessao(execucao, browser, "estudante", baseURL as string);
   try {
     const page = await s.contexto.newPage();
 
@@ -213,7 +216,10 @@ test("Admin canário: aviso, segundo fator cadastrado pela tela e a lista de con
   baseURL,
 }) => {
   test.setTimeout(180_000);
-  const s = await abrirSessao(browser, "admin", baseURL as string, { width: 1280, height: 800 });
+  const s = await abrirSessao(execucao, browser, "admin", baseURL as string, {
+    width: 1280,
+    height: 800,
+  });
   try {
     const page = await s.contexto.newPage();
     await prepararAdmin(page);

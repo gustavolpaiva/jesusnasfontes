@@ -28,27 +28,24 @@ function exigir(nome: string): string {
   return valor;
 }
 
-// Uma execução por processo de teste (os arquivos rodam em sequência num só worker).
-export const execucao = new ExecucaoCanario({
-  pool: () => obterPool(),
-  dono: async () => {
-    const cliente = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
-    await cliente.connect();
-    return { cliente, fechar: () => cliente.end() };
-  },
-  // A trava mora numa conexão própria, direta e aberta até o fim da execução.
-  trava: async () => {
-    const cliente = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
-    await cliente.connect();
-    return { cliente, fechar: () => cliente.end() };
-  },
-});
-
-// A marca da execução entra nos textos que o teste escreve (para achá-los no Caderno e nos registros).
-export const MARCA = execucao.marca;
-
-export const habilitarCanarios = (papeis: Papel[]) => execucao.preparar(papeis);
-export const desabilitarCanarios = () => execucao.finalizar();
+// Uma execução NOVA por suíte (arquivo de teste), criada no `beforeAll` com marca nova: a instância é de uso
+// único (o `afterAll` a encerra), e o Playwright preserva o cache de módulos entre arquivos do mesmo worker.
+export function novaExecucao(): ExecucaoCanario {
+  return new ExecucaoCanario({
+    pool: () => obterPool(),
+    dono: async () => {
+      const cliente = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
+      await cliente.connect();
+      return { cliente, fechar: () => cliente.end() };
+    },
+    // A trava mora numa conexão própria, direta e aberta até o fim da execução.
+    trava: async () => {
+      const cliente = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
+      await cliente.connect();
+      return { cliente, fechar: () => cliente.end() };
+    },
+  });
+}
 
 export type SessaoCanario = {
   contexto: BrowserContext;
@@ -59,6 +56,7 @@ export type SessaoCanario = {
 
 // Cria UMA sessão de 30 minutos para o canário e devolve um contexto de navegador que a carrega.
 export async function abrirSessao(
+  execucao: ExecucaoCanario,
   browser: Browser,
   papel: Papel,
   baseURL: string,

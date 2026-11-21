@@ -1,13 +1,12 @@
 import { mkdirSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import type { ExecucaoCanario } from "../../../scripts/dev/execucao-canario";
 import { esperarHidratado } from "../../support/hidratacao";
 import {
   abrirSessao,
   aceitarAviso,
-  desabilitarCanarios,
   escreverAnotacao,
-  habilitarCanarios,
-  MARCA,
+  novaExecucao,
   PAPEIS,
   prepararAdmin,
 } from "./suporte-canario";
@@ -18,16 +17,20 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
+// Uma execução nova por suíte (instância de uso único).
+let execucao: ExecucaoCanario;
+
 const ESTUDO = "nicodemos-nascer-de-novo";
 const CAPTURAS = "test-results/preview-uat";
 
 test.beforeAll(async () => {
   mkdirSync(CAPTURAS, { recursive: true });
-  await habilitarCanarios(PAPEIS);
+  execucao = novaExecucao();
+  await execucao.preparar(PAPEIS);
 });
 
 test.afterAll(async () => {
-  await desabilitarCanarios();
+  await execucao?.finalizar();
 });
 
 const campo = (page: Page) => page.getByRole("textbox", { name: "Minha anotação" });
@@ -37,13 +40,13 @@ test("duas contas escrevendo ao mesmo tempo no mesmo Estudo só veem a própria 
   baseURL,
 }) => {
   test.setTimeout(240_000);
-  const a = await abrirSessao(browser, "estudante", baseURL as string);
-  const b = await abrirSessao(browser, "admin", baseURL as string);
+  const a = await abrirSessao(execucao, browser, "estudante", baseURL as string);
+  const b = await abrirSessao(execucao, browser, "admin", baseURL as string);
   try {
     const pa = await a.contexto.newPage();
     const pb = await b.contexto.newPage();
-    const marcadorA = `MARCADOR-A-${MARCA}`;
-    const marcadorB = `MARCADOR-B-${MARCA}`;
+    const marcadorA = `MARCADOR-A-${execucao.marca}`;
+    const marcadorB = `MARCADOR-B-${execucao.marca}`;
 
     await test.step("prepara as duas contas (aviso e, no Admin, segundo fator)", async () => {
       await pa.goto("/trilhas");
