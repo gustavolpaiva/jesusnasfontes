@@ -17,7 +17,7 @@ import {
 // Percurso real da fase inteira numa pré-visualização implantada (plano 01-19, Tarefa 1):
 //
 //   PREVIEW_URL=<url> <executor com as variáveis do ambiente dev no processo> \
-//     pnpm exec playwright test --project preview tests/e2e/preview/uat.spec.ts
+//     pnpm exec playwright test --project=preview tests/e2e/preview/uat.spec.ts
 //
 // Contas canário (uma por papel): habilitadas no início e desabilitadas no fim, também quando um passo
 // falha (`afterAll`). Nenhum e-mail sai. O texto-marcador escrito pela interface fica em
