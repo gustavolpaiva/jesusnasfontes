@@ -27,4 +27,4 @@ No discurso de despedida, Jesus consola os discípulos, diz quem é e explica co
 
 ## Para hoje
 
-Esta é a resposta direta à sua pergunta sobre proximidade. O que hoje mantém você ligado a ele, na prática?
+Esta é a resposta direta à pergunta sobre proximidade. O que hoje mantém você ligado a ele, na prática?

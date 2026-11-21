@@ -25,4 +25,4 @@ Fechamento da base histórica: o que a pesquisa dá por certo, o que discute e o
 
 ## Para hoje
 
-Paulo diz que, se Cristo não ressuscitou, a fé é vazia. Ele mesmo põe tudo nesse ponto. A partir de amanhã, você lê os relatos.
+Paulo diz que, se Cristo não ressuscitou, a fé é vazia. Ele mesmo põe tudo nesse ponto. A partir do próximo Estudo, você lê os relatos.

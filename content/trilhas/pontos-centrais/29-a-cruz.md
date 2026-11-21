@@ -9,15 +9,6 @@ grupo: Paixão e ressurreição
 leitura:
   - "Lc 23:26-49"
   - "Mc 15:33-39"
-divergencias:
-  - tema: "Em que sentido ele morreu “por nós” (todas as tradições afirmam que sim; explicam o como de formas diferentes)"
-    leituras:
-      - tradicao: catolica
-        resumo: "Costuma explicar a morte de Cristo como sacrifício."
-      - tradicao: ortodoxa
-        resumo: "Costuma explicar a morte de Cristo como vitória sobre o mal."
-      - tradicao: protestante
-        resumo: "Costuma explicar a morte de Cristo como substituição."
 ---
 
 ## O que acontece

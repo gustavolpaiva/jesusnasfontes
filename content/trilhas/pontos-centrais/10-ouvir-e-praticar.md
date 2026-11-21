@@ -26,4 +26,4 @@ O sermão termina com avisos: não julgar, pedir com confiança, a porta estreit
 
 ## Para hoje
 
-Escolha um único ensino dos dias 6 a 10 e pratique-o hoje, de forma verificável.
+Escolha um único ensino dos Estudos 6 a 10 e pratique-o hoje, de forma verificável.

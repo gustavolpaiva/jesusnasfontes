@@ -104,9 +104,9 @@ describe.skipIf(emNeon())("content/ completo: 8 + 30 + 89 e os 3 conjuntos de pe
         "select count(*)::int as n from acervo.afirmacao where estudo_id is null or texto_hash !~ '^[0-9a-f]{64}$'",
       ),
     ).toBe(0);
-    expect(await contar("select count(*)::int as n from conteudo.divergencia")).toBe(5);
-    // 17, 19, 26 e 29 têm as três tradições; 21 tem duas (a nota só nomeia católicos e protestantes).
-    expect(await contar("select count(*)::int as n from conteudo.divergencia_leitura")).toBe(14);
+    expect(await contar("select count(*)::int as n from conteudo.divergencia")).toBe(4);
+    // 17, 19 e 26 têm as três tradições; 21 tem duas (a nota só nomeia católicos e protestantes); a do "por nós" (29) foi removida.
+    expect(await contar("select count(*)::int as n from conteudo.divergencia_leitura")).toBe(11);
     // A Leitura contínua leva livro e capítulo nas colunas.
     expect(
       await contar(

@@ -155,7 +155,7 @@
   capitulo: 26
   titulo: Mateus 26
   ordem: 26
-  foco: "Unção em Betânia; a ceia; Getsêmani; prisão; negação de Pedro. Capítulo longo: divida em dois dias."
+  foco: "Unção em Betânia; a ceia; Getsêmani; prisão; negação de Pedro. Capítulo longo: divida em duas leituras."
 - slug: mateus-27
   livro: 40
   capitulo: 27
@@ -251,7 +251,7 @@
   capitulo: 14
   titulo: Marcos 14
   ordem: 42
-  foco: "Unção; a ceia; Getsêmani; o julgamento; a negação. Capítulo longo: divida em dois dias."
+  foco: "Unção; a ceia; Getsêmani; o julgamento; a negação. Capítulo longo: divida em duas leituras."
 - slug: marcos-15
   livro: 41
   capitulo: 15
@@ -269,7 +269,7 @@
   capitulo: 1
   titulo: Lucas 1
   ordem: 45
-  foco: "Prólogo; anúncios a Zacarias e a Maria; o Magnificat; nascimento de João. Capítulo longo: divida em dois dias."
+  foco: "Prólogo; anúncios a Zacarias e a Maria; o Magnificat; nascimento de João. Capítulo longo: divida em duas leituras."
 - slug: lucas-2
   livro: 42
   capitulo: 2
@@ -395,7 +395,7 @@
   capitulo: 22
   titulo: Lucas 22
   ordem: 66
-  foco: "A ceia; a oração no Monte das Oliveiras; prisão; negação. Capítulo longo: divida em dois dias."
+  foco: "A ceia; a oração no Monte das Oliveiras; prisão; negação. Capítulo longo: divida em duas leituras."
 - slug: lucas-23
   livro: 42
   capitulo: 23
@@ -443,7 +443,7 @@
   capitulo: 6
   titulo: João 6
   ordem: 74
-  foco: "Cinco mil alimentados; o pão da vida. Capítulo longo: divida em dois dias."
+  foco: "Cinco mil alimentados; o pão da vida. Capítulo longo: divida em duas leituras."
 - slug: joao-7
   livro: 43
   capitulo: 7
@@ -455,7 +455,7 @@
   capitulo: 8
   titulo: João 8
   ordem: 76
-  foco: "A mulher adúltera (7:53 a 8:11 falta nos manuscritos mais antigos); a luz do mundo; \"antes de Abraão, Eu Sou\"."
+  foco: "A mulher adúltera (Jo 7:53 a 8:11 falta nos manuscritos mais antigos); a luz do mundo; \"antes de Abraão, Eu Sou\"."
 - slug: joao-9
   livro: 43
   capitulo: 9

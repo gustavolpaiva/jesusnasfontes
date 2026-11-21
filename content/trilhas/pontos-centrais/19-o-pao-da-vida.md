@@ -13,9 +13,9 @@ divergencias:
   - tema: "Como ler a continuação do discurso do pão da vida"
     leituras:
       - tradicao: catolica
-        resumo: "Lê a continuação (6:51-58) como referência literal à Eucaristia."
+        resumo: "Lê a continuação (Jo 6:51-58) como referência literal à Eucaristia."
       - tradicao: ortodoxa
-        resumo: "Lê a continuação (6:51-58) como referência literal à Eucaristia."
+        resumo: "Lê a continuação (Jo 6:51-58) como referência literal à Eucaristia."
       - tradicao: protestante
         resumo: "Muitos protestantes leem como imagem da fé."
 ---
