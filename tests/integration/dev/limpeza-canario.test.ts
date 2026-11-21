@@ -7,6 +7,7 @@ import {
   ExecucaoCanario,
   ExecucaoEncerrada,
   type Fabrica,
+  METODOS_QUE_ESCREVEM,
 } from "../../../scripts/dev/execucao-canario";
 import {
   AlvoAMais,
@@ -422,6 +423,79 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
     expect(await consentimentos(id)).toBe(1);
     await b.finalizar(); // B segue dona e conclui normalmente
     expect(await consentimentos(id)).toBe(0);
+    expect(
+      await contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado = 'revogado'",
+        [e],
+      ),
+    ).toBe(1);
+  });
+
+  it("todo método público que escreve recusa sem a trava (a lista é enumerada, não assumida)", async () => {
+    // A lista de métodos públicos da classe é a de `METODOS_QUE_ESCREVEM`: método novo reprova aqui.
+    const publicos = Object.getOwnPropertyNames(ExecucaoCanario.prototype).filter(
+      (n) =>
+        n !== "constructor" &&
+        typeof Object.getOwnPropertyDescriptor(ExecucaoCanario.prototype, n)?.value === "function",
+    );
+    expect([...publicos].sort()).toEqual([...METODOS_QUE_ESCREVEM].sort());
+
+    const e = novoEmail("sem-trava");
+    const { x: a, id, derrubar } = await prepararComTravaDerrubavel(e);
+    const sessaoDeA = await a.criarSessao("estudante");
+    await derrubar(); // A perde a conexão da trava
+    const b = new ExecucaoCanario(fabricaLocal());
+    await b.preparar(["estudante"]); // B detém a conta
+    const sessaoDeB = await b.criarSessao("estudante");
+    await darAceite(id, "de-B");
+    const sessoes = () => contar("select count(*) as n from auth.session where user_id = $1", [id]);
+    const convitesAtivos = () =>
+      contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado <> 'revogado'",
+        [e],
+      );
+    expect(await sessoes()).toBe(2);
+    // Um chamador por método escritor; o tipo exige todos, a ordem põe `finalizar` por último.
+    const chamadas: Record<(typeof METODOS_QUE_ESCREVEM)[number], () => Promise<unknown>> = {
+      preparar: () => new ExecucaoCanario(fabricaLocal()).preparar(["estudante"]),
+      criarSessao: () => a.criarSessao("estudante"),
+      encerrarSessao: () => a.encerrarSessao(sessaoDeA.id),
+      finalizar: () => a.finalizar(),
+    };
+    for (const metodo of METODOS_QUE_ESCREVEM) {
+      await expect(chamadas[metodo](), metodo).rejects.toThrow(/OutraExecucao/);
+      // Nada foi escrito: as duas sessões, o convite ativo e a linha de B continuam.
+      expect(await sessoes(), metodo).toBe(2);
+      expect(await convitesAtivos(), metodo).toBe(1);
+      expect(await consentimentos(id), metodo).toBe(1);
+    }
+    expect(
+      await contar("select count(*) as n from auth.session where id = $1", [sessaoDeB.id]),
+    ).toBe(1);
+    await b.finalizar();
+  });
+
+  it("queda ociosa da conexão da trava não vira exceção sem dono: marca a trava como perdida e o fim a retoma", async () => {
+    const e = novoEmail("queda");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real-queda");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const base = fabricaLocal();
+    let pid = 0;
+    const x = new ExecucaoCanario({
+      ...base,
+      // Conexão da trava SEM nenhum ouvinte de `error` posto pelo teste: quem ouve é a execução.
+      trava: async () => {
+        const c = await conexaoDireta();
+        pid = (c.cliente as unknown as { processID: number }).processID;
+        return c;
+      },
+    });
+    await x.preparar(["estudante"]);
+    usuarios.push(e);
+    expect(x.registro.travaPerdida).toBe(false);
+    await dono.query("select pg_terminate_backend($1)", [pid]);
+    await vi.waitFor(() => expect(x.registro.travaPerdida).toBe(true), { timeout: 5000 });
+    await x.finalizar(); // retoma (ninguém mais a detém) e conclui
     expect(
       await contar(
         "select count(*) as n from admin.convite where email_norm = $1 and estado = 'revogado'",
