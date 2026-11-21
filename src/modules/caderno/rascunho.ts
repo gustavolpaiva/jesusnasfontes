@@ -7,9 +7,10 @@ import { estaVazio, semNulo } from "./limite";
 // conta, `apagarRascunhosDeOutros` ao abrir um Estudo.
 //
 // DUAS REGRAS, e só elas (cada regra de "quem apaga qual chave" que se acrescentava abria outro caso):
-//  1. Cada carga de página escreve SÓ na sua chave, que leva um id nascido em memória naquela carga (nada de
-//     `sessionStorage`: recarregar ou duplicar a aba dá um id novo, então duas abas nunca dividem uma chave e
-//     o rascunho de antes de recarregar passa a ser, para a página nova, um rascunho como os outros).
+//  1. Cada MONTAGEM do editor escreve SÓ na sua chave, que leva um id nascido em memória naquela montagem (nada
+//     de `sessionStorage` nem de id por carga de página: recarregar, duplicar a aba ou navegar para outro
+//     Estudo e voltar dá um id novo, então nem duas abas nem o editor de antes e o de agora dividem uma chave,
+//     e o rascunho de uma montagem anterior passa a ser, para a nova, um rascunho como os outros).
 //  2. Apagar é SEMPRE comparar: `apagarRascunhosIguais` relê cada chave do armazenamento no instante de apagar
 //     e só remove a que tem o MESMO texto que se acabou de confirmar no servidor (ou de descartar de propósito).
 //     Texto igual ao que está guardado no servidor não tem o que perder; texto diferente, de qualquer aba,
@@ -29,9 +30,6 @@ export type Rascunho = {
   salvoEm: number;
 };
 
-// O id desta carga de página: só em memória.
-const abaDestaCarga = typeof crypto === "undefined" ? "" : crypto.randomUUID();
-
 const base = (estudanteId: string, estudoId: string) => `${PREFIXO}${estudanteId}:${estudoId}:`;
 
 function armazem(): Storage | null {
@@ -42,9 +40,15 @@ function armazem(): Storage | null {
   }
 }
 
-export function guardarRascunho(estudanteId: string, estudoId: string, rascunho: Rascunho): void {
+/** `dono`: o id desta montagem do editor (uma chave por montagem). */
+export function guardarRascunho(
+  estudanteId: string,
+  estudoId: string,
+  dono: string,
+  rascunho: Rascunho,
+): void {
   try {
-    armazem()?.setItem(`${base(estudanteId, estudoId)}${abaDestaCarga}`, JSON.stringify(rascunho));
+    armazem()?.setItem(`${base(estudanteId, estudoId)}${dono}`, JSON.stringify(rascunho));
   } catch {
     // Cota cheia ou acesso negado: o texto segue na tela e no servidor; só o rascunho local falha.
   }

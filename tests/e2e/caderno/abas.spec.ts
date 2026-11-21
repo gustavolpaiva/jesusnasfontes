@@ -206,3 +206,57 @@ test("a aba que adota o rascunho de outra e o confirma não apaga o que a dona o
   await expect(painel(b)).toBeVisible();
   await expect(painel(b).getByText(v2)).toBeVisible();
 });
+
+test("a resposta de um envio que chega depois de o editor sair da tela não mexe no rascunho do editor novo do mesmo Estudo", async ({
+  page,
+}) => {
+  const id = await entrar(page);
+  const estudo = "/estudos/batismo-e-tentacao";
+  // O PRIMEIRO envio fica seguro a caminho (resposta controlada); todos os seguintes são cortados, então o
+  // texto novo só existe no rascunho do aparelho.
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  let envios = 0;
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      envios += 1;
+      if (envios === 1) {
+        await portao;
+        await rota.continue();
+      } else await rota.abort("connectionfailed");
+    } else await rota.continue();
+  });
+  await page.goto(estudo);
+  await esperarHidratado(campo(page));
+  const t1 = `T1-${randomUUID()}`;
+  const t2 = `T2-${randomUUID()}`;
+  const t3 = `T3-${randomUUID()}`;
+  await campo(page).fill(t1);
+  await expect(estado(page)).toHaveText("Salvando…");
+  await campo(page).fill(t2);
+
+  // Navega para outro Estudo (sem recarregar a página) e volta: o editor do primeiro Estudo é outro.
+  await page.getByRole("link", { name: "Anterior" }).click();
+  await expect(page).toHaveURL(/\/estudos\/o-nascimento$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/estudos\/batismo-e-tentacao$/);
+  await esperarHidratado(campo(page));
+  await campo(page).fill(t3);
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+
+  // A resposta do envio antigo chega AGORA, ao editor que já não existe.
+  liberar();
+  await page.waitForTimeout(1500);
+  expect(
+    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(t1);
+
+  // Recarregar antes do próximo envio: o T3 não se perdeu (o servidor tem o T1, então vem como conflito).
+  await page.reload();
+  await esperarHidratado(campo(page));
+  await expect(painel(page)).toBeVisible();
+  await expect(painel(page).getByText(t3)).toBeVisible();
+});

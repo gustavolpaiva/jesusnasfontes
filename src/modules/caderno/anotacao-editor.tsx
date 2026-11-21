@@ -57,6 +57,11 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
   const [estado, setEstado] = useState<EstadoDeSalvamento>("ocioso");
   const [conflito, setConflito] = useState<Conflito | null>(null);
 
+  // Uma chave de rascunho por MONTAGEM do editor, e uma geração que muda a cada montagem e a cada desmontagem:
+  // toda continuação assíncrona (resposta de envio, temporizador, conferência do servidor) guarda a geração em
+  // que nasceu e, se ela já não é a de agora, não grava rascunho, não muda estado e não agenda nada.
+  const [donoDoRascunho] = useState(() => crypto.randomUUID());
+  const geracao = useRef(0);
   const textoRef = useRef(texto);
   const baseRef = useRef<Base>(baseDe(inicial));
   const conflitoRef = useRef(false);
@@ -83,13 +88,13 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       return;
     }
     const base = baseRef.current;
-    guardarRascunho(estudanteId, estudoId, {
+    guardarRascunho(estudanteId, estudoId, donoDoRascunho, {
       corpo: textoRef.current,
       versaoBase: base.versao,
       baseId: base.id,
       salvoEm: Date.now(),
     });
-  }, [estudanteId, estudoId, sujo]);
+  }, [donoDoRascunho, estudanteId, estudoId, sujo]);
 
   const limparTemporizador = useCallback(() => {
     if (temporizador.current) clearTimeout(temporizador.current);
@@ -103,14 +108,16 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
   const agendar = useCallback(
     (ms: number) => {
       limparTemporizador();
+      const nascida = geracao.current;
       temporizador.current = setTimeout(() => {
-        void enviarRef.current();
+        if (nascida === geracao.current) void enviarRef.current();
       }, ms);
     },
     [limparTemporizador],
   );
 
   const enviar = useCallback(async () => {
+    const nascida = geracao.current;
     limparTemporizador();
     if (trocadaRef.current || conflitoRef.current || !sujo()) return;
     if (textoRef.current.length > ANOTACAO_MAX) {
@@ -140,6 +147,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       });
     } catch {
       // A chamada nem chegou (ou voltou quebrada): o texto segue neste aparelho.
+      if (nascida !== geracao.current) return;
       emVooRef.current = false;
       if (typeof navigator !== "undefined" && !navigator.onLine) setEstado("offline");
       else {
@@ -148,6 +156,8 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       }
       return;
     }
+    // O editor que enviou já saiu da tela (outro Estudo, ou desmontado): a resposta não é mais dele.
+    if (nascida !== geracao.current) return;
     emVooRef.current = false;
     const digitouDepois = textoRef.current !== enviado;
 
@@ -209,9 +219,11 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     if (trocadaRef.current || emVooRef.current || conflitoRef.current || sujo()) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const antes = textoRef.current;
+    const nascida = geracao.current;
     let atual: AnotacaoDoEstudo | null;
     try {
       const lida = await lerAnotacao(estudoId, estudanteId);
+      if (nascida !== geracao.current) return;
       if (!lida.ok) {
         trocadaRef.current = true;
         setEstado("sessao-trocada");
@@ -235,6 +247,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
   // conflito (o servidor andou depois dele). Sem rascunho, confere se a página não está velha.
   // biome-ignore lint/correctness/useExhaustiveDependencies: roda uma vez por Estudo e por conta; o resto vive em refs
   useEffect(() => {
+    geracao.current += 1;
     apagarRascunhosDeOutros(estudanteId);
     const base = baseRef.current;
     // Qual rascunho a página recupera: dos rascunhos desta conta para este Estudo (de qualquer aba, inclusive
@@ -262,7 +275,10 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     } else {
       void conferirServidor();
     }
-    return limparTemporizador;
+    return () => {
+      geracao.current += 1;
+      limparTemporizador();
+    };
   }, [estudanteId, estudoId]);
 
   // Reenvio quando a conexão volta e quando a aba volta a ser vista; ao sair da aba, envia o que falta.
