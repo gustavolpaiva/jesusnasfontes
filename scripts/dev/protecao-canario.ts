@@ -103,3 +103,14 @@ export async function conferirTetoDeSessoes(
     );
   }
 }
+
+// A contagem prévia pode ficar velha (um login entre ela e o DELETE): o teto vale também sobre o que o PRÓPRIO DELETE
+// apagou (rowCount, como na limpeza). Chamado dentro da transação: o erro faz o rollback e nada é apagado.
+export function conferirApagadasPeloDelete(rowCount: number | null): void {
+  const n = rowCount ?? 0;
+  if (n > TETO_DE_SESSOES_NO_DESABILITAR) {
+    throw new Error(
+      `TetoExcedido: o DELETE apagou ${n} sessões, acima do teto (${TETO_DE_SESSOES_NO_DESABILITAR}); revertido, nada foi apagado`,
+    );
+  }
+}

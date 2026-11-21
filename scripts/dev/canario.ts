@@ -10,7 +10,12 @@ import {
 import { lerEmail, normalizarEmail } from "../../src/modules/identidade/normalizar-email";
 import { recuperarSegundoFator } from "../admin/recuperar-segundo-fator";
 import { conferirAmbienteDev, NaoMedido } from "./conferir-entrada";
-import { conferirContaCanario, conferirTetoDeSessoes, RecusaCanario } from "./protecao-canario";
+import {
+  conferirApagadasPeloDelete,
+  conferirContaCanario,
+  conferirTetoDeSessoes,
+  RecusaCanario,
+} from "./protecao-canario";
 
 // pnpm exec tsx scripts/dev/canario.ts <habilitar|desabilitar|estado> [--papel estudante|admin] [--enviar]
 //
@@ -146,10 +151,11 @@ export async function desabilitar(
        where email_norm = $1 and estado <> 'revogado'`,
       [email],
     );
-    await tx.query(
+    const apagadas = await tx.query(
       `delete from auth.session where user_id in (select id from auth."user" where email = $1)`,
       [email],
     );
+    conferirApagadasPeloDelete(apagadas.rowCount);
     await tx.query("commit");
   } catch (erro) {
     await tx.query("rollback").catch(() => undefined);

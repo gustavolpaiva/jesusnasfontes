@@ -5,7 +5,11 @@ import {
 } from "../../src/modules/identidade/limite";
 import { normalizarEmail } from "../../src/modules/identidade/normalizar-email";
 import { type EstadoCanario, lerEstado, type Papel, type ResultadoDesabilitar } from "./canario";
-import { conferirContaCanario, conferirTetoDeSessoes } from "./protecao-canario";
+import {
+  conferirApagadasPeloDelete,
+  conferirContaCanario,
+  conferirTetoDeSessoes,
+} from "./protecao-canario";
 
 // Escritas de habilitar e desabilitar uma conta canário, feitas NO CLIENTE que o chamador entrega: a
 // `ExecucaoCanario` entrega a própria conexão que segura a trava de sessão, então escrita e trava vivem
@@ -59,7 +63,9 @@ async function zerarSegundoFatorDentro(c: Cliente, email: string): Promise<void>
        set geracao = admin.segundo_fator_geracao.geracao + 1, concedido_em = null`,
     [alvo.id],
   );
-  await c.query("delete from auth.session where user_id = $1", [alvo.id]);
+  conferirApagadasPeloDelete(
+    (await c.query("delete from auth.session where user_id = $1", [alvo.id])).rowCount,
+  );
   await c.query("delete from admin.tentativa where chave in ($1, $2)", [
     chaveSegundoFatorDaConta(alvo.id),
     chaveDaCriacaoDoSegundoFator(alvo.id),
@@ -135,10 +141,11 @@ export async function desabilitarNoCliente(
        where email_norm = $1 and estado <> 'revogado'`,
       [email],
     );
-    await c.query(
+    const apagadas = await c.query(
       'delete from auth.session where user_id in (select id from auth."user" where email = $1)',
       [email],
     );
+    conferirApagadasPeloDelete(apagadas.rowCount);
     // As verificações pendentes (código e link) do endereço, como `apagarVerificacoesDe`.
     await c.query(
       `delete from auth.verification

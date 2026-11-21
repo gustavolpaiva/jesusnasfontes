@@ -202,6 +202,85 @@ describe.skipIf(emNeon())("canario: habilitar e desabilitar, medidos", () => {
     }
   });
 
+  it("login concorrente entre a contagem e o DELETE: o teto vale sobre o que o DELETE apagou, e reverte (revisão da fase, plano 01-20)", async () => {
+    const { habilitar, desabilitar } = await import("../../../scripts/dev/canario");
+    const { desabilitarNoCliente } = await import("../../../scripts/dev/escritas-canario");
+    // Embrulha um cliente: antes do DELETE das sessões, outra conexão cria mais uma e confirma (o login concorrente).
+    const comLogin = <T extends { query: (t: string, v?: unknown[]) => Promise<unknown> }>(
+      real: T,
+      userId: string,
+      token: string,
+    ): T =>
+      new Proxy(real, {
+        get(alvo, prop, receptor) {
+          if (prop === "query") {
+            return async (texto: string, valores?: unknown[]) => {
+              if (/^\s*delete from auth\.session/.test(texto)) {
+                await obterPool().query(
+                  "insert into auth.session (user_id, token, expires_at) values ($1, $2, now() + interval '1 day')",
+                  [userId, token],
+                );
+              }
+              return alvo.query(texto, valores);
+            };
+          }
+          if (prop === "connect") {
+            return async () =>
+              comLogin(
+                await (alvo as never as { connect: () => Promise<T> }).connect(),
+                userId,
+                `${token}-tx`,
+              );
+          }
+          const v = Reflect.get(alvo, prop, receptor);
+          return typeof v === "function" ? v.bind(alvo) : v;
+        },
+      });
+    for (const [caminho, papel] of [
+      ["cli", "estudante"],
+      ["conexao", "estudante"],
+      ["cli", "admin"],
+      ["conexao", "admin"],
+    ] as const) {
+      const e = email(`corrida-${caminho}-${papel}`, papel);
+      await habilitar(obterPool(), e, papel, false);
+      const [u] = await obterDb().select().from(usuario).where(eq(usuario.email, e));
+      if (!u) throw new Error("usuário do teste não foi criado");
+      ids.push(u.id);
+      await obterPool().query(
+        `insert into auth.session (user_id, token, expires_at)
+         select $1, 'corrida-' || $2 || '-' || g, now() + interval '1 day' from generate_series(1, 50) g`,
+        [u.id, `${caminho}-${papel}-${rodada}`],
+      );
+      const sessoes = async () =>
+        Number(
+          (
+            await obterPool().query("select count(*) as n from auth.session where user_id = $1", [
+              u.id,
+            ])
+          ).rows[0].n,
+        );
+      expect(await sessoes()).toBe(50); // a contagem prévia passa (50 não passa do teto de 50)
+      const token = `login-${caminho}-${papel}-${rodada}`;
+      let alvo: Promise<unknown>;
+      let liberar: (() => void) | undefined;
+      if (caminho === "cli") {
+        alvo = desabilitar(comLogin(obterPool(), u.id, token) as never, e, papel);
+      } else {
+        // O caminho da conexão da trava recebe UMA conexão (begin, delete e rollback na mesma).
+        const cliente = await obterPool().connect();
+        liberar = () => cliente.release();
+        alvo = desabilitarNoCliente(comLogin(cliente, u.id, token) as never, e, papel);
+      }
+      try {
+        await expect(alvo).rejects.toThrow(/TetoExcedido/);
+      } finally {
+        liberar?.();
+      }
+      expect(await sessoes()).toBe(51); // o DELETE foi revertido: nada foi apagado, só entrou o login
+    }
+  });
+
   it("recusa banco que não é o de dev (o mesmo guarda do conferidor)", async () => {
     const { conferirAmbienteDev, NaoMedido } = await import(
       "../../../scripts/dev/conferir-entrada"
