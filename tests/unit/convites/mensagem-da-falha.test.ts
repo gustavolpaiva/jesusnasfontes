@@ -19,7 +19,18 @@ describe("mensagemDaFalha", () => {
     expect(m?.texto).toBe("Não conseguimos concluir agora. Tente de novo.");
   });
 
-  it("sinal de navegação do Next (tem digest) passa adiante: devolve nulo", () => {
+  it("erro comum com digest (em produção o React põe digest em qualquer erro) é falha, não sinal de navegação", () => {
+    const comum = Object.assign(new Error("falha do banco"), { digest: "123456789" });
+    expect(mensagemDaFalha(comum, true)?.tipo).toBe("erro");
+  });
+
+  it("sinal de navegação do Next (redirecionamento, não encontrado) passa adiante: devolve nulo", () => {
+    for (const digest of ["NEXT_NOT_FOUND", "NEXT_HTTP_ERROR_FALLBACK;404"]) {
+      expect(mensagemDaFalha(Object.assign(new Error("x"), { digest }), true), digest).toBeNull();
+    }
+  });
+
+  it("(sinal de redirecionamento) passa adiante: devolve nulo", () => {
     const sinal = Object.assign(new Error("NEXT_REDIRECT"), {
       digest: "NEXT_REDIRECT;replace;/entrar;307;",
     });

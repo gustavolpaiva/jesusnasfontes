@@ -13,11 +13,22 @@ export const SEM_CONEXAO: Mensagem = {
 const FALHA: Mensagem = { tipo: "erro", texto: "Não conseguimos concluir agora. Tente de novo." };
 
 // A chamada da ação nem chegou, ou o servidor respondeu com falha de transporte (503). Devolve a mensagem a mostrar, ou
-// `null` quando o erro é um sinal de navegação do Next (redirecionamento, não encontrado: trazem `digest`), que precisa
-// subir. Antes, só "sem conexão" era tratada e todo o resto escapava do tratador assíncrono sem mensagem alguma.
+// `null` quando o erro é um sinal de navegação do Next (redirecionamento, não encontrado), que precisa subir. Antes, só "sem conexão" era tratada e todo o resto escapava do tratador assíncrono sem mensagem alguma.
+// Redirecionamento e "não encontrado" do Next trazem um digest com esses prefixos. Em produção o React põe digest em
+// QUALQUER erro de servidor, então a presença do campo não distingue: só o valor.
+function ehSinalDeNavegacao(erro: unknown): boolean {
+  const digest = (erro as { digest?: unknown } | null)?.digest;
+  return (
+    typeof digest === "string" &&
+    (digest.startsWith("NEXT_REDIRECT") ||
+      digest.startsWith("NEXT_HTTP_ERROR_FALLBACK") ||
+      digest === "NEXT_NOT_FOUND")
+  );
+}
+
 export function mensagemDaFalha(erro: unknown, online: boolean): Mensagem | null {
   if (!online) return SEM_CONEXAO;
-  if (erro instanceof Error && "digest" in erro) return null;
+  if (ehSinalDeNavegacao(erro)) return null;
   return FALHA;
 }
 
