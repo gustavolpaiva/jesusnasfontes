@@ -91,27 +91,26 @@ export class ExecucaoCanario {
       if (!email) throw new RecusaCanario(`INDETERMINADO: o canário ${papel} não está no ambiente`);
       emails.set(papel, email);
     }
-    // 1. A proteção contra conta real, para todas as contas, antes de qualquer outra coisa.
-    const ids = new Map<Papel, string | null>();
+    // 1. A proteção contra conta real, para todas as contas, antes de qualquer outra coisa. Aqui NADA
+    //    decide a pré-condição: o id e a existência da conta só valem lidos com a trava na mão.
     await this.comDono(async (dono) => {
-      for (const papel of ordenados) {
-        const { usuarioId } = await conferirContaCanario(dono, emails.get(papel) as string, papel);
-        ids.set(papel, usuarioId);
-      }
+      for (const papel of ordenados)
+        await conferirContaCanario(dono, emails.get(papel) as string, papel);
     });
     // 2. A trava de cada conta (uma execução por vez), em ordem fixa.
     this.trava = await this.fabrica.trava();
+    const cliente = this.trava.cliente;
     for (const papel of ordenados) {
       const email = emails.get(papel) as string;
-      await tomarTrava(this.trava.cliente, email);
+      await tomarTrava(cliente, email);
       this.travados.push(email);
     }
-    // 3. A conta começa vazia. Com linha prévia, aborta antes de escrever e diz quantas.
-    await this.comDono(async (dono) => {
-      for (const papel of ordenados) {
-        const id = ids.get(papel);
-        if (!id) continue; // conta que ainda não existe não tem linha
-        const { total, porTabela } = await contarLinhasPrivadas(dono, id);
+    // 3. COM a trava, na MESMA conexão: o id (e se a conta existe) e a contagem pelo catálogo. A conta
+    //    começa vazia; conta inexistente tem zero linhas; com linha prévia, aborta antes de escrever.
+    const exigirVazia = async (papel: Papel, email: string): Promise<string | null> => {
+      const { usuarioId } = await conferirContaCanario(cliente, email, papel);
+      if (usuarioId !== null) {
+        const { total, porTabela } = await contarLinhasPrivadas(cliente, usuarioId);
         if (total > 0) {
           throw new RecusaCanario(
             `PreCondicao: a conta canário ${papel} já tem ${total} linha(s) privada(s) (${Object.entries(
@@ -122,19 +121,21 @@ export class ExecucaoCanario {
           );
         }
       }
-    });
+      return usuarioId;
+    };
+    for (const papel of ordenados) await exigirVazia(papel, emails.get(papel) as string);
     // 4. Habilita. A conta entra no registro ANTES: se algo falhar daqui em diante, o fim desabilita.
+    //    Conta que passou a existir agora (ou que ganhou linha no intervalo) é lida e CONTADA de novo,
+    //    ainda com a trava, antes de ser tratada como desta execução.
     for (const papel of ordenados) {
       const email = emails.get(papel) as string;
       const conta: Conta = { papel, email, usuarioId: null };
       this.habilitados.set(papel, conta);
       const { estado } = await habilitar(this.fabrica.pool(), email, papel, false);
       if (!estado.entradaPermitida) throw new Error(`o canário ${papel} não ficou habilitado`);
-      await this.comDono(async (dono) => {
-        const { usuarioId } = await conferirContaCanario(dono, email, papel);
-        if (!usuarioId) throw new Error(`o canário ${papel} não tem conta depois de habilitar`);
-        conta.usuarioId = usuarioId;
-      });
+      const usuarioId = await exigirVazia(papel, email);
+      if (!usuarioId) throw new Error(`o canário ${papel} não tem conta depois de habilitar`);
+      conta.usuarioId = usuarioId;
     }
     this.preparado = true;
   }
@@ -205,7 +206,12 @@ export class ExecucaoCanario {
             throw new RecusaCanario("RecusaDeLimpeza: a trava da conta não está mais na mão");
           }
           await this.comDono(async (dono) => {
-            await conferirContaCanario(dono, conta.email, conta.papel);
+            const lido = await conferirContaCanario(dono, conta.email, conta.papel);
+            if (lido.usuarioId !== usuarioId) {
+              throw new RecusaCanario(
+                "RecusaDeLimpeza: a conta canário não é mais a da preparação",
+              );
+            }
             await limparTudo(dono, usuarioId);
             const resto = await contarLinhasPrivadas(dono, usuarioId);
             if (resto.total !== 0) throw new Error("sobrou linha privada depois da limpeza");

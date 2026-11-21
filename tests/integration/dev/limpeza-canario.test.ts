@@ -398,15 +398,25 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
     process.env.JNF_CANARIO_ADMIN_EMAIL = eAdmin;
     usuarios.push(e, eAdmin);
     const base = fabricaLocal();
-    let chamadas = 0;
+    // As conexões que decidem são a da trava: a falha vem na 6ª leitura do marcador dev dela (2 travas,
+    // 2 conferências da pré-condição, o Admin depois de habilitar e o estudante depois de habilitar).
     const x = new ExecucaoCanario({
       ...base,
-      dono: async () => {
-        chamadas++;
-        // As contas vão em ordem alfabética (admin, estudante). 1ª: proteção; 2ª: pré-condição; 3ª: o Admin
-        // depois de habilitar (ganha id); 4ª: o estudante (falha).
-        if (chamadas === 4) throw new Error("falha simulada na preparação");
-        return base.dono();
+      trava: async () => {
+        const t = await base.trava();
+        let ambientes = 0;
+        const query = t.cliente.query.bind(t.cliente) as (...a: unknown[]) => Promise<unknown>;
+        return {
+          ...t,
+          cliente: {
+            query: async (sql: string, p?: unknown[]) => {
+              if (/acervo\.ambiente/.test(sql) && ++ambientes === 6) {
+                throw new Error("falha simulada na preparação");
+              }
+              return query(sql, p);
+            },
+          } as never,
+        };
       },
     });
     await expect(x.preparar(["estudante", "admin"])).rejects.toThrow(/falha simulada/);
@@ -454,6 +464,76 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
     // A execução recusada soltou a trava e não tocou em nada: a linha segue lá (o dono limpa à mão).
     await expect(tomarTrava((await conexaoDireta()).cliente, e)).resolves.toBeUndefined();
     expect(await consentimentos(id)).toBe(1);
+  });
+
+  it("conta criada por outra execução entre a proteção e a trava: a pré-condição lê DEPOIS da trava e aborta", async () => {
+    const e = novoEmail("corrida-id");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real13");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const base = fabricaLocal();
+    let id = "";
+    const x = new ExecucaoCanario({
+      ...base,
+      // No intervalo, outra execução cria a conta e deixa um dado: a proteção (já lida) via "conta inexistente".
+      trava: async () => {
+        id = await criarConta(e);
+        await darAceite(id, "da-outra-execucao");
+        return base.trava();
+      },
+    });
+    await expect(x.preparar(["estudante"])).rejects.toThrow(/PreCondicao.*1 linha/);
+    expect(x.registro.preparado).toBe(false);
+    await x.finalizar();
+    expect(await consentimentos(id)).toBe(1); // o dado da outra execução NÃO foi apagado
+  });
+
+  it("conta que ganha linha depois de habilitar é recontada com a trava: aborta e nada é apagado", async () => {
+    const e = novoEmail("corrida-depois");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real14");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const base = fabricaLocal();
+    const x = new ExecucaoCanario({
+      ...base,
+      trava: async () => {
+        const t = await base.trava();
+        let ambientes = 0;
+        const query = t.cliente.query.bind(t.cliente) as (...a: unknown[]) => Promise<unknown>;
+        return {
+          ...t,
+          cliente: {
+            query: async (sql: string, p?: unknown[]) => {
+              // 1ª leitura: a trava; 2ª: a pré-condição; 3ª: depois de habilitar. Antes dela, entra um dado.
+              if (/acervo\.ambiente/.test(sql) && ++ambientes === 3) {
+                const id = (
+                  await dono.query<{ id: string }>(
+                    'select id::text as id from auth."user" where email = $1',
+                    [e],
+                  )
+                ).rows[0]?.id as string;
+                await darAceite(id, "entrou-no-intervalo");
+              }
+              return query(sql, p);
+            },
+          } as never,
+        };
+      },
+    });
+    usuarios.push(e);
+    await expect(x.preparar(["estudante"])).rejects.toThrow(/PreCondicao.*1 linha/);
+    expect(x.registro.preparado).toBe(false);
+    await x.finalizar();
+    const id = (
+      await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
+        e,
+      ])
+    ).rows[0]?.id as string;
+    expect(await consentimentos(id)).toBe(1);
+    expect(
+      await contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado = 'revogado'",
+        [e],
+      ),
+    ).toBe(1); // o fim desabilitou o que habilitou
   });
 
   it("instância de uso único: depois de finalizar, preparar, finalizar e sessão lançam erro e nada é apagado", async () => {

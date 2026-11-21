@@ -107,21 +107,39 @@ test("Estudante canário: aviso, Trilhas 8/30/89, Estudo com Afirmação e Diver
       await page.screenshot({ path: `${CAPTURAS}/02-estudo-390.png`, fullPage: true });
     });
 
-    await test.step("Ouvir: sem voz no navegador de teste mostra a mensagem; com voz, começa a ler", async () => {
+    await test.step("Ouvir: sem voz em português mostra a mensagem de indisponibilidade; com voz, começa a ler", async () => {
       const controle = page.locator('[data-ouvir="estudo"]');
       const principal = controle.locator("button").first();
       await esperarHidratado(principal);
-      await principal.click();
       const semVoz = controle.getByText(
         /Seu aparelho não tem voz em português|Este navegador não lê/,
       );
-      const lendo = principal.filter({ hasText: "Pausar" });
-      await expect(semVoz.or(lendo)).toBeVisible({ timeout: 10_000 });
-      const caminho = (await lendo.isVisible())
-        ? "com voz do navegador (começou a ler)"
-        : "mensagem de sem voz";
-      console.log(`ouvir | ${caminho}`);
-      if (await lendo.isVisible()) await principal.click();
+      // Primeiro o estado: o botão sem voz é `aria-disabled` e clicar nele não prova nada. Espera sair de
+      // "procurando voz" para "mensagem de sem voz" ou "pronto".
+      await expect
+        .poll(
+          async () =>
+            (await semVoz.isVisible())
+              ? "sem-voz"
+              : (await principal.getAttribute("aria-disabled")) === "true"
+                ? "procurando"
+                : "pronto",
+          { timeout: 10_000 },
+        )
+        .not.toBe("procurando");
+      if (await semVoz.isVisible()) {
+        // Ramo 1 (PASSOU): sem voz, a mensagem de indisponibilidade é o resultado esperado.
+        await expect(principal).toHaveAttribute("aria-disabled", "true");
+        console.log(
+          "ouvir | ramo sem voz: mensagem de indisponibilidade mostrada, botão desabilitado",
+        );
+      } else {
+        // Ramo 2 (PASSOU): há voz, o clique começa a ler.
+        await principal.click();
+        await expect(principal.filter({ hasText: "Pausar" })).toBeVisible({ timeout: 10_000 });
+        console.log("ouvir | ramo com voz do navegador: começou a ler");
+        await principal.click();
+      }
     });
 
     await test.step("check-in no Estudo", async () => {
