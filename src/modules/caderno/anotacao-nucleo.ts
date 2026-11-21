@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { comEstudante, type Tx } from "@/db/com-estudante";
 import { ErroDeBanco } from "@/db/erro-banco";
 import { anotacao, anotacaoEscritor } from "@/db/schema/fundacao";
@@ -28,8 +28,9 @@ import { ANOTACAO_MAX, estaVazio, semNulo } from "./limite";
 // sem data, o número do último envio dele que foi processado e, se o último ato dele foi apagar, o id da linha
 // que apagou; a linha da Anotação guarda quem a gravou por último. Três regras, e só elas:
 //  1. Envio de um escritor com número igual ou menor que o último processado DELE é velho: recusado.
-//  2. Envio do escritor que gravou a linha por último (ou que a apagou, se ela não existe mais) continua o que
-//     ele mesmo fez: aceito mesmo com a base velha (a resposta do envio anterior se perdeu).
+//  2. Envio do escritor que gravou a linha por último (ou que a apagou, se ela não existe mais E nenhum outro
+//     escritor da conta escreveu desde então) continua o que ele mesmo fez: aceito mesmo com a base velha (a
+//     resposta do envio anterior se perdeu).
 //  3. Qualquer outro envio só grava sobre a base que a tela mostrava; senão é o conflito, com o que o servidor
 //     tem. Texto igual ao do servidor (inclusive vazio sem linha) não é conflito: nada a decidir.
 // O navegador nunca adivinha se um envio chegou: manda o estado de agora com o número seguinte, e o servidor
@@ -177,6 +178,22 @@ export async function salvarAnotacaoDoEstudo(
             set: { seq: entrada.seq, ...(apagou === undefined ? {} : { apagou }) },
           });
       };
+      // Uma escrita deste escritor (gravar ou apagar) tira dos OUTROS escritores da conta a autorização de continuar
+      // o que apagaram: depois dela, "a linha que eu apaguei" já não diz que ninguém mexeu. Vale para todos os
+      // Estudos da conta (a tabela não sabe o Estudo, de propósito): no pior caso, um conflito a mais, nunca um
+      // texto ressuscitado.
+      const invalidarOutros = async () => {
+        await tx
+          .update(anotacaoEscritor)
+          .set({ apagou: null })
+          .where(
+            and(
+              eq(anotacaoEscritor.estudanteId, estudanteId),
+              ne(anotacaoEscritor.montagem, entrada.montagem),
+              isNotNull(anotacaoEscritor.apagou),
+            ),
+          );
+      };
 
       const baseBate = atual
         ? entrada.baseId === atual.id && entrada.versaoBase === atual.versao
@@ -207,6 +224,7 @@ export async function salvarAnotacaoDoEstudo(
               eq(anotacao.versao, atual.versao),
             ),
           );
+        await invalidarOutros();
         await registrar(atual.id);
         return { ok: true, anotacao: null };
       }
@@ -223,6 +241,7 @@ export async function salvarAnotacaoDoEstudo(
           })
           .returning(colunas);
         if (!nova) throw new Error("Anotação não gravada.");
+        await invalidarOutros();
         await registrar(null);
         return { ok: true, anotacao: paraTela(nova) };
       }
@@ -243,6 +262,7 @@ export async function salvarAnotacaoDoEstudo(
         )
         .returning(colunas);
       if (!nova) throw new Error("Anotação não atualizada.");
+      await invalidarOutros();
       await registrar(null);
       return { ok: true, anotacao: paraTela(nova) };
     });

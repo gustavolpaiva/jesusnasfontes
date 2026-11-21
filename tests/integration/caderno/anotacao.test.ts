@@ -420,6 +420,28 @@ describe.skipIf(emNeon())("salvar e ler a Anotação", () => {
     expect(await linhasReais(b)).toBe(0);
   });
 
+  it("quem apagou não continua depois que outro escritor mexeu: A apaga (resposta perdida), B cria e apaga outra, o reenvio de A é conflito (rodada 13)", async () => {
+    const a = await novaConta();
+    const m = escritor();
+    const v1 = aceito(await salvar(a, e1.id, "texto de M", null, undefined, m.proximo()));
+    // M apaga; a resposta se perde, e M ainda acha que a base é o v1.
+    expect(await salvar(a, e1.id, "", v1, undefined, m.proximo())).toEqual({
+      ok: true,
+      anotacao: null,
+    });
+    // Outro escritor cria outra Anotação no mesmo Estudo e a apaga.
+    const n = escritor();
+    const deN = aceito(await salvar(a, e1.id, "de N", null, undefined, n.proximo()));
+    expect(await salvar(a, e1.id, "", deN, undefined, n.proximo())).toEqual({
+      ok: true,
+      anotacao: null,
+    });
+    // O reenvio de M, ainda sobre o v1, não ressuscita o texto dele calado.
+    const r = await salvar(a, e1.id, "texto de M", v1, undefined, m.proximo());
+    expect(r).toMatchObject({ ok: false, erro: "conflito", conta: { id: null } });
+    expect(await linhasReais(a)).toBe(0);
+  });
+
   it("a continuação não atravessa outro escritor: depois que outro gravou, a base velha é conflito", async () => {
     const a = await novaConta();
     const m = escritor();
