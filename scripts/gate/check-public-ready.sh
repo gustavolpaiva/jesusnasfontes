@@ -200,6 +200,10 @@ while IFS= read -r ref; do
   done
 done < "$TMP/refs.txt"
 
+# Cabeçalhos brutos de todo commit alcançável (mergetag com tagger embutido, gpgsig, encoding, cabeçalhos extras): são
+# publicados com o commit e nenhuma listagem formatada os mostra. O texto bruto entra nos metadados.
+g rev-list --all | g cat-file --batch > "$TMP/commits-brutos.txt" || indisponivel "git cat-file --batch falhou"
+
 # --- Verificação 1
 v1_ok=1
 for cfg in "$CONFIG" ${EXTRA:+"$EXTRA"}; do
@@ -252,6 +256,7 @@ if [ $? -eq 1 ]; then echo "verificacao 2: VAZAMENTO autor-casa-regra: $(paste -
   g for-each-ref refs/tags --format='%(contents)'
   g for-each-ref refs/tags --format='%(taggername) %(taggeremail)'
   cat "$TMP/tags-cadeia.txt"
+  cat "$TMP/commits-brutos.txt"
   g log --all --format='%an %ae%n%cn %ce'
   cat "$TMP/arquivos.txt"
 } > "$TMP/textos.txt" 2>/dev/null || indisponivel "git log/for-each-ref falhou"

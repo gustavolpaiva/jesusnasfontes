@@ -552,5 +552,17 @@ perl -0pe 's/\[\[rules\]\]\s*id = "termo-interno".*?\x27\x27\x27\n//s' "$CFG_REA
 commitar "$R" "chore: config"
 esperar "config-do-alvo-sem-regra-interna-obrigatoria" indeterminado "$R"
 
+# --- cabeçalho bruto de commit: mergetag embute uma tag (com tagger de e-mail pessoal) e a ref da tag nunca existiu mais.
+# O git só grava mergetag de tag assinada; o objeto é montado à mão, com o formato que o git define para o cabeçalho.
+R=$(novo_repo mergetag); base_limpa "$R"
+EMAIL_PESSOAL="fulano""@gmail.com"
+RAIZ_ID=$(git -C "$R" rev-parse HEAD)
+NOVO=$(git -C "$R" cat-file commit HEAD | awk -v h="$RAIZ_ID" -v e="$EMAIL_PESSOAL" \
+  '{ print } /^committer / { print "mergetag object " h; print " type commit"; print " tag etiqueta"; print " tagger Fulano <" e "> 1700000000 +0000"; print " "; print " marca" }')
+H=$(printf '%s\n' "$NOVO" | git -C "$R" hash-object -t commit -w --stdin)
+git -C "$R" update-ref refs/heads/main "$H"
+git -C "$R" cat-file commit HEAD | grep -q '^mergetag object' || { echo "FALHOU mergetag-preparo"; FALHAS=$((FALHAS+1)); }
+esperar "mergetag-com-tagger-pessoal-no-cabecalho-do-commit" vaza "$R"
+
 [ $FALHAS -eq 0 ] || { echo "autoteste: $FALHAS falha(s)" >&2; exit 1; }
 exit 0
