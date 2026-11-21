@@ -1,11 +1,12 @@
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sql } from "drizzle-orm";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { GET } from "@/app/api/ambiente/route";
 import { conferirAmbiente, decidirAmbiente } from "@/db/ambiente";
-import { obterPool } from "@/db/cliente";
+import { obterDb, obterPool } from "@/db/cliente";
 import { comAcervo } from "@/db/com-acervo";
 import { comEstudante } from "@/db/com-estudante";
 import { urlDoPapel } from "@/db/url";
@@ -51,6 +52,17 @@ describe("conferência no banco real da execução", () => {
     await expect(comEstudante(crypto.randomUUID(), async () => 1)).rejects.toThrow(
       /Ambiente recusado/,
     );
+  });
+
+  it("o pool recusa o par errado para QUALQUER consulta, não só pelas portas (revisão da fase, plano 01-20)", async () => {
+    // A entrada por convite e a biblioteca de autenticação usam `obterDb` direto: sem a conferência no pool, um
+    // Preview com credencial de produção já teria gravado contadores e códigos antes de qualquer porta recusar.
+    vi.stubEnv("VERCEL_ENV", "preview");
+    await expect(obterDb().execute(sql`select 1 as um`)).resolves.toBeDefined();
+    vi.stubEnv("VERCEL_ENV", "production");
+    await expect(obterDb().execute(sql`select 1 as um`)).rejects.toThrow(/Ambiente recusado/);
+    await expect(obterPool().query("select 1")).rejects.toThrow(/Ambiente recusado/);
+    await expect(obterDb().transaction(async () => 1)).rejects.toThrow(/Ambiente recusado/);
   });
 
   it("GET /api/ambiente devolve só o rótulo, sem cache", async () => {

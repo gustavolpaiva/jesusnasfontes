@@ -1,20 +1,9 @@
 import { obterPool } from "./cliente";
+import { decidirAmbiente } from "./decidir-ambiente";
 
 export type NomeAmbiente = "dev" | "producao";
 
-// Recusa o par errado: banco de produção só na produção da Vercel; qualquer outro ambiente
-// (pré-visualização, desenvolvimento ou fora da Vercel) só com banco 'dev'.
-export function decidirAmbiente(banco: string, vercelEnv: string | undefined): void {
-  const naProducao = vercelEnv === "production";
-  if (naProducao && banco !== "producao") {
-    throw new Error(
-      "Ambiente recusado: a produção da Vercel não pode usar banco de desenvolvimento.",
-    );
-  }
-  if (!naProducao && banco === "producao") {
-    throw new Error("Ambiente recusado: banco de produção não pode ser usado fora da produção.");
-  }
-}
+export { decidirAmbiente } from "./decidir-ambiente";
 
 // Leitura única por processo do marcador gravado pelo migrar. Sem marcador, falha fechada.
 let nomeLido: Promise<string> | undefined;

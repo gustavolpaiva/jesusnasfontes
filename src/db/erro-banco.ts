@@ -1,4 +1,5 @@
 import pg from "pg";
+import { AmbienteRecusado } from "./decidir-ambiente";
 
 // Erro nosso para falhas da camada de banco. O erro original do driver e o do Drizzle carregam o
 // texto da consulta, os PARÂMETROS dela (token de sessão, código e link de entrada, e-mail, texto
@@ -38,6 +39,12 @@ function veioDoBanco(erro: unknown): boolean {
 // Devolve o erro de banco sanitizado; qualquer outro erro passa intacto.
 export function sanitizarErroDeBanco(erro: unknown): unknown {
   if (!veioDoBanco(erro)) return erro;
+  // A recusa do par ambiente × banco (conferida na conexão) chega embrulhada pelo Drizzle: a mensagem é constante e é
+  // o que quem opera precisa ver; consulta e parâmetros continuam de fora.
+  for (let atual: unknown = erro, i = 0; i < 5 && atual && typeof atual === "object"; i++) {
+    if (atual instanceof AmbienteRecusado) return atual;
+    atual = (atual as { cause?: unknown }).cause;
+  }
   let codigo: string | undefined;
   let restricao: string | undefined;
   let atual: unknown = erro;

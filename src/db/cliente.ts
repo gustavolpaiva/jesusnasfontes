@@ -3,6 +3,7 @@ import { drizzle, NodePgSession } from "drizzle-orm/node-postgres";
 import { PgPreparedQuery } from "drizzle-orm/pg-core";
 import pg from "pg";
 import { registrarErro } from "@/lib/registro";
+import { decidirAmbiente } from "./decidir-ambiente";
 import { sanitizarErroDeBanco } from "./erro-banco";
 import { urlDoPapel } from "./url";
 
@@ -39,9 +40,61 @@ function criarDb(pool: pg.Pool) {
   return drizzle(pool);
 }
 
+type RetornoDeConexao = (
+  erro: Error | undefined,
+  cliente: pg.PoolClient | undefined,
+  liberar: (descartar?: boolean | Error) => void,
+) => void;
+
+// O par ambiente × banco é conferido na CONEXÃO, a única passagem de toda consulta: a entrada por convite e a biblioteca
+// de autenticação usam `obterDb` direto e nunca passavam pelas portas (`comAcervo`, `comEstudante`), então um Preview com
+// credencial de produção gravava contadores e códigos antes de qualquer porta recusar. O marcador é lido uma vez por
+// processo, numa conexão própria; o par é decidido a cada conexão (a variável da Vercel é a de agora).
+class PoolConferido extends pg.Pool {
+  #marcador: Promise<string> | undefined;
+
+  #lerMarcador(): Promise<string> {
+    this.#marcador ??= (async () => {
+      const cliente = await super.connect();
+      try {
+        const r = await cliente.query<{ nome: string }>("select nome from acervo.ambiente");
+        const nome = r.rows[0]?.nome;
+        if (r.rows.length !== 1 || !nome) {
+          throw new Error("Marcador de ambiente ausente no banco: rode as migrações.");
+        }
+        return nome;
+      } finally {
+        cliente.release();
+      }
+    })().catch((erro) => {
+      this.#marcador = undefined; // falha não é memoizada
+      throw erro;
+    });
+    return this.#marcador;
+  }
+
+  async #conferir(): Promise<void> {
+    decidirAmbiente(await this.#lerMarcador(), process.env.VERCEL_ENV);
+  }
+
+  override connect(): Promise<pg.PoolClient>;
+  override connect(retorno: RetornoDeConexao): void;
+  override connect(retorno?: RetornoDeConexao): Promise<pg.PoolClient> | undefined {
+    const conferida = this.#conferir();
+    if (retorno) {
+      conferida.then(
+        () => super.connect(retorno),
+        (erro: Error) => retorno(erro, undefined, () => undefined),
+      );
+      return;
+    }
+    return conferida.then(() => super.connect());
+  }
+}
+
 // Pool do papel jnf_app pela URL agrupada. `max` pequeno: o agrupador do Neon faz o resto.
 export function criarCliente(opcoes: { max: number } = { max: 5 }): Cliente {
-  const pool = new pg.Pool({
+  const pool = new PoolConferido({
     connectionString: urlDoPapel("app", { agrupada: true }),
     max: opcoes.max,
   });
