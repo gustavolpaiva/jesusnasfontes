@@ -10,6 +10,17 @@ export const SEM_CONEXAO: Mensagem = {
   texto: "Sem conexão. Tente de novo quando a conexão voltar.",
 };
 
+const FALHA: Mensagem = { tipo: "erro", texto: "Não conseguimos concluir agora. Tente de novo." };
+
+// A chamada da ação nem chegou, ou o servidor respondeu com falha de transporte (503). Devolve a mensagem a mostrar, ou
+// `null` quando o erro é um sinal de navegação do Next (redirecionamento, não encontrado: trazem `digest`), que precisa
+// subir. Antes, só "sem conexão" era tratada e todo o resto escapava do tratador assíncrono sem mensagem alguma.
+export function mensagemDaFalha(erro: unknown, online: boolean): Mensagem | null {
+  if (!online) return SEM_CONEXAO;
+  if (erro instanceof Error && "digest" in erro) return null;
+  return FALHA;
+}
+
 const NAO_SAIU =
   "O convite foi registrado, mas o e-mail não saiu. Use Reenviar daqui a alguns minutos.";
 
@@ -52,6 +63,6 @@ export function mensagemDe(r: ResultadoDeAcao): Mensagem {
         texto: "Este convite mudou e não aceita mais esta ação. A lista foi atualizada.",
       };
     default:
-      return { tipo: "erro", texto: "Não conseguimos concluir agora. Tente de novo." };
+      return FALHA;
   }
 }

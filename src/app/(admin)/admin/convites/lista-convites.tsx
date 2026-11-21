@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { reenviarConvite, revogarConvite } from "@/modules/convites/acoes";
 import type { ConviteListado } from "@/modules/convites/consultas";
-import { type Mensagem, mensagemDe, SEM_CONEXAO } from "./mensagens";
+import { type Mensagem, mensagemDaFalha, mensagemDe } from "./mensagens";
 import { RevogarDialogo } from "./revogar-dialogo";
 
 type Props = {
@@ -56,7 +56,8 @@ export function ListaConvites({ convites }: Props) {
     try {
       setMensagem(mensagemDe(await acao()));
     } catch (erro) {
-      if (typeof navigator !== "undefined" && !navigator.onLine) setMensagem(SEM_CONEXAO);
+      const falha = mensagemDaFalha(erro, typeof navigator === "undefined" || navigator.onLine);
+      if (falha) setMensagem(falha);
       else throw erro;
     }
   }

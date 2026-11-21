@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { convidarPelaTela } from "@/modules/convites/acoes";
-import { type Mensagem, mensagemDe, SEM_CONEXAO } from "./mensagens";
+import { type Mensagem, mensagemDaFalha, mensagemDe } from "./mensagens";
 
 // O texto digitado não se perde em erro: o envio chama a ação à mão (`onSubmit`), sem `action`, para
 // o React não reiniciar o formulário. Só um convite registrado limpa o campo.
@@ -24,7 +24,8 @@ export function FormularioConvite() {
       setMensagem(mensagemDe(resultado));
       if (resultado.ok) formulario.reset();
     } catch (erro) {
-      if (typeof navigator !== "undefined" && !navigator.onLine) setMensagem(SEM_CONEXAO);
+      const falha = mensagemDaFalha(erro, typeof navigator === "undefined" || navigator.onLine);
+      if (falha) setMensagem(falha);
       else throw erro;
     } finally {
       setPendente(false);
