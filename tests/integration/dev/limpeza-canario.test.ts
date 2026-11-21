@@ -3,7 +3,11 @@ import pg from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it, vi } from "vitest";
 import { obterPool } from "@/db/cliente";
 import { desabilitar, habilitar } from "../../../scripts/dev/canario";
-import { ExecucaoCanario, type Fabrica } from "../../../scripts/dev/execucao-canario";
+import {
+  ExecucaoCanario,
+  ExecucaoEncerrada,
+  type Fabrica,
+} from "../../../scripts/dev/execucao-canario";
 import {
   AlvoAMais,
   contarLinhasPrivadas,
@@ -192,6 +196,36 @@ describe.skipIf(emNeon())("limpeza de todas as linhas privadas da conta canário
     for (let i = 0; i < 11; i++) await darAceite(id, `v${i}`);
     await expect(limparTudo(dono, id)).rejects.toBeInstanceOf(AlvoAMais);
     expect(await consentimentos(id)).toBe(11);
+  });
+});
+
+describe.skipIf(emNeon())("o teto vale sobre o que o DELETE apagou", () => {
+  it("linha inserida entre a leitura e o DELETE passa do teto: reverte tudo", async () => {
+    const id = await criarConta(novoEmail("corrida"));
+    await darAceite(id, "uma");
+    const outra = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+    await outra.connect();
+    // Um cliente que, na hora exata do DELETE, deixa outro escritor inserir 11 linhas (o que uma
+    // contagem prévia de 1 linha não enxergaria).
+    const comCorrida = {
+      query: async (sql: string, parametros?: unknown[]) => {
+        if (/^delete from privado\.consentimento/.test(sql)) {
+          for (let i = 0; i < 11; i++) {
+            await outra.query(
+              "insert into privado.consentimento (estudante_id, versao_aviso, texto_hash) values ($1, $2, 't')",
+              [id, `corrida-${i}`],
+            );
+          }
+        }
+        return dono.query(sql, parametros);
+      },
+    };
+    try {
+      await expect(limparTudo(comCorrida as never, id)).rejects.toBeInstanceOf(AlvoAMais);
+    } finally {
+      await outra.end();
+    }
+    expect(await consentimentos(id)).toBe(12); // nada foi apagado: a transação reverteu
   });
 });
 
@@ -385,6 +419,42 @@ describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza"
     ).toBe(1);
     // A execução recusada soltou a trava e não tocou em nada: a linha segue lá (o dono limpa à mão).
     await expect(tomarTrava((await conexaoDireta()).cliente, e)).resolves.toBeUndefined();
+    expect(await consentimentos(id)).toBe(1);
+  });
+
+  it("instância de uso único: depois de finalizar, preparar, finalizar e sessão lançam erro e nada é apagado", async () => {
+    const e = novoEmail("uso-unico");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real11");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const x = new ExecucaoCanario(fabricaLocal());
+    await x.preparar(["estudante"]);
+    const id = (
+      await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
+        e,
+      ])
+    ).rows[0]?.id as string;
+    usuarios.push(e);
+    await x.finalizar();
+    // Linha que NÃO é desta execução, escrita depois do fim (por exemplo, pelo dono à mão).
+    await darAceite(id, "do-dono-depois");
+    await expect(x.preparar(["estudante"])).rejects.toBeInstanceOf(ExecucaoEncerrada);
+    await expect(x.finalizar()).rejects.toBeInstanceOf(ExecucaoEncerrada);
+    await expect(x.criarSessao("estudante")).rejects.toBeInstanceOf(ExecucaoEncerrada);
+    await expect(x.encerrarSessao(randomUUID())).rejects.toBeInstanceOf(ExecucaoEncerrada);
+    expect(await consentimentos(id)).toBe(1);
+  });
+
+  it("preparar roda uma vez, e o que recusa deixa preparado=false", async () => {
+    const e = novoEmail("uma-vez");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real12");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const id = await criarConta(e);
+    await darAceite(id, "previa");
+    const x = new ExecucaoCanario(fabricaLocal());
+    await expect(x.preparar(["estudante"])).rejects.toThrow(/PreCondicao/);
+    expect(x.registro.preparado).toBe(false);
+    await expect(x.preparar(["estudante"])).rejects.toBeInstanceOf(ExecucaoEncerrada);
+    await x.finalizar();
     expect(await consentimentos(id)).toBe(1);
   });
 

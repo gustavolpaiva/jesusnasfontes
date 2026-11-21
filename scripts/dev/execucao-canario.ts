@@ -32,6 +32,12 @@ export type Fabrica = {
 
 type Conta = { papel: Papel; email: string; usuarioId: string | null };
 
+export class ExecucaoEncerrada extends RecusaCanario {
+  override name = "ExecucaoEncerrada";
+}
+
+// De USO ÚNICO: `preparar` roda uma vez e `finalizar` encerra a instância; qualquer chamada depois dela
+// lança erro (estado velho de uma execução não pode autorizar escrita numa seguinte).
 export class ExecucaoCanario {
   // A marca só entra nos textos que o teste escreve (para achá-los no Caderno e nos registros).
   readonly marca = randomUUID();
@@ -40,6 +46,8 @@ export class ExecucaoCanario {
   private preparado = false;
   private trava: { cliente: Dono; fechar: () => Promise<void> } | null = null;
   private travados: string[] = [];
+  private iniciada = false;
+  private encerrada = false;
 
   constructor(private readonly fabrica: Fabrica) {}
 
@@ -53,6 +61,12 @@ export class ExecucaoCanario {
     };
   }
 
+  private exigirViva(): void {
+    if (this.encerrada) {
+      throw new ExecucaoEncerrada("ExecucaoEncerrada: esta execução já foi finalizada; crie outra");
+    }
+  }
+
   private async comDono<T>(fn: (c: Dono) => Promise<T>): Promise<T> {
     const { cliente, fechar } = await this.fabrica.dono();
     try {
@@ -64,6 +78,12 @@ export class ExecucaoCanario {
 
   // Conferências, trava e pré-condição ANTES de qualquer escrita; depois habilita cada conta.
   async preparar(papeis: Papel[]): Promise<void> {
+    this.exigirViva();
+    if (this.iniciada) {
+      throw new ExecucaoEncerrada("ExecucaoEncerrada: preparar roda uma vez por execução");
+    }
+    this.iniciada = true;
+    this.preparado = false;
     const ordenados = [...papeis].sort();
     const emails = new Map<Papel, string>();
     for (const papel of ordenados) {
@@ -121,6 +141,7 @@ export class ExecucaoCanario {
 
   // Sessão de 30 minutos para o canário, só se a preparação a autorizou. Devolve o token (para o cookie).
   async criarSessao(papel: Papel): Promise<{ id: string; usuarioId: string; token: string }> {
+    this.exigirViva();
     const conta = this.habilitados.get(papel);
     if (!this.preparado || !conta?.usuarioId) {
       throw new RecusaCanario("RecusaDeSessao: a preparação não foi autorizada e concluída");
@@ -141,6 +162,11 @@ export class ExecucaoCanario {
 
   // Apaga uma sessão que ESTA execução abriu, pelo id registrado.
   async encerrarSessao(id: string): Promise<void> {
+    this.exigirViva();
+    await this.apagarSessao(id);
+  }
+
+  private async apagarSessao(id: string): Promise<void> {
     const alvo = this.sessoes.find((s) => s.id === id);
     if (!alvo) throw new RecusaCanario("RecusaDeSessao: sessão que esta execução não abriu");
     const conta = [...this.habilitados.values()].find((c) => c.usuarioId === alvo.usuarioId);
@@ -158,6 +184,9 @@ export class ExecucaoCanario {
   // O `afterAll`: sessões registradas, todas as linhas privadas da conta e o desabilitar medido. Cada
   // etapa roda mesmo se a anterior falhar (desabilitar é o sentido seguro); a trava é solta por último.
   async finalizar(): Promise<void> {
+    this.exigirViva();
+    // Encerra primeiro: nada mais autoriza escrita nesta instância, falhe o que falhar daqui em diante.
+    this.encerrada = true;
     const erros: string[] = [];
     const tentar = async (rotulo: string, fn: () => Promise<void>) => {
       try {
@@ -166,7 +195,7 @@ export class ExecucaoCanario {
         erros.push(`${rotulo}: ${erro instanceof Error ? erro.message : String(erro)}`);
       }
     };
-    for (const s of [...this.sessoes]) await tentar("sessão", () => this.encerrarSessao(s.id));
+    for (const s of [...this.sessoes]) await tentar("sessão", () => this.apagarSessao(s.id));
     for (const conta of this.habilitados.values()) {
       // Só com a preparação autorizada E concluída, a trava ainda na mão e a conta ainda canário marcado.
       if (this.preparado && conta.usuarioId) {

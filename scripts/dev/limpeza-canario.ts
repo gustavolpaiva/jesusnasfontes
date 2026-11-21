@@ -47,38 +47,42 @@ export async function contarLinhasPrivadas(c: Cliente, usuarioId: string): Promi
   return { total, porTabela };
 }
 
-// Apaga tudo o que a conta tem em `privado`. Aborta sem escrever se passar do teto; confere zero ao fim
-// (dentro da transação e de novo depois do commit). Devolve quantas linhas apagou, por tabela.
+// Apaga tudo o que a conta tem em `privado`. O teto vale sobre o que o PRÓPRIO DELETE apagou (rowCount por
+// tabela): linha inserida depois de qualquer contagem prévia também conta, e passar do teto reverte a
+// transação inteira (nada é apagado). Confere zero ao fim, ainda dentro da transação. Devolve quantas
+// linhas apagou, por tabela.
 export async function limparTudo(c: Cliente, usuarioId: string): Promise<Record<string, number>> {
   await conferirAmbienteDev(c);
   await c.query("begin");
   try {
     const tabelas = await tabelasDaConta(c);
-    // Travar antes de contar: nenhuma linha nova entra entre a contagem e o apagar.
     for (const tabela of tabelas) {
       await c.query(`select 1 from privado.${tabela} where estudante_id = $1 for update`, [
         usuarioId,
       ]);
     }
-    const antes = await contarLinhasPrivadas(c, usuarioId);
-    const maior = Math.max(0, ...Object.values(antes.porTabela));
-    if (maior > TETO_POR_TABELA || antes.total > TETO_TOTAL) {
-      throw new AlvoAMais(
-        `AlvoAMais: ${antes.total} linhas (maior tabela ${maior}) passam do teto (${TETO_POR_TABELA} por tabela, ${TETO_TOTAL} no total); nada foi apagado`,
-      );
-    }
     // Filhas antes: o escritor da Anotação aponta para a Anotação.
-    const ordem = Object.keys(antes.porTabela).sort((a, b) =>
+    const ordem = [...tabelas].sort((a, b) =>
       a.endsWith("_escritor") ? -1 : b.endsWith("_escritor") ? 1 : a.localeCompare(b),
     );
+    const apagadas: Record<string, number> = {};
+    let total = 0;
     for (const tabela of ordem) {
-      await c.query(`delete from privado.${tabela} where estudante_id = $1`, [usuarioId]);
+      const r = await c.query(`delete from privado.${tabela} where estudante_id = $1`, [usuarioId]);
+      const n = r.rowCount ?? 0;
+      if (n > 0) apagadas[tabela] = n;
+      total += n;
+      if (n > TETO_POR_TABELA || total > TETO_TOTAL) {
+        throw new AlvoAMais(
+          `AlvoAMais: o DELETE apagou ${n} em ${tabela} (${total} no total), acima do teto (${TETO_POR_TABELA} por tabela, ${TETO_TOTAL} no total); revertido, nada foi apagado`,
+        );
+      }
     }
     if ((await contarLinhasPrivadas(c, usuarioId)).total !== 0) {
       throw new AlvoAMais("sobrou linha depois de apagar; revertido");
     }
     await c.query("commit");
-    return antes.porTabela;
+    return apagadas;
   } catch (erro) {
     await c.query("rollback").catch(() => undefined);
     throw erro;
