@@ -9,10 +9,10 @@ import { registrarErro } from "../../src/lib/registro";
 
 export type Senhas = { app: string; migra: string; carga: string; assistente: string };
 
-const PAPEIS = ["migra", "app", "carga", "assistente"] as const;
+export const PAPEIS = ["migra", "app", "carga", "assistente"] as const;
 
 // Esquema → quem lê (USAGE). A escrita por papel está nos privilégios padrão abaixo.
-const USO_DO_ESQUEMA: Record<string, string[]> = {
+export const USO_DO_ESQUEMA: Record<string, string[]> = {
   acervo: ["app", "carga", "assistente"],
   conteudo: ["app", "carga"],
   privado: ["app"],
@@ -21,6 +21,25 @@ const USO_DO_ESQUEMA: Record<string, string[]> = {
 };
 
 const DML = "select, insert, update, delete";
+
+// Privilégios padrão das tabelas que o jnf_migra cria. Fonte única: o SQL gerado para o editor do Neon
+// de produção (scripts/db/gerar-bootstrap-sql.ts) lê esta mesma lista.
+export const PRIVILEGIOS_PADRAO: ReadonlyArray<{
+  esquema: string;
+  privilegios: string;
+  papel: (typeof PAPEIS)[number];
+}> = [
+  ...["privado", "admin", "auth"].map((esquema) => ({
+    esquema,
+    privilegios: DML,
+    papel: "app" as const,
+  })),
+  { esquema: "acervo", privilegios: "select", papel: "app" },
+  { esquema: "conteudo", privilegios: "select", papel: "app" },
+  { esquema: "acervo", privilegios: DML, papel: "carga" },
+  { esquema: "conteudo", privilegios: DML, papel: "carga" },
+  { esquema: "acervo", privilegios: "select", papel: "assistente" },
+];
 
 export async function bootstrapPapeis(urlDono: string, senhas: Senhas): Promise<void> {
   const cliente = new pg.Client({ connectionString: urlDono });
@@ -81,16 +100,11 @@ export async function bootstrapPapeis(urlDono: string, senhas: Senhas): Promise<
     }
 
     etapa = "privilegios padrao";
-    const padrao = (esquema: string, privilegios: string, papel: string) =>
-      cliente.query(
+    for (const { esquema, privilegios, papel } of PRIVILEGIOS_PADRAO) {
+      await cliente.query(
         `alter default privileges for role jnf_migra in schema ${esquema} grant ${privilegios} on tables to jnf_${papel}`,
       );
-    for (const esquema of ["privado", "admin", "auth"]) await padrao(esquema, DML, "app");
-    await padrao("acervo", "select", "app");
-    await padrao("conteudo", "select", "app");
-    await padrao("acervo", DML, "carga");
-    await padrao("conteudo", DML, "carga");
-    await padrao("acervo", "select", "assistente");
+    }
   } catch (erro) {
     // O rótulo da etapa é texto fixo daqui: seguro para o terminal.
     console.error(`bootstrap falhou na etapa: ${etapa}`);
