@@ -121,3 +121,88 @@ test("o rascunho de uma aba fechada volta na aba nova, e quando há mais de um o
   await expect(painel(e)).toHaveCount(0);
   expect(await chaves(e)).toHaveLength(0);
 });
+
+test("duplicar a aba (o sessionStorage é copiado) não faz duas abas dividirem a chave: cada uma guarda o seu texto e a confirmação de uma não apaga o da outra", async ({
+  page,
+  context,
+}) => {
+  await entrar(page);
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  // Uma aba duplicada nasce com o sessionStorage da original: simulado copiando tudo o que a original tem.
+  const copia = await page.evaluate(() => JSON.stringify({ ...window.sessionStorage }));
+  const duplicada = await context.newPage();
+  await duplicada.addInitScript((dados) => {
+    for (const [k, v] of Object.entries(JSON.parse(dados) as Record<string, string>)) {
+      window.sessionStorage.setItem(k, v);
+    }
+  }, copia);
+  await duplicada.goto(ESTUDO);
+  await esperarHidratado(campo(duplicada));
+
+  const religarA = await cortarEnvio(page);
+  const religarB = await cortarEnvio(duplicada);
+  const deA = `TEXTO-DA-ORIGINAL-${randomUUID()}`;
+  const deB = `TEXTO-DA-DUPLICADA-${randomUUID()}`;
+  await campo(page).fill(deA);
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+  await campo(duplicada).fill(deB);
+  await expect(estado(duplicada)).toContainText("Não foi possível salvar");
+  // Duas abas, dois rascunhos.
+  expect(await chaves(page)).toHaveLength(2);
+
+  // A original envia e é confirmada: o rascunho da duplicada continua lá.
+  await religarA();
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(estado(page)).toHaveText("Salvo");
+  const restantes = await page.evaluate(() =>
+    Object.keys(window.localStorage)
+      .filter((c) => c.startsWith("jnf:rascunho:"))
+      .map((c) => JSON.parse(window.localStorage.getItem(c) ?? "{}").corpo as string),
+  );
+  expect(restantes).toEqual([deB]);
+  await religarB();
+});
+
+test("a aba que adota o rascunho de outra e o confirma não apaga o que a dona original escreveu depois", async ({
+  page,
+  context,
+}) => {
+  const id = await entrar(page);
+  await page.close();
+  const b = await abrir(context);
+  await cortarEnvio(b);
+  const v1 = `V1-${randomUUID()}`;
+  const v2 = `V2-${randomUUID()}`;
+  await campo(b).fill(v1);
+  await expect(estado(b)).toContainText("Não foi possível salvar");
+
+  // A aba A abre, adota o v1 de B e o envia; o envio fica SEGURO a caminho enquanto B escreve o v2.
+  const a = await context.newPage();
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  await a.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase"))
+      await portao;
+    await rota.continue();
+  });
+  await a.goto(ESTUDO);
+  await expect(campo(a)).toHaveValue(v1);
+  await expect(estado(a)).toHaveText("Salvando…");
+  await campo(b).fill(v2);
+  await expect(estado(b)).toContainText("Não foi possível salvar");
+  liberar();
+  await expect(estado(a)).toHaveText("Salvo");
+  expect(
+    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(v1);
+
+  // O v2, ainda não enviado, não se perdeu: ao recarregar B ele volta (o servidor tem o v1, então como conflito).
+  await b.reload();
+  await esperarHidratado(campo(b));
+  await expect(painel(b)).toBeVisible();
+  await expect(painel(b).getByText(v2)).toBeVisible();
+});

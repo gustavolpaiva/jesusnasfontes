@@ -1,8 +1,19 @@
+import { estaVazio, semNulo } from "./limite";
+
 // Rascunho local da Anotação (ANOT-02): o texto que ainda não chegou ao servidor fica NESTE aparelho,
 // por Estudante e por Estudo, para sobreviver a uma queda de conexão e a recarregar a página. Só código de
 // navegador. O aviso de privacidade promete que o rascunho "é apagado quando você sai": por isso as chaves
 // levam o id do Estudante (nunca vale para outra conta), e `apagarTodosRascunhos` roda ao sair e ao apagar a
 // conta, `apagarRascunhosDeOutros` ao abrir um Estudo.
+//
+// DUAS REGRAS, e só elas (cada regra de "quem apaga qual chave" que se acrescentava abria outro caso):
+//  1. Cada carga de página escreve SÓ na sua chave, que leva um id nascido em memória naquela carga (nada de
+//     `sessionStorage`: recarregar ou duplicar a aba dá um id novo, então duas abas nunca dividem uma chave e
+//     o rascunho de antes de recarregar passa a ser, para a página nova, um rascunho como os outros).
+//  2. Apagar é SEMPRE comparar: `apagarRascunhosIguais` relê cada chave do armazenamento no instante de apagar
+//     e só remove a que tem o MESMO texto que se acabou de confirmar no servidor (ou de descartar de propósito).
+//     Texto igual ao que está guardado no servidor não tem o que perder; texto diferente, de qualquer aba,
+//     nunca sai por posse, por adoção nem por ser "o rascunho desta aba".
 //
 // O texto é privado: a chave nunca o contém e nada aqui o manda a lugar algum além do `localStorage`. Acesso
 // negado ao armazenamento (navegação privativa, cota) nunca derruba a tela: o rascunho só deixa de existir.
@@ -18,31 +29,10 @@ export type Rascunho = {
   salvoEm: number;
 };
 
-// O rascunho é DA ABA: duas abas do mesmo navegador no mesmo Estudo dividem o `localStorage`, e com uma chave só
-// a confirmação de um envio numa aba apagava (e cada tecla sobrescrevia) o texto ainda pendente da outra. A
-// chave leva o id da aba, guardado no `sessionStorage` (sobrevive a recarregar a aba, não a fechá-la).
-const CHAVE_DA_ABA = "jnf:aba";
-let abaEmMemoria: string | null = null;
-
-function idDaAba(): string {
-  if (abaEmMemoria) return abaEmMemoria;
-  let id: string | null = null;
-  try {
-    id = window.sessionStorage.getItem(CHAVE_DA_ABA);
-    if (!id) {
-      id = crypto.randomUUID();
-      window.sessionStorage.setItem(CHAVE_DA_ABA, id);
-    }
-  } catch {
-    id = id ?? crypto.randomUUID();
-  }
-  abaEmMemoria = id;
-  return id;
-}
+// O id desta carga de página: só em memória.
+const abaDestaCarga = typeof crypto === "undefined" ? "" : crypto.randomUUID();
 
 const base = (estudanteId: string, estudoId: string) => `${PREFIXO}${estudanteId}:${estudoId}:`;
-const chave = (estudanteId: string, estudoId: string) =>
-  `${base(estudanteId, estudoId)}${idDaAba()}`;
 
 function armazem(): Storage | null {
   try {
@@ -54,14 +44,10 @@ function armazem(): Storage | null {
 
 export function guardarRascunho(estudanteId: string, estudoId: string, rascunho: Rascunho): void {
   try {
-    armazem()?.setItem(chave(estudanteId, estudoId), JSON.stringify(rascunho));
+    armazem()?.setItem(`${base(estudanteId, estudoId)}${abaDestaCarga}`, JSON.stringify(rascunho));
   } catch {
     // Cota cheia ou acesso negado: o texto segue na tela e no servidor; só o rascunho local falha.
   }
-}
-
-export function lerRascunho(estudanteId: string, estudoId: string): Rascunho | null {
-  return lerChave(chave(estudanteId, estudoId));
 }
 
 function lerChave(nomeDaChave: string): Rascunho | null {
@@ -83,42 +69,6 @@ function lerChave(nomeDaChave: string): Rascunho | null {
   }
 }
 
-/**
- * Rascunhos deste Estudante neste Estudo guardados por OUTRAS abas (uma aba fechada, ou ainda aberta), o mais
- * recente primeiro. Nunca incluem o desta aba.
- */
-export function lerRascunhosDeOutrasAbas(
-  estudanteId: string,
-  estudoId: string,
-): { chave: string; rascunho: Rascunho }[] {
-  const minha = chave(estudanteId, estudoId);
-  const achados: { chave: string; rascunho: Rascunho }[] = [];
-  for (const c of chavesDeRascunho()) {
-    if (!c.startsWith(base(estudanteId, estudoId)) || c === minha) continue;
-    const rascunho = lerChave(c);
-    if (rascunho) achados.push({ chave: c, rascunho });
-  }
-  return achados.sort((a, b) => b.rascunho.salvoEm - a.rascunho.salvoEm);
-}
-
-/** Apaga um rascunho pelo nome da chave (o de outra aba que esta aba adotou e já resolveu). */
-export function apagarRascunhoPorChave(nomeDaChave: string): void {
-  try {
-    armazem()?.removeItem(nomeDaChave);
-  } catch {
-    // Sem armazenamento, não há o que apagar.
-  }
-}
-
-/** Apaga SÓ o rascunho desta aba. */
-export function apagarRascunho(estudanteId: string, estudoId: string): void {
-  try {
-    armazem()?.removeItem(chave(estudanteId, estudoId));
-  } catch {
-    // Sem armazenamento, não há o que apagar.
-  }
-}
-
 function chavesDeRascunho(): string[] {
   const guardado = armazem();
   if (!guardado) return [];
@@ -128,6 +78,36 @@ function chavesDeRascunho(): string[] {
     if (c?.startsWith(PREFIXO)) chaves.push(c);
   }
   return chaves;
+}
+
+/** Todos os rascunhos deste Estudante neste Estudo (de qualquer aba, o desta carga também), o mais recente primeiro. */
+export function lerRascunhos(estudanteId: string, estudoId: string): Rascunho[] {
+  const achados: Rascunho[] = [];
+  for (const c of chavesDeRascunho()) {
+    if (!c.startsWith(base(estudanteId, estudoId))) continue;
+    const r = lerChave(c);
+    if (r) achados.push(r);
+  }
+  return achados.sort((a, b) => b.salvoEm - a.salvoEm);
+}
+
+const mesmoTexto = (a: string, b: string) =>
+  semNulo(a) === semNulo(b) || (estaVazio(a) && estaVazio(b));
+
+/**
+ * Apaga os rascunhos deste Estudo cujo texto, LIDO DO ARMAZENAMENTO AGORA, é igual a `corpo` (o que o servidor
+ * acabou de confirmar, ou o que a pessoa acabou de descartar). Os de texto diferente ficam, seja de que aba for.
+ */
+export function apagarRascunhosIguais(estudanteId: string, estudoId: string, corpo: string): void {
+  try {
+    for (const c of chavesDeRascunho()) {
+      if (!c.startsWith(base(estudanteId, estudoId))) continue;
+      const agora = lerChave(c);
+      if (agora && mesmoTexto(agora.corpo, corpo)) armazem()?.removeItem(c);
+    }
+  } catch {
+    // Sem armazenamento, não há o que apagar.
+  }
 }
 
 /** Rascunhos de OUTRA conta no mesmo aparelho (um aparelho compartilhado): saem ao abrir um Estudo. */
