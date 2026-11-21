@@ -10,7 +10,7 @@ import {
 import { lerEmail, normalizarEmail } from "../../src/modules/identidade/normalizar-email";
 import { recuperarSegundoFator } from "../admin/recuperar-segundo-fator";
 import { conferirAmbienteDev, NaoMedido } from "./conferir-entrada";
-import { conferirContaCanario, RecusaCanario } from "./protecao-canario";
+import { conferirContaCanario, conferirTetoDeSessoes, RecusaCanario } from "./protecao-canario";
 
 // pnpm exec tsx scripts/dev/canario.ts <habilitar|desabilitar|estado> [--papel estudante|admin] [--enviar]
 //
@@ -128,6 +128,8 @@ export async function desabilitar(
   const email = normalizarEmail(emailBruto);
   // Antes de qualquer escrita: banco de dev, endereço marcado como canário e não é a conta real.
   await conferirContaCanario(c, email, papel);
+  // O teto de sessões vem antes de qualquer escrita (conferido depois do DELETE nunca dispararia).
+  await conferirTetoDeSessoes(c, email);
   // Antes: os tokens das sessões abertas, só para medir depois que nenhum vale mais. Ficam em memória.
   const abertas = await c.query(
     `select s.token from auth.session s join auth."user" u on u.id = s.user_id

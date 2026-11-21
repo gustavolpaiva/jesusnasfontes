@@ -166,6 +166,42 @@ describe.skipIf(emNeon())("canario: habilitar e desabilitar, medidos", () => {
     expect(await linhas()).toBe(0);
   });
 
+  it("desabilitar recusa conta com mais sessões que o teto ANTES de apagar qualquer uma (revisão da fase, plano 01-20)", async () => {
+    const { habilitar, desabilitar } = await import("../../../scripts/dev/canario");
+    const { desabilitarNoCliente } = await import("../../../scripts/dev/escritas-canario");
+    for (const papel of ["estudante", "admin"] as const) {
+      const e = email(`teto-${papel}`, papel);
+      await habilitar(obterPool(), e, papel, false);
+      const [u] = await obterDb().select().from(usuario).where(eq(usuario.email, e));
+      if (!u) throw new Error("usuário do teste não foi criado");
+      ids.push(u.id);
+      await obterPool().query(
+        `insert into auth.session (user_id, token, expires_at)
+         select $1, 'teto-' || $2 || '-' || g, now() + interval '1 day' from generate_series(1, 51) g`,
+        [u.id, `${papel}-${rodada}`],
+      );
+      const sessoes = async () =>
+        Number(
+          (
+            await obterPool().query("select count(*) as n from auth.session where user_id = $1", [
+              u.id,
+            ])
+          ).rows[0].n,
+        );
+      expect(await sessoes()).toBe(51);
+      await expect(desabilitar(obterPool(), e, papel)).rejects.toThrow(/TetoExcedido/);
+      expect(await sessoes()).toBe(51);
+      await expect(desabilitarNoCliente(obterPool(), e, papel)).rejects.toThrow(/TetoExcedido/);
+      expect(await sessoes()).toBe(51);
+      // O convite também não foi revogado: nada foi escrito.
+      const convites = await obterPool().query(
+        "select estado from admin.convite where email_norm = $1",
+        [e],
+      );
+      expect(convites.rows[0].estado).toBe("pendente");
+    }
+  });
+
   it("recusa banco que não é o de dev (o mesmo guarda do conferidor)", async () => {
     const { conferirAmbienteDev, NaoMedido } = await import(
       "../../../scripts/dev/conferir-entrada"

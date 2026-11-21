@@ -5,7 +5,7 @@ import {
 } from "../../src/modules/identidade/limite";
 import { normalizarEmail } from "../../src/modules/identidade/normalizar-email";
 import { type EstadoCanario, lerEstado, type Papel, type ResultadoDesabilitar } from "./canario";
-import { conferirContaCanario } from "./protecao-canario";
+import { conferirContaCanario, conferirTetoDeSessoes } from "./protecao-canario";
 
 // Escritas de habilitar e desabilitar uma conta canário, feitas NO CLIENTE que o chamador entrega: a
 // `ExecucaoCanario` entrega a própria conexão que segura a trava de sessão, então escrita e trava vivem
@@ -122,6 +122,7 @@ export async function desabilitarNoCliente(
 ): Promise<ResultadoDesabilitar> {
   const email = normalizarEmail(emailBruto);
   await conferirContaCanario(c, email, papel);
+  await conferirTetoDeSessoes(c, email);
   const abertas = await c.query<{ token: string }>(
     `select s.token from auth.session s join auth."user" u on u.id = s.user_id
      where u.email = $1 and s.expires_at > now()`,

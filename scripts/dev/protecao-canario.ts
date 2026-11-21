@@ -83,3 +83,23 @@ export async function conferirContaCanario(
   }
   return { usuarioId: id };
 }
+
+const TETO_DE_SESSOES_NO_DESABILITAR = 50;
+
+// O teto de sessões é conferido ANTES de qualquer escrita de desabilitar: conferido depois do DELETE, a contagem
+// já seria zero e o teto nunca dispararia (achado da revisão da fase, plano 01-20). Vale para os dois papéis.
+export async function conferirTetoDeSessoes(
+  c: Pick<pg.Pool, "query">,
+  email: string,
+): Promise<void> {
+  const r = await c.query<{ n: number }>(
+    `select count(*)::int as n from auth.session s join auth."user" u on u.id = s.user_id where u.email = $1`,
+    [email],
+  );
+  const n = r.rows[0]?.n ?? 0;
+  if (n > TETO_DE_SESSOES_NO_DESABILITAR) {
+    throw new Error(
+      `TetoExcedido: o que seria removido passa do esperado (sessões ${n}, teto ${TETO_DE_SESSOES_NO_DESABILITAR}); nada foi escrito`,
+    );
+  }
+}
