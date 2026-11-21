@@ -19,15 +19,21 @@ const emails: string[] = [];
 
 const emNeon = () => inject("alvoBanco") === "neon";
 
-function email(nome: string) {
+// O endereço do teste é o do canário marcado (a proteção só aceita o endereço de uma variável de canário)
+// e nunca o Admin inicial.
+function email(nome: string, papel: "estudante" | "admin" = "estudante") {
   const e = `${nome}-${rodada}-${randomUUID().slice(0, 6)}@example.test`;
   emails.push(e);
+  process.env.JNF_CANARIO_ESTUDANTE_EMAIL = `outro-estudante-${rodada}@example.test`;
+  process.env.JNF_CANARIO_ADMIN_EMAIL = `outro-admin-${rodada}@example.test`;
+  process.env[papel === "admin" ? "JNF_CANARIO_ADMIN_EMAIL" : "JNF_CANARIO_ESTUDANTE_EMAIL"] = e;
   return e;
 }
 
 beforeAll(() => {
   aplicarEnvDeTeste();
   process.env.BETTER_AUTH_SECRET = segredo;
+  process.env.ADMIN_EMAIL_INICIAL = `admin-real-${rodada}@example.test`;
 });
 
 afterAll(async () => {
@@ -137,7 +143,7 @@ describe.skipIf(emNeon())("canario: habilitar e desabilitar, medidos", () => {
 
   it("Admin canário: habilitar zera o segundo fator velho e desabilitar mede que não sobra nenhum", async () => {
     const { habilitar, desabilitar } = await import("../../../scripts/dev/canario");
-    const e = email("adm");
+    const e = email("adm", "admin");
     await habilitar(obterPool(), e, "admin", false);
     const [u] = await obterDb().select().from(usuario).where(eq(usuario.email, e));
     if (!u) throw new Error("usuário do teste não foi criado");

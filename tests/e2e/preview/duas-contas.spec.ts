@@ -1,14 +1,13 @@
-import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import { esperarHidratado } from "../../support/hidratacao";
 import {
   abrirSessao,
   aceitarAviso,
-  apagarDadosPrivados,
   desabilitarCanarios,
   escreverAnotacao,
   habilitarCanarios,
+  MARCA,
   PAPEIS,
   prepararAdmin,
 } from "./suporte-canario";
@@ -25,11 +24,10 @@ const CAPTURAS = "test-results/preview-uat";
 test.beforeAll(async () => {
   mkdirSync(CAPTURAS, { recursive: true });
   await habilitarCanarios(PAPEIS);
-  for (const papel of PAPEIS) await apagarDadosPrivados(papel);
 });
 
 test.afterAll(async () => {
-  await desabilitarCanarios(PAPEIS);
+  await desabilitarCanarios();
 });
 
 const campo = (page: Page) => page.getByRole("textbox", { name: "Minha anotação" });
@@ -44,8 +42,8 @@ test("duas contas escrevendo ao mesmo tempo no mesmo Estudo só veem a própria 
   try {
     const pa = await a.contexto.newPage();
     const pb = await b.contexto.newPage();
-    const marcadorA = `MARCADOR-A-${randomUUID()}`;
-    const marcadorB = `MARCADOR-B-${randomUUID()}`;
+    const marcadorA = `MARCADOR-A-${MARCA}`;
+    const marcadorB = `MARCADOR-B-${MARCA}`;
 
     await test.step("prepara as duas contas (aviso e, no Admin, segundo fator)", async () => {
       await pa.goto("/trilhas");

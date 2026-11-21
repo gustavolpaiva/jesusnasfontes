@@ -1,15 +1,9 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { type Browser, type BrowserContext, expect, type Page } from "@playwright/test";
 import pg from "pg";
-import {
-  desabilitar,
-  habilitar,
-  lerEstado,
-  type Papel,
-  VARIAVEL_DO_PAPEL,
-} from "../../../scripts/dev/canario";
+import type { Papel } from "../../../scripts/dev/canario";
+import { ExecucaoCanario } from "../../../scripts/dev/execucao-canario";
 import { obterPool } from "../../../src/db/cliente";
-import { lerEmail } from "../../../src/modules/identidade/normalizar-email";
 import { esperarHidratado } from "../../support/hidratacao";
 import { gerarTotp } from "../../support/totp";
 
@@ -20,6 +14,10 @@ import { gerarTotp } from "../../support/totp";
 // A sessão é criada pelo próprio teste no banco de desenvolvimento (a pré-visualização aponta para ele)
 // e assinada com o segredo da biblioteca de entrada, como a entrada real faz: assim nenhum e-mail sai.
 // A entrada por e-mail e por código tem prova própria (fumaça, `convidado.spec.ts` e a entrada do dono).
+//
+// Tudo que escreve passa por `ExecucaoCanario` (scripts/dev/execucao-canario.ts): marca própria da
+// execução, proteção contra conta real no começo e no fim, marcador `dev` conferido em toda conexão que
+// escreve, e limpeza só do que a execução criou (fotografia, marca e teto).
 
 export const PAPEIS: Papel[] = ["estudante", "admin"];
 
@@ -29,75 +27,21 @@ function exigir(nome: string): string {
   return valor;
 }
 
-export function emailDo(papel: Papel): string {
-  const email = lerEmail(process.env[VARIAVEL_DO_PAPEL[papel]]);
-  if (!email) throw new Error(`INDETERMINADO: ${VARIAVEL_DO_PAPEL[papel]} ausente ou inválida`);
-  return email;
-}
+// Uma execução por processo de teste (os arquivos rodam em sequência num só worker).
+export const execucao = new ExecucaoCanario({
+  pool: () => obterPool(),
+  dono: async () => {
+    const cliente = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
+    await cliente.connect();
+    return { cliente, fechar: () => cliente.end() };
+  },
+});
 
-// O Admin real (ADMIN_EMAIL_INICIAL) nunca é tocado: se um canário apontar para ele, nada roda.
-export function recusarSeForOAdminReal(): void {
-  const real = lerEmail(process.env.ADMIN_EMAIL_INICIAL);
-  for (const papel of PAPEIS) {
-    if (real && emailDo(papel) === real) {
-      throw new Error(`RECUSA: o canário ${papel} é o Admin real; nada foi alterado`);
-    }
-  }
-}
+// A marca da execução entra em todo texto que o teste escreve: a limpeza só apaga linha que a leva.
+export const MARCA = execucao.marca;
 
-export async function habilitarCanarios(papeis: Papel[]): Promise<void> {
-  recusarSeForOAdminReal();
-  const pool = obterPool();
-  for (const papel of papeis) {
-    const { estado } = await habilitar(pool, emailDo(papel), papel, false);
-    if (!estado.entradaPermitida) throw new Error(`o canário ${papel} não ficou habilitado`);
-  }
-}
-
-// Desabilita e MEDE (convite revogado, zero sessões, sessão anterior recusada, zero segundo fator).
-// Também roda depois de falha: é o `afterAll` do arquivo.
-export async function desabilitarCanarios(papeis: Papel[]): Promise<void> {
-  const pool = obterPool();
-  const falhas: string[] = [];
-  for (const papel of papeis) {
-    await apagarDadosPrivados(papel);
-    const r = await desabilitar(pool, emailDo(papel));
-    const e = await lerEstado(pool, emailDo(papel));
-    if (!r.confirmado || e.sessoes !== 0 || e.entradaPermitida) falhas.push(papel);
-  }
-  if (falhas.length > 0)
-    throw new Error(`canário NÃO confirmado desabilitado: ${falhas.join(", ")}`);
-}
-
-// Apaga o que o teste escreveu na conta canário (só dela): as tabelas privadas com `estudante_id`.
-// O consentimento sai também, para a próxima rodada partir sem aceite.
-export async function apagarDadosPrivados(papel: Papel): Promise<void> {
-  const c = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
-  await c.connect();
-  try {
-    const u = await c.query<{ id: string }>('select id from auth."user" where email = $1', [
-      emailDo(papel),
-    ]);
-    const id = u.rows[0]?.id;
-    if (!id) return;
-    const tabelas = await c.query<{ table_name: string }>(
-      `select table_name from information_schema.columns
-       where table_schema = 'privado' and column_name = 'estudante_id' order by table_name`,
-    );
-    // Tabelas filhas primeiro: o escritor da Anotação aponta para a Anotação.
-    const ordem = [...tabelas.rows.map((r) => r.table_name)].sort((a, b) =>
-      a.endsWith("_escritor") ? -1 : b.endsWith("_escritor") ? 1 : a.localeCompare(b),
-    );
-    for (const tabela of ordem) {
-      await c.query(
-        `delete from privado.${tabela.replace(/[^a-z_]/g, "")} where estudante_id = $1`,
-        [id],
-      );
-    }
-  } finally {
-    await c.end();
-  }
-}
+export const habilitarCanarios = (papeis: Papel[]) => execucao.preparar(papeis);
+export const desabilitarCanarios = () => execucao.finalizar();
 
 export type SessaoCanario = {
   contexto: BrowserContext;
@@ -115,22 +59,7 @@ export async function abrirSessao(
 ): Promise<SessaoCanario> {
   const segredo = exigir("BETTER_AUTH_SECRET");
   const bypass = exigir("VERCEL_AUTOMATION_BYPASS_SECRET");
-  const db = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
-  await db.connect();
-  const u = await db.query<{ id: string }>('select id from auth."user" where email = $1', [
-    emailDo(papel),
-  ]);
-  if (u.rowCount !== 1) {
-    await db.end();
-    throw new Error(`INDETERMINADO: conta canário ${papel} não encontrada`);
-  }
-  const usuarioId = u.rows[0]?.id as string;
-  const token = randomBytes(32).toString("base64url");
-  const s = await db.query<{ id: string }>(
-    "insert into auth.session (user_id, token, expires_at) values ($1, $2, now() + interval '30 minutes') returning id",
-    [usuarioId, token],
-  );
-  const id = s.rows[0]?.id as string;
+  const { id, usuarioId, token } = await execucao.criarSessao(papel);
   const assinado = createHmac("sha256", segredo).update(token).digest("base64");
   const valor = encodeURIComponent(`${token}.${assinado}`);
   const host = new URL(baseURL).hostname;
@@ -156,8 +85,7 @@ export async function abrirSessao(
     usuarioId,
     encerrar: async () => {
       await contexto.close().catch(() => undefined);
-      await db.query("delete from auth.session where id = $1", [id]).catch(() => undefined);
-      await db.end().catch(() => undefined);
+      await execucao.encerrarSessao(id);
     },
   };
 }

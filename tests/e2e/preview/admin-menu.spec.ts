@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
   abrirSessao,
-  apagarDadosPrivados,
   desabilitarCanarios,
   habilitarCanarios,
   prepararAdmin,
@@ -14,11 +13,10 @@ import {
 
 test.beforeAll(async () => {
   await habilitarCanarios(["admin"]);
-  await apagarDadosPrivados("admin");
 });
 
 test.afterAll(async () => {
-  await desabilitarCanarios(["admin"]);
+  await desabilitarCanarios();
 });
 
 test("Admin: o link Convites da navegação das Trilhas abre a lista de convites", async ({

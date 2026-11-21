@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
 import pg from "pg";
@@ -6,10 +5,10 @@ import { esperarHidratado } from "../../support/hidratacao";
 import {
   abrirSessao,
   aceitarAviso,
-  apagarDadosPrivados,
   desabilitarCanarios,
   escreverAnotacao,
   habilitarCanarios,
+  MARCA,
   PAPEIS,
   prepararAdmin,
 } from "./suporte-canario";
@@ -28,7 +27,7 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-const MARCADOR = `MARCADOR-${randomUUID()}`;
+const MARCADOR = `MARCADOR-${MARCA}`;
 const ESTUDO = "nicodemos-nascer-de-novo";
 const TITULO = "Nicodemos: nascer de novo";
 const CAPTURAS = "test-results/preview-uat";
@@ -36,12 +35,11 @@ const CAPTURAS = "test-results/preview-uat";
 test.beforeAll(async () => {
   mkdirSync(CAPTURAS, { recursive: true });
   await habilitarCanarios(PAPEIS);
-  for (const papel of PAPEIS) await apagarDadosPrivados(papel);
   writeFileSync("test-results/marcador-uat.txt", `${MARCADOR}\n`, { mode: 0o600 });
 });
 
 test.afterAll(async () => {
-  await desabilitarCanarios(PAPEIS);
+  await desabilitarCanarios();
 });
 
 async function clicarQuandoHidratado(page: Page, nome: string | RegExp): Promise<void> {

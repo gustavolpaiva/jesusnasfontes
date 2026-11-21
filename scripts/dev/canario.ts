@@ -10,6 +10,7 @@ import {
 import { lerEmail, normalizarEmail } from "../../src/modules/identidade/normalizar-email";
 import { recuperarSegundoFator } from "../admin/recuperar-segundo-fator";
 import { conferirAmbienteDev, NaoMedido } from "./conferir-entrada";
+import { conferirContaCanario, RecusaCanario } from "./protecao-canario";
 
 // pnpm exec tsx scripts/dev/canario.ts <habilitar|desabilitar|estado> [--papel estudante|admin] [--enviar]
 //
@@ -99,6 +100,8 @@ export async function habilitar(
   enviar: boolean,
 ): Promise<{ criado: boolean; estado: EstadoCanario }> {
   const email = normalizarEmail(emailBruto);
+  // Antes de qualquer escrita: banco de dev, endereço marcado como canário e não é a conta real.
+  await conferirContaCanario(c, email, papel);
   let criado = true;
   try {
     await convidar(email, null, { papel, enviar });
@@ -120,8 +123,11 @@ export type ResultadoDesabilitar = {
 export async function desabilitar(
   c: Pick<pg.Pool, "query" | "connect">,
   emailBruto: string,
+  papel?: Papel,
 ): Promise<ResultadoDesabilitar> {
   const email = normalizarEmail(emailBruto);
+  // Antes de qualquer escrita: banco de dev, endereço marcado como canário e não é a conta real.
+  await conferirContaCanario(c, email, papel);
   // Antes: os tokens das sessões abertas, só para medir depois que nenhum vale mais. Ficam em memória.
   const abertas = await c.query(
     `select s.token from auth.session s join auth."user" u on u.id = s.user_id
@@ -222,7 +228,7 @@ async function principal(): Promise<number> {
       imprimirEstado(r.estado, { convite_criado_agora: r.criado });
       return r.estado.entradaPermitida ? 0 : 1;
     }
-    const r = await desabilitar(pool, email);
+    const r = await desabilitar(pool, email, papel);
     imprimirEstado(r.estado, {
       sessoes_anteriores: r.sessoesAnteriores,
       segundos_fatores: r.segundosFatores,
@@ -230,7 +236,7 @@ async function principal(): Promise<number> {
     console.log(`desabilitado_confirmado=${r.confirmado}`);
     return r.confirmado ? 0 : 1;
   } catch (erro) {
-    if (erro instanceof NaoMedido) console.error(erro.message);
+    if (erro instanceof NaoMedido || erro instanceof RecusaCanario) console.error(erro.message);
     else {
       registrarErro("canario", erro);
       console.error("NaoMedido: falha ao ler ou escrever no banco");
