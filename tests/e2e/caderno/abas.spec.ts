@@ -360,3 +360,72 @@ test("se o campo mudou durante o envio, a resposta não declara Salvo: o editor 
     .toBe(0);
   expect(await chaves(page)).toEqual([]);
 });
+
+test("resposta perdida depois de o servidor gravar: o editor fica incerto, relê o servidor e envia a exclusão que a pessoa fez", async ({
+  page,
+}) => {
+  const id = await entrar(page);
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  // O PRIMEIRO envio chega ao servidor, que grava, e a resposta é derrubada no caminho de volta.
+  let envios = 0;
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      envios += 1;
+      if (envios === 1) {
+        await rota.fetch();
+        await rota.abort("connectionfailed");
+        return;
+      }
+    }
+    await rota.continue();
+  });
+  const x = `X-${randomUUID()}`;
+  await campo(page).fill(x);
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+  expect(
+    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(x);
+
+  // A pessoa apaga tudo: o campo é igual à base que o editor conhecia (vazio), mas o servidor TEM o texto.
+  await campo(page).fill("");
+  // Próxima oportunidade (a conexão volta): o editor relê o servidor antes de decidir e envia a exclusão.
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(estado(page)).toHaveText("Salvo");
+  await expect
+    .poll(() => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]))
+    .toBe(0);
+  expect(await chaves(page)).toEqual([]);
+});
+
+test("resposta perdida sem o servidor ter gravado: relê, vê que nada chegou e segue com o envio de sempre", async ({
+  page,
+}) => {
+  const id = await entrar(page);
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  let envios = 0;
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      envios += 1;
+      if (envios === 1) {
+        await rota.abort("connectionfailed");
+        return;
+      }
+    }
+    await rota.continue();
+  });
+  const texto = `Y-${randomUUID()}`;
+  await campo(page).fill(texto);
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+  expect(
+    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(0);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(estado(page)).toHaveText("Salvo");
+  expect(
+    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(texto);
+});

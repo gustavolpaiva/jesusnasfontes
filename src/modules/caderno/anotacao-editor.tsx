@@ -83,6 +83,11 @@ export function AnotacaoEditor({
   // O texto que está a caminho do servidor (resposta ainda não chegou): enquanto houver um, o servidor pode
   // passar a ter esse texto, então a base antiga já não diz o que a edição de agora muda.
   const enviadoRef = useRef<string | null>(null);
+  // INCERTO: o envio não teve resposta (rede caiu, resposta perdida) e o servidor pode ou não ter gravado o texto
+  // que estava a caminho. A base NÃO volta nem avança por palpite: na próxima oportunidade o editor relê o
+  // servidor antes de decidir (`resolverIncerto`).
+  const incertoRef = useRef(false);
+  const resolvendoRef = useRef(false);
   // O navegador passou a ser de outra conta: esta aba nunca mais envia nada (nem reenvia).
   const trocadaRef = useRef(false);
   const reenviarRef = useRef(false);
@@ -99,7 +104,7 @@ export function AnotacaoEditor({
   const guardarLocal = useCallback(() => {
     // Com um envio pendente, o campo que difere do texto a caminho tem de ficar no rascunho MESMO que seja igual
     // à base antiga (apagar tudo num Estudo sem Anotação, por exemplo): é a única cópia da exclusão.
-    const aCaminho = emVooRef.current ? enviadoRef.current : null;
+    const aCaminho = enviadoRef.current;
     const difereDoQueVoa = aCaminho !== null && textoRef.current !== aCaminho;
     if (!sujo() && !difereDoQueVoa) {
       // Sem diferença para o servidor o rascunho desta montagem (que espelha o campo) sai na hora, mesmo que o
@@ -138,10 +143,59 @@ export function AnotacaoEditor({
     [limparTemporizador],
   );
 
+  const resolverIncerto = useCallback(async (): Promise<boolean> => {
+    const nascida = geracao.current;
+    const aCaminho = enviadoRef.current;
+    if (aCaminho === null) {
+      incertoRef.current = false;
+      return true;
+    }
+    if (typeof navigator !== "undefined" && !navigator.onLine) return false;
+    let lida: Awaited<ReturnType<typeof lerAnotacao>>;
+    try {
+      lida = await lerAnotacao(estudoId, estudanteId);
+    } catch {
+      return false;
+    }
+    if (nascida !== geracao.current) return false;
+    if (!lida.ok) {
+      trocadaRef.current = true;
+      setEstado("sessao-trocada");
+      return false;
+    }
+    const fresca = lida.anotacao;
+    const base = baseRef.current;
+    const andou = (fresca?.id ?? null) !== base.id || (fresca?.versao ?? 0) !== base.versao;
+    // O texto a caminho chegou: a base passa a ser ele, e a edição de agora (inclusive apagar) é o que falta
+    // enviar. Se o servidor tem outra coisa, a base velha fica e o servidor dirá "conflito" no envio.
+    if (andou && fresca && fresca.corpo === aCaminho) baseRef.current = baseDe(fresca);
+    incertoRef.current = false;
+    enviadoRef.current = null;
+    return true;
+  }, [estudanteId, estudoId]);
+
   const enviar = useCallback(async () => {
     const nascida = geracao.current;
     limparTemporizador();
-    if (trocadaRef.current || conflitoRef.current || !sujo()) return;
+    if (trocadaRef.current || conflitoRef.current) return;
+    if (incertoRef.current) {
+      // Antes de decidir qualquer coisa, o servidor é relido: o texto que estava a caminho pode ter chegado.
+      if (resolvendoRef.current) return;
+      resolvendoRef.current = true;
+      const resolvido = await resolverIncerto();
+      resolvendoRef.current = false;
+      if (nascida !== geracao.current) return;
+      if (!resolvido) {
+        if (typeof navigator === "undefined" || navigator.onLine) agendar(NOVA_TENTATIVA_MS);
+        return;
+      }
+      guardarLocal();
+      if (!sujo()) {
+        setEstado(baseRef.current.id === null ? "ocioso" : "salvo");
+        return;
+      }
+    }
+    if (!sujo()) return;
     if (textoRef.current.length > ANOTACAO_MAX) {
       setEstado("limite");
       return;
@@ -172,7 +226,9 @@ export function AnotacaoEditor({
       // A chamada nem chegou (ou voltou quebrada): o texto segue neste aparelho.
       if (nascida !== geracao.current) return;
       emVooRef.current = false;
-      enviadoRef.current = null;
+      // Sem resposta: o servidor pode ter gravado. `enviadoRef` fica (o rascunho segue espelhando o campo contra
+      // o texto a caminho) e o editor passa a incerto até reler o servidor.
+      incertoRef.current = true;
       if (typeof navigator !== "undefined" && !navigator.onLine) setEstado("offline");
       else {
         setEstado("falha");
@@ -184,6 +240,7 @@ export function AnotacaoEditor({
     if (nascida !== geracao.current) return;
     emVooRef.current = false;
     enviadoRef.current = null;
+    incertoRef.current = false;
     const digitouDepois = textoRef.current !== enviado;
 
     if (resposta.ok) {
@@ -232,7 +289,7 @@ export function AnotacaoEditor({
         setEstado("falha");
         agendar(NOVA_TENTATIVA_MS);
     }
-  }, [agendar, estudanteId, estudoId, guardarLocal, limparTemporizador, sujo]);
+  }, [agendar, estudanteId, estudoId, guardarLocal, limparTemporizador, resolverIncerto, sujo]);
 
   useEffect(() => {
     enviarRef.current = enviar;
@@ -241,7 +298,15 @@ export function AnotacaoEditor({
   // Confere o que o servidor tem agora e adota se a pessoa não escreveu nada que dependa da versão velha.
   // Cobre a página que veio do cache do navegador (voltar) e a Anotação mudada em outro aparelho.
   const conferirServidor = useCallback(async () => {
-    if (trocadaRef.current || emVooRef.current || conflitoRef.current || sujo()) return;
+    if (
+      trocadaRef.current ||
+      incertoRef.current ||
+      emVooRef.current ||
+      conflitoRef.current ||
+      sujo()
+    ) {
+      return;
+    }
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     const antes = textoRef.current;
     const nascida = geracao.current;
@@ -343,15 +408,15 @@ export function AnotacaoEditor({
   // Reenvio quando a conexão volta e quando a aba volta a ser vista; ao sair da aba, envia o que falta.
   useEffect(() => {
     const aoVoltarConexao = () => {
-      if (sujo() && !conflitoRef.current) void enviarRef.current();
+      if ((sujo() || incertoRef.current) && !conflitoRef.current) void enviarRef.current();
     };
     const aoPerderConexao = () => {
       if (sujo() && !conflitoRef.current && !trocadaRef.current) setEstado("offline");
     };
     const aoMudarVisibilidade = () => {
       if (document.visibilityState === "hidden") {
-        if (sujo() && !conflitoRef.current) void enviarRef.current();
-      } else if (sujo()) {
+        if ((sujo() || incertoRef.current) && !conflitoRef.current) void enviarRef.current();
+      } else if (sujo() || incertoRef.current) {
         if (!conflitoRef.current) void enviarRef.current();
       } else {
         void conferirServidor();
