@@ -53,6 +53,16 @@ describe.skipIf(emNeon())("exportarDados", () => {
     expect(dados.tabelas.anotacao?.[0]).not.toHaveProperty("tsv");
   });
 
+  it("o perfil traz papel, e-mail verificado e segundo fator ativo do titular (revisão da fase, plano 01-20)", async () => {
+    const dados = await exportarDados(t.a.id);
+    expect(dados.perfil).toMatchObject({
+      email: t.a.email,
+      papel: expect.stringMatching(/^(estudante|admin)$/),
+      emailVerificado: expect.any(Boolean),
+      doisFatoresAtivo: expect.any(Boolean),
+    });
+  });
+
   it("o arquivo traz IP, navegador e datas das sessões do titular, sem token e sem as de outra conta (revisão da fase, plano 01-20)", async () => {
     const uaA = `UA-DE-A-${t.a.marcador}`;
     const uaB = `UA-DE-B-${t.b.marcador}`;

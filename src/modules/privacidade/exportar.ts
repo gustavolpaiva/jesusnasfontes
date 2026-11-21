@@ -16,7 +16,13 @@ export type TabelaPrivada = { nome: string; colunas: string[] };
 export type DadosExportados = {
   geradoEm: string;
   versaoFormato: 1;
-  perfil: { email: string; criadaEm: string | null };
+  perfil: {
+    email: string;
+    criadaEm: string | null;
+    papel: string;
+    emailVerificado: boolean;
+    doisFatoresAtivo: boolean;
+  };
   convite: { estado: string; criadoEm: string | null; aceitoEm: string | null } | null;
   // Metadados das sessões abertas da conta (IP e navegador são dado pessoal). Nunca o token.
   sessoes: {
@@ -61,7 +67,13 @@ export async function exportarDados(
   const { conta, conv, sessoes, tabelas } = await porta(estudanteId, async (tx) => {
     await travarProgresso(tx, estudanteId);
     const [conta] = await tx
-      .select({ email: usuario.email, criadaEm: usuario.createdAt })
+      .select({
+        email: usuario.email,
+        criadaEm: usuario.createdAt,
+        papel: usuario.role,
+        emailVerificado: usuario.emailVerified,
+        doisFatoresAtivo: usuario.twoFactorEnabled,
+      })
       .from(usuario)
       .where(eq(usuario.id, estudanteId));
     if (!conta) throw new Error("Conta inexistente.");
@@ -99,7 +111,13 @@ export async function exportarDados(
   return {
     geradoEm: agora().toISOString(),
     versaoFormato: 1,
-    perfil: { email: conta.email, criadaEm: iso(conta.criadaEm) },
+    perfil: {
+      email: conta.email,
+      criadaEm: iso(conta.criadaEm),
+      papel: conta.papel,
+      emailVerificado: conta.emailVerificado,
+      doisFatoresAtivo: conta.doisFatoresAtivo,
+    },
     convite: conv
       ? { estado: conv.estado, criadoEm: iso(conv.criadoEm), aceitoEm: iso(conv.aceitoEm) }
       : null,
