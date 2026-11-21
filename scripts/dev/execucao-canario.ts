@@ -1,38 +1,45 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type pg from "pg";
 import { desabilitar, habilitar, lerEstado, type Papel } from "./canario";
-import { type Fotografia, fotografar, limpar } from "./limpeza-canario";
+import { contarLinhasPrivadas, limparTudo } from "./limpeza-canario";
 import { conferirContaCanario, emailDoCanario, RecusaCanario } from "./protecao-canario";
+import { soltarTrava, tomarTrava, travaViva } from "./trava-canario";
 
-// Uma EXECUÇÃO de teste com contas canário (plano 01-19). Dona de tudo o que a execução cria e de tudo
-// o que ela desfaz, em três regras:
+// Uma EXECUÇÃO de teste com contas canário (plano 01-19). Três garantias, nesta ordem:
 //
-//   (a) a execução tem uma MARCA própria e registra o que cria: a fotografia das linhas que a conta já
-//       tinha e o id de cada sessão que abriu. A limpeza apaga só o que é novo e leva a marca, relido
-//       antes, com teto (ver `limpeza-canario.ts`); sessão só pelo id registrado.
-//   (b) a proteção contra conta real vale no INÍCIO e no FIM: toda escrita é precedida de
-//       `conferirContaCanario` (banco de dev, endereço marcado como canário, não é o Admin inicial,
-//       papel certo), e a limpeza das linhas privadas só roda se a preparação foi autorizada E concluída.
-//   (c) toda conexão que escreve confere o marcador `dev` do banco antes (a conferência está dentro de
-//       `conferirContaCanario`, `fotografar` e `limpar`, que recebem a própria conexão).
+//   1. UMA execução por conta canário de cada vez: advisory lock tomado na preparação e solto depois da
+//      limpeza (`trava-canario.ts`); outra execução recusa sem escrever.
+//   2. A conta canário COMEÇA sem nenhuma linha privada (contagem pelo catálogo). Se tiver, aborta antes
+//      de escrever e diz quantas: o que a conta tem ao fim é, por construção, desta execução.
+//   3. A limpeza apaga TODAS as linhas privadas da conta, com teto, e confere zero. Só roda com a trava
+//      ainda na mão, a proteção contra conta real conferida de novo (banco dev, endereço marcado, não é o
+//      Admin inicial, papel certo) e a preparação autorizada E concluída.
+//
+// Toda conexão que escreve confere o marcador `dev` do banco antes (dentro de `conferirContaCanario`,
+// `tomarTrava` e `limparTudo`, que recebem a própria conexão).
 
 type Dono = Pick<pg.Client, "query">;
 type Pool = Pick<pg.Pool, "query" | "connect">;
 
 export type Fabrica = {
-  /** Conexão do dono do banco (ignora a RLS): só para fotografar, limpar e abrir sessão. */
+  /** Conexão do dono do banco (ignora a RLS), aberta e fechada a cada uso. */
   dono: () => Promise<{ cliente: Dono; fechar: () => Promise<void> }>;
+  /** Conexão DEDICADA, direta, mantida aberta até o fim da execução: é onde mora a trava. */
+  trava: () => Promise<{ cliente: Dono; fechar: () => Promise<void> }>;
   /** Conexão agrupada do aplicativo, a que `habilitar` e `desabilitar` usam. */
   pool: () => Pool;
 };
 
-type Conta = { papel: Papel; email: string; usuarioId: string | null; foto: Fotografia | null };
+type Conta = { papel: Papel; email: string; usuarioId: string | null };
 
 export class ExecucaoCanario {
+  // A marca só entra nos textos que o teste escreve (para achá-los no Caderno e nos registros).
   readonly marca = randomUUID();
   private habilitados = new Map<Papel, Conta>();
   private sessoes: { id: string; usuarioId: string }[] = [];
   private preparado = false;
+  private trava: { cliente: Dono; fechar: () => Promise<void> } | null = null;
+  private travados: string[] = [];
 
   constructor(private readonly fabrica: Fabrica) {}
 
@@ -41,9 +48,7 @@ export class ExecucaoCanario {
       marca: this.marca,
       preparado: this.preparado,
       habilitados: [...this.habilitados.keys()],
-      fotografados: [...this.habilitados.values()]
-        .filter((c) => c.foto !== null)
-        .map((c) => c.papel),
+      travados: this.travados.length,
       sessoes: this.sessoes.map((s) => s.id),
     };
   }
@@ -57,22 +62,51 @@ export class ExecucaoCanario {
     }
   }
 
-  // Toda conferência ANTES de qualquer escrita; depois habilita e fotografa cada conta.
+  // Conferências, trava e pré-condição ANTES de qualquer escrita; depois habilita cada conta.
   async preparar(papeis: Papel[]): Promise<void> {
+    const ordenados = [...papeis].sort();
     const emails = new Map<Papel, string>();
-    for (const papel of papeis) {
+    for (const papel of ordenados) {
       const email = emailDoCanario(papel);
       if (!email) throw new RecusaCanario(`INDETERMINADO: o canário ${papel} não está no ambiente`);
       emails.set(papel, email);
     }
+    // 1. A proteção contra conta real, para todas as contas, antes de qualquer outra coisa.
+    const ids = new Map<Papel, string | null>();
     await this.comDono(async (dono) => {
-      for (const papel of papeis)
-        await conferirContaCanario(dono, emails.get(papel) as string, papel);
+      for (const papel of ordenados) {
+        const { usuarioId } = await conferirContaCanario(dono, emails.get(papel) as string, papel);
+        ids.set(papel, usuarioId);
+      }
     });
-    for (const papel of papeis) {
+    // 2. A trava de cada conta (uma execução por vez), em ordem fixa.
+    this.trava = await this.fabrica.trava();
+    for (const papel of ordenados) {
       const email = emails.get(papel) as string;
-      const conta: Conta = { papel, email, usuarioId: null, foto: null };
-      // Registrada ANTES de habilitar: se algo falhar daqui em diante, o fim desabilita.
+      await tomarTrava(this.trava.cliente, email);
+      this.travados.push(email);
+    }
+    // 3. A conta começa vazia. Com linha prévia, aborta antes de escrever e diz quantas.
+    await this.comDono(async (dono) => {
+      for (const papel of ordenados) {
+        const id = ids.get(papel);
+        if (!id) continue; // conta que ainda não existe não tem linha
+        const { total, porTabela } = await contarLinhasPrivadas(dono, id);
+        if (total > 0) {
+          throw new RecusaCanario(
+            `PreCondicao: a conta canário ${papel} já tem ${total} linha(s) privada(s) (${Object.entries(
+              porTabela,
+            )
+              .map(([t, n]) => `${t} ${n}`)
+              .join(", ")}); esta execução não as cria nem as apaga. Nada foi escrito.`,
+          );
+        }
+      }
+    });
+    // 4. Habilita. A conta entra no registro ANTES: se algo falhar daqui em diante, o fim desabilita.
+    for (const papel of ordenados) {
+      const email = emails.get(papel) as string;
+      const conta: Conta = { papel, email, usuarioId: null };
       this.habilitados.set(papel, conta);
       const { estado } = await habilitar(this.fabrica.pool(), email, papel, false);
       if (!estado.entradaPermitida) throw new Error(`o canário ${papel} não ficou habilitado`);
@@ -80,16 +114,15 @@ export class ExecucaoCanario {
         const { usuarioId } = await conferirContaCanario(dono, email, papel);
         if (!usuarioId) throw new Error(`o canário ${papel} não tem conta depois de habilitar`);
         conta.usuarioId = usuarioId;
-        conta.foto = await fotografar(dono, usuarioId);
       });
     }
     this.preparado = true;
   }
 
-  // Sessão de 30 minutos para o canário, só se a preparação o autorizou. Devolve o token (para assinar o cookie).
+  // Sessão de 30 minutos para o canário, só se a preparação a autorizou. Devolve o token (para o cookie).
   async criarSessao(papel: Papel): Promise<{ id: string; usuarioId: string; token: string }> {
     const conta = this.habilitados.get(papel);
-    if (!this.preparado || !conta?.usuarioId || !conta.foto) {
+    if (!this.preparado || !conta?.usuarioId) {
       throw new RecusaCanario("RecusaDeSessao: a preparação não foi autorizada e concluída");
     }
     const usuarioId = conta.usuarioId;
@@ -122,8 +155,8 @@ export class ExecucaoCanario {
     this.sessoes = this.sessoes.filter((s) => s.id !== id);
   }
 
-  // O `afterAll`: sessões registradas, linhas novas da conta e, por fim, o desabilitar medido. Cada etapa
-  // roda mesmo se a anterior falhar (desabilitar é o sentido seguro); os erros saem juntos no fim.
+  // O `afterAll`: sessões registradas, todas as linhas privadas da conta e o desabilitar medido. Cada
+  // etapa roda mesmo se a anterior falhar (desabilitar é o sentido seguro); a trava é solta por último.
   async finalizar(): Promise<void> {
     const erros: string[] = [];
     const tentar = async (rotulo: string, fn: () => Promise<void>) => {
@@ -135,16 +168,20 @@ export class ExecucaoCanario {
     };
     for (const s of [...this.sessoes]) await tentar("sessão", () => this.encerrarSessao(s.id));
     for (const conta of this.habilitados.values()) {
-      // A limpeza das linhas só roda com a preparação autorizada E concluída, e depois de conferir de
-      // novo que a conta é um canário marcado.
-      if (this.preparado && conta.usuarioId && conta.foto) {
-        const { usuarioId, foto } = conta;
-        await tentar(`limpeza ${conta.papel}`, () =>
-          this.comDono(async (dono) => {
+      // Só com a preparação autorizada E concluída, a trava ainda na mão e a conta ainda canário marcado.
+      if (this.preparado && conta.usuarioId) {
+        const { usuarioId } = conta;
+        await tentar(`limpeza ${conta.papel}`, async () => {
+          if (!this.trava || !(await travaViva(this.trava.cliente, conta.email))) {
+            throw new RecusaCanario("RecusaDeLimpeza: a trava da conta não está mais na mão");
+          }
+          await this.comDono(async (dono) => {
             await conferirContaCanario(dono, conta.email, conta.papel);
-            await limpar(dono, usuarioId, foto, this.marca);
-          }),
-        );
+            await limparTudo(dono, usuarioId);
+            const resto = await contarLinhasPrivadas(dono, usuarioId);
+            if (resto.total !== 0) throw new Error("sobrou linha privada depois da limpeza");
+          });
+        });
       }
       await tentar(`desabilitar ${conta.papel}`, async () => {
         const pool = this.fabrica.pool();
@@ -154,6 +191,14 @@ export class ExecucaoCanario {
           throw new Error("não confirmado desabilitado");
         }
       });
+    }
+    if (this.trava) {
+      const trava = this.trava;
+      for (const email of this.travados)
+        await tentar("soltar trava", () => soltarTrava(trava.cliente, email));
+      await tentar("fechar trava", () => trava.fechar());
+      this.trava = null;
+      this.travados = [];
     }
     if (erros.length > 0) throw new Error(`fim da execução com falhas: ${erros.join(" | ")}`);
   }

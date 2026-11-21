@@ -16,8 +16,9 @@ import { gerarTotp } from "../../support/totp";
 // A entrada por e-mail e por código tem prova própria (fumaça, `convidado.spec.ts` e a entrada do dono).
 //
 // Tudo que escreve passa por `ExecucaoCanario` (scripts/dev/execucao-canario.ts): marca própria da
-// execução, proteção contra conta real no começo e no fim, marcador `dev` conferido em toda conexão que
-// escreve, e limpeza só do que a execução criou (fotografia, marca e teto).
+// execução, uma execução por conta canário de cada vez (trava), conta que começa sem linha privada,
+// proteção contra conta real no começo e no fim, marcador `dev` conferido em toda conexão que escreve, e
+// limpeza de todas as linhas privadas da conta (que são desta execução por construção), com teto.
 
 export const PAPEIS: Papel[] = ["estudante", "admin"];
 
@@ -35,9 +36,15 @@ export const execucao = new ExecucaoCanario({
     await cliente.connect();
     return { cliente, fechar: () => cliente.end() };
   },
+  // A trava mora numa conexão própria, direta e aberta até o fim da execução.
+  trava: async () => {
+    const cliente = new pg.Client({ connectionString: exigir("DATABASE_URL_OWNER") });
+    await cliente.connect();
+    return { cliente, fechar: () => cliente.end() };
+  },
 });
 
-// A marca da execução entra em todo texto que o teste escreve: a limpeza só apaga linha que a leva.
+// A marca da execução entra nos textos que o teste escreve (para achá-los no Caderno e nos registros).
 export const MARCA = execucao.marca;
 
 export const habilitarCanarios = (papeis: Papel[]) => execucao.preparar(papeis);

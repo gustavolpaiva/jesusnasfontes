@@ -6,10 +6,11 @@ import { desabilitar, habilitar } from "../../../scripts/dev/canario";
 import { ExecucaoCanario, type Fabrica } from "../../../scripts/dev/execucao-canario";
 import {
   AlvoAMais,
-  fotografar,
-  limpar,
+  contarLinhasPrivadas,
+  limparTudo,
   TETO_POR_TABELA,
 } from "../../../scripts/dev/limpeza-canario";
+import { OutraExecucao, tomarTrava } from "../../../scripts/dev/trava-canario";
 import { conferirContaCanario, RecusaCanario } from "../../../scripts/dev/protecao-canario";
 import { ESTUDO_DE_TESTE } from "../../support/estudo-de-teste";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
@@ -72,13 +73,15 @@ afterAll(async () => {
   await obterPool().end();
 });
 
+const conexaoDireta = async () => {
+  const cliente = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
+  await cliente.connect();
+  return { cliente, fechar: () => cliente.end() };
+};
 const fabricaLocal = (): Fabrica => ({
   pool: () => obterPool(),
-  dono: async () => {
-    const cliente = new pg.Client({ connectionString: process.env.DATABASE_URL_OWNER });
-    await cliente.connect();
-    return { cliente, fechar: () => cliente.end() };
-  },
+  dono: conexaoDireta,
+  trava: conexaoDireta,
 });
 
 describe.skipIf(emNeon())("proteção da conta canário", () => {
@@ -157,83 +160,47 @@ describe.skipIf(emNeon())("proteção da conta canário", () => {
       /RecusaDeAmbiente/,
     );
     await expect(desabilitar(prod as never, e, "estudante")).rejects.toThrow(/RecusaDeAmbiente/);
-    await expect(fotografar(prod as never, id)).rejects.toThrow(/RecusaDeAmbiente/);
-    await expect(limpar(prod as never, id, [], "m")).rejects.toThrow(/RecusaDeAmbiente/);
+    await expect(tomarTrava(prod as never, e)).rejects.toThrow(/RecusaDeAmbiente/);
+    await expect(limparTudo(prod as never, id)).rejects.toThrow(/RecusaDeAmbiente/);
     // Só a leitura do marcador, nenhuma escrita nem transação.
     expect(consultas.every((s) => /^select nome from acervo\.ambiente/.test(s))).toBe(true);
     expect(consultas.length).toBe(4);
   });
 });
 
-describe.skipIf(emNeon())("limpeza só do que a execução criou", () => {
-  it("apaga as linhas novas e preserva a que a conta já tinha", async () => {
-    const e = novoEmail("limpa");
-    const id = await criarConta(e);
-    await darAceite(id, "ja-existia");
-    const foto = await fotografar(dono, id);
-    await darAceite(id, "novo-1");
-    await darAceite(id, "novo-2");
-    const apagadas = await limpar(dono, id, foto, "marca-x");
-    expect(apagadas).toEqual({ consentimento: 2 });
-    expect(await consentimentos(id)).toBe(1);
-    expect(
-      await contar(
-        "select count(*) as n from privado.consentimento where estudante_id = $1 and versao_aviso = 'ja-existia'",
-        [id],
-      ),
-    ).toBe(1);
+describe.skipIf(emNeon())("limpeza de todas as linhas privadas da conta canário", () => {
+  it("apaga tudo o que a conta tem, confere zero e não toca outra conta", async () => {
+    const a = await criarConta(novoEmail("a"));
+    const b = await criarConta(novoEmail("b"));
+    await darAceite(a, "v1");
+    await darAceite(a, "v2");
+    await dono.query(
+      "insert into privado.anotacao (estudante_id, estudo_id, corpo) values ($1, $2, 'sem marca nenhuma')",
+      [a, ESTUDO_DE_TESTE.id],
+    );
+    await darAceite(b, "da-b");
+    const apagadas = await limparTudo(dono, a);
+    expect(apagadas).toEqual({ anotacao: 1, consentimento: 2 });
+    expect((await contarLinhasPrivadas(dono, a)).total).toBe(0);
+    expect(await consentimentos(b)).toBe(1);
   });
 
-  it("mais alvo que o teto: aborta sem escrever", async () => {
+  it("mais linhas que o teto: aborta sem escrever", async () => {
     const id = await criarConta(novoEmail("teto"));
-    const foto = await fotografar(dono, id);
     // O teto é pequeno de propósito (o teste não pode passar com um teto frouxo).
     expect(TETO_POR_TABELA).toBeLessThanOrEqual(10);
     for (let i = 0; i < 11; i++) await darAceite(id, `v${i}`);
-    await expect(limpar(dono, id, foto, "marca-x")).rejects.toBeInstanceOf(AlvoAMais);
+    await expect(limparTudo(dono, id)).rejects.toBeInstanceOf(AlvoAMais);
     expect(await consentimentos(id)).toBe(11);
-  });
-
-  it("linha nova de texto sem a marca da execução: aborta sem escrever, com a marca apaga", async () => {
-    const id = await criarConta(novoEmail("marca"));
-    const foto = await fotografar(dono, id);
-    await darAceite(id, "novo");
-    await dono.query(
-      "insert into privado.anotacao (estudante_id, estudo_id, corpo) values ($1, $2, 'texto de outra origem')",
-      [id, ESTUDO_DE_TESTE.id],
-    );
-    await expect(limpar(dono, id, foto, "MARCA-DA-EXECUCAO")).rejects.toThrow(/RecusaDeMarca/);
-    expect(await consentimentos(id)).toBe(1); // nem a linha sem marca nem a outra foram apagadas
-    expect(
-      await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
-    ).toBe(1);
-    await dono.query(
-      "update privado.anotacao set corpo = 'escrito com MARCA-DA-EXECUCAO' where estudante_id = $1",
-      [id],
-    );
-    const apagadas = await limpar(dono, id, foto, "MARCA-DA-EXECUCAO");
-    expect(apagadas).toMatchObject({ anotacao: 1, consentimento: 1 });
-    expect(await consentimentos(id)).toBe(0);
-  });
-
-  it("não toca linha de outra conta", async () => {
-    const a = await criarConta(novoEmail("a"));
-    const b = await criarConta(novoEmail("b"));
-    const foto = await fotografar(dono, a);
-    await darAceite(a, "da-a");
-    await darAceite(b, "da-b");
-    await limpar(dono, a, foto, "m");
-    expect(await consentimentos(a)).toBe(0);
-    expect(await consentimentos(b)).toBe(1);
   });
 });
 
-describe.skipIf(emNeon())("execução de canário: preparação autorizada e concluída", () => {
+describe.skipIf(emNeon())("execução de canário: trava, conta vazia e limpeza", () => {
   it("execução que nunca preparou não escreve nada ao finalizar", async () => {
     const abriu = vi.fn();
     const fabrica = fabricaLocal();
     const x = new ExecucaoCanario({
-      pool: fabrica.pool,
+      ...fabrica,
       dono: async () => {
         abriu();
         return fabrica.dono();
@@ -243,7 +210,7 @@ describe.skipIf(emNeon())("execução de canário: preparação autorizada e con
     expect(abriu).not.toHaveBeenCalled();
   });
 
-  it("preparação recusada (canário é o Admin inicial) não habilita nem apaga nada", async () => {
+  it("preparação recusada (canário é o Admin inicial) não trava, não habilita nem apaga nada", async () => {
     const real = novoEmail("real4");
     const idReal = await criarConta(real, "admin");
     await darAceite(idReal, "do-admin-real");
@@ -253,7 +220,8 @@ describe.skipIf(emNeon())("execução de canário: preparação autorizada e con
     const x = new ExecucaoCanario(fabricaLocal());
     await expect(x.preparar(["estudante", "admin"])).rejects.toBeInstanceOf(RecusaCanario);
     expect(x.registro.habilitados).toEqual([]);
-    await x.finalizar(); // o fim também não escreve: nada foi autorizado
+    expect(x.registro.travados).toBe(0);
+    await x.finalizar();
     expect(await consentimentos(idReal)).toBe(1);
     expect(
       await contar("select count(*) as n from admin.convite where email_norm = $1", [real]),
@@ -261,7 +229,100 @@ describe.skipIf(emNeon())("execução de canário: preparação autorizada e con
     await expect(x.criarSessao("admin")).rejects.toBeInstanceOf(RecusaCanario);
   });
 
-  it("preparação que não concluiu (uma conta já fotografada): o fim desabilita mas NÃO apaga linhas privadas", async () => {
+  it("canário com linha privada prévia: aborta antes de escrever, diz quantas, e a linha sobrevive", async () => {
+    const e = novoEmail("previa");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real8");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const id = await criarConta(e);
+    await darAceite(id, "do-dono-no-celular");
+    await darAceite(id, "outra");
+    const x = new ExecucaoCanario(fabricaLocal());
+    await expect(x.preparar(["estudante"])).rejects.toThrow(
+      /PreCondicao.*2 linha.*consentimento 2/,
+    );
+    expect(x.registro.habilitados).toEqual([]);
+    expect(await contar("select count(*) as n from admin.convite where email_norm = $1", [e])).toBe(
+      0,
+    );
+    await x.finalizar();
+    expect(await consentimentos(id)).toBe(2);
+    // A trava foi solta: uma execução nova a toma (e recusa de novo pela mesma razão, não pela trava).
+    const y = new ExecucaoCanario(fabricaLocal());
+    await expect(y.preparar(["estudante"])).rejects.toThrow(/PreCondicao/);
+    await y.finalizar();
+  });
+
+  it("segunda execução simultânea na mesma conta: recusa sem escrever e não apaga nada da primeira", async () => {
+    const e = novoEmail("dupla");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real9");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    const x1 = new ExecucaoCanario(fabricaLocal());
+    await x1.preparar(["estudante"]);
+    const id = (
+      await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
+        e,
+      ])
+    ).rows[0]?.id as string;
+    usuarios.push(e);
+    await darAceite(id, "da-primeira-execucao");
+    const x2 = new ExecucaoCanario(fabricaLocal());
+    await expect(x2.preparar(["estudante"])).rejects.toBeInstanceOf(OutraExecucao);
+    expect(x2.registro.habilitados).toEqual([]);
+    await x2.finalizar(); // a segunda não é dona de nada: não apaga, não desabilita, não solta a trava alheia
+    expect(await consentimentos(id)).toBe(1);
+    expect(
+      await contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado <> 'revogado'",
+        [e],
+      ),
+    ).toBe(1);
+    // A trava da primeira continua valendo depois do fim da segunda.
+    await expect(
+      tomarTrava((await conexaoDireta()).cliente, e).then(() => "tomou"),
+    ).rejects.toBeInstanceOf(OutraExecucao);
+    await x1.finalizar();
+    expect(await consentimentos(id)).toBe(0);
+    // Solta ao fim da primeira, uma terceira toma.
+    const x3 = new ExecucaoCanario(fabricaLocal());
+    await x3.preparar(["estudante"]);
+    await x3.finalizar();
+  });
+
+  it("trava perdida no meio: a limpeza é recusada, a linha fica, e o desabilitar ainda roda", async () => {
+    const e = novoEmail("perdida");
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real10");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
+    let pidDaTrava = 0;
+    const base = fabricaLocal();
+    const x = new ExecucaoCanario({
+      ...base,
+      trava: async () => {
+        const c = await conexaoDireta();
+        (c.cliente as pg.Client).on("error", () => undefined); // a derrubada é o próprio teste
+        pidDaTrava = (c.cliente as unknown as { processID: number }).processID;
+        return c;
+      },
+    });
+    await x.preparar(["estudante"]);
+    const id = (
+      await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
+        e,
+      ])
+    ).rows[0]?.id as string;
+    usuarios.push(e);
+    await darAceite(id, "nova");
+    await dono.query("select pg_terminate_backend($1)", [pidDaTrava]);
+    await expect(x.finalizar()).rejects.toThrow(/limpeza/);
+    expect(await consentimentos(id)).toBe(1);
+    expect(
+      await contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado = 'revogado'",
+        [e],
+      ),
+    ).toBe(1);
+  });
+
+  it("preparação que não concluiu: o fim desabilita mas NÃO apaga linhas privadas", async () => {
     const e = novoEmail("meio");
     const eAdmin = novoEmail("meio-admin");
     process.env.ADMIN_EMAIL_INICIAL = novoEmail("real5");
@@ -271,23 +332,23 @@ describe.skipIf(emNeon())("execução de canário: preparação autorizada e con
     const base = fabricaLocal();
     let chamadas = 0;
     const x = new ExecucaoCanario({
-      pool: base.pool,
+      ...base,
       dono: async () => {
         chamadas++;
-        // 1ª: conferência inicial; 2ª: o estudante, depois de habilitar (fotografado); 3ª: o Admin (falha).
-        if (chamadas === 3) throw new Error("falha simulada na preparação");
+        // As contas vão em ordem alfabética (admin, estudante). 1ª: proteção; 2ª: pré-condição; 3ª: o Admin
+        // depois de habilitar (ganha id); 4ª: o estudante (falha).
+        if (chamadas === 4) throw new Error("falha simulada na preparação");
         return base.dono();
       },
     });
     await expect(x.preparar(["estudante", "admin"])).rejects.toThrow(/falha simulada/);
     expect(x.registro.preparado).toBe(false);
-    expect(x.registro.fotografados).toEqual(["estudante"]);
     const idConta = (
       await dono.query<{ id: string }>('select id::text as id from auth."user" where email = $1', [
-        e,
+        eAdmin,
       ])
     ).rows[0]?.id as string;
-    await darAceite(idConta, "escrita-depois-da-foto"); // nova em relação à foto, mas a execução não concluiu
+    await darAceite(idConta, "escrita-depois"); // conta que já tem id: a limpeza a alcançaria se não fosse o guarda
     await x.finalizar();
     expect(await consentimentos(idConta)).toBe(1);
     for (const email of [e, eAdmin]) {
@@ -313,7 +374,6 @@ describe.skipIf(emNeon())("execução de canário: preparação autorizada e con
     ).rows[0]?.id as string;
     usuarios.push(e);
     await darAceite(id, "nova");
-    // Entre o começo e o fim o ambiente passou a apontar o canário para outro endereço.
     process.env.JNF_CANARIO_ESTUDANTE_EMAIL = novoEmail("trocado");
     await expect(x.finalizar()).rejects.toThrow(/RecusaDeConta/);
     expect(await consentimentos(id)).toBe(1);
@@ -323,41 +383,40 @@ describe.skipIf(emNeon())("execução de canário: preparação autorizada e con
         [e],
       ),
     ).toBe(1);
-    // Restabelecido o marcado, o fim conclui normalmente.
-    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
-    await x.finalizar();
-    expect(await consentimentos(id)).toBe(0);
+    // A execução recusada soltou a trava e não tocou em nada: a linha segue lá (o dono limpa à mão).
+    await expect(tomarTrava((await conexaoDireta()).cliente, e)).resolves.toBeUndefined();
+    expect(await consentimentos(id)).toBe(1);
   });
 
-  it("execução completa: sessão registrada, linha nova apagada, pré-existente preservada, desabilitado ao fim", async () => {
+  it("execução completa: conta chega vazia, sessão registrada, tudo apagado ao fim, desabilitada e trava solta", async () => {
     const e = novoEmail("completo");
     process.env.ADMIN_EMAIL_INICIAL = novoEmail("real6");
     process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;
     const x = new ExecucaoCanario(fabricaLocal());
-    // A conta existe antes, com uma linha que NÃO é desta execução.
-    const id = await criarConta(e);
-    await darAceite(id, "ja-existia");
+    await criarConta(e);
     await x.preparar(["estudante"]);
     expect(x.registro.preparado).toBe(true);
     const s = await x.criarSessao("estudante");
     expect(await contar("select count(*) as n from auth.session where id = $1", [s.id])).toBe(1);
-    await darAceite(id, "desta-execucao");
+    await darAceite(s.usuarioId, "desta-execucao");
+    await dono.query(
+      "insert into privado.sessao (estudante_id, check_in_em, estudo_inicio_id) values ($1, now(), $2)",
+      [s.usuarioId, ESTUDO_DE_TESTE.id],
+    ); // Sessão aberta, sem Anotação: entra na limpeza como qualquer linha
     await x.finalizar();
-    expect(await contar("select count(*) as n from auth.session where user_id = $1", [id])).toBe(0);
     expect(
-      await contar(
-        "select count(*) as n from privado.consentimento where estudante_id = $1 and versao_aviso = 'ja-existia'",
-        [id],
-      ),
-    ).toBe(1);
-    expect(await consentimentos(id)).toBe(1);
+      await contar("select count(*) as n from auth.session where user_id = $1", [s.usuarioId]),
+    ).toBe(0);
+    expect((await contarLinhasPrivadas(dono, s.usuarioId)).total).toBe(0);
     expect(
       await contar(
         "select count(*) as n from admin.convite where email_norm = $1 and estado = 'revogado'",
         [e],
       ),
     ).toBe(1);
-    // Sessão que a execução não abriu não se encerra por aqui.
     await expect(x.encerrarSessao(randomUUID())).rejects.toBeInstanceOf(RecusaCanario);
+    const y = new ExecucaoCanario(fabricaLocal());
+    await y.preparar(["estudante"]); // trava solta: a próxima execução toma
+    await y.finalizar();
   });
 });
