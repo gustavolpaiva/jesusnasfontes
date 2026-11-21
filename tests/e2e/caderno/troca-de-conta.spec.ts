@@ -8,6 +8,7 @@ import {
   entrarPorLink,
   escrever,
   idDoUsuario,
+  lerTexto,
 } from "../../support/login-e2e";
 
 // Revisão do Codex sobre o plano 01-18 (P1, privacidade): o que a tela de A tem para enviar nunca pode ser
@@ -180,4 +181,42 @@ test("a busca da aba de A depois de a conta trocar não traz o Caderno de B para
   ).toBeVisible();
   await expect(page.locator("main").getByText(palavra)).toHaveCount(0);
   await expect(page.locator('[data-slot="entrada-caderno"]')).toHaveCount(0);
+});
+
+test("a página refeita com outra conta (marcar concluído na aba de A) troca o editor: o texto de A não fica na tela nem vai para B", async ({
+  page,
+  context,
+}) => {
+  const a = await conta(page, "refaz-a");
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  const religar = await cortarEnvio(page);
+  const segredo = `SEGREDO-DE-A-${randomUUID()}`;
+  await campo(page).fill(segredo);
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+
+  const outra = await context.newPage();
+  await outra.goto("/trilhas");
+  await outra.getByRole("button", { name: "Abrir menu" }).click();
+  await outra.getByRole("button", { name: "Sair" }).click();
+  await expect(outra.getByText("Você saiu.")).toBeVisible();
+  const b = await conta(outra, "refaz-b");
+
+  // A aba de A age (marcar concluído roda com a sessão de agora) e a página se refaz para B.
+  const concluir = page.getByRole("button", { name: "Marcar como concluído" });
+  await esperarHidratado(concluir);
+  await concluir.click();
+  await expect(campo(page)).toHaveValue("");
+  await religar();
+  await campo(page).fill("Texto escrito por B.");
+  await expect(estado(page)).toHaveText("Salvo");
+  expect(
+    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [b.id]),
+  ).toBe("Texto escrito por B.");
+  expect(await doEstudante(a.id)).toBe(0);
+  expect(
+    await contar("select count(*) as n from privado.anotacao where corpo like $1", [
+      `%${segredo}%`,
+    ]),
+  ).toBe(0);
 });

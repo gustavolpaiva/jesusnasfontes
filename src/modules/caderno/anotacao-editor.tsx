@@ -53,7 +53,18 @@ function contaParaPainel(conta: ContaDoConflito): Conflito["conta"] {
   return { corpo: conta.corpo, em: conta.atualizadoEm ? new Date(conta.atualizadoEm) : null };
 }
 
-export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
+export function AnotacaoEditor({
+  estudanteId: estudanteIdDaTela,
+  estudoId: estudoIdDaTela,
+  inicial,
+}: Props) {
+  // A identidade é capturada UMA vez, na montagem, e nunca muda: é "quem abriu a tela" (e qual Estudo). Uma
+  // prop que mude depois (a página refeita com outra sessão) não é herdada; a página também troca a `key`
+  // do componente com a conta, então outra conta é um editor novo, sem o texto nem a base de quem abriu.
+  const [{ estudanteId, estudoId }] = useState(() => ({
+    estudanteId: estudanteIdDaTela,
+    estudoId: estudoIdDaTela,
+  }));
   const [texto, setTexto] = useState(inicial?.corpo ?? "");
   const [estado, setEstado] = useState<EstadoDeSalvamento>("ocioso");
   const [conflito, setConflito] = useState<Conflito | null>(null);
@@ -69,6 +80,9 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
   // A versão do servidor que o painel de conflito mostra: sobre ela vale o que a pessoa escolher.
   const contaDoConflito = useRef<Base>(SEM_BASE);
   const emVooRef = useRef(false);
+  // O texto que está a caminho do servidor (resposta ainda não chegou): enquanto houver um, o servidor pode
+  // passar a ter esse texto, então a base antiga já não diz o que a edição de agora muda.
+  const enviadoRef = useRef<string | null>(null);
   // O navegador passou a ser de outra conta: esta aba nunca mais envia nada (nem reenvia).
   const trocadaRef = useRef(false);
   const reenviarRef = useRef(false);
@@ -83,7 +97,11 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
 
   // O rascunho local acompanha o texto, sobre a base conhecida; sem diferença, não há rascunho.
   const guardarLocal = useCallback(() => {
-    if (!sujo()) {
+    // Com um envio pendente, o campo que difere do texto a caminho tem de ficar no rascunho MESMO que seja igual
+    // à base antiga (apagar tudo num Estudo sem Anotação, por exemplo): é a única cópia da exclusão.
+    const aCaminho = emVooRef.current ? enviadoRef.current : null;
+    const difereDoQueVoa = aCaminho !== null && textoRef.current !== aCaminho;
+    if (!sujo() && !difereDoQueVoa) {
       // Sem diferença para o servidor o rascunho desta montagem (que espelha o campo) sai na hora, mesmo que o
       // que ele guardava antes fosse outro texto; dos outros, saem só os de texto igual ao do servidor.
       apagarRascunhoDestaMontagem(estudanteId, estudoId, donoDoRascunho);
@@ -96,6 +114,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       versaoBase: base.versao,
       baseId: base.id,
       salvoEm: Date.now(),
+      ...(aCaminho !== null ? { aCaminho: true } : {}),
     });
   }, [donoDoRascunho, estudanteId, estudoId, sujo]);
 
@@ -138,6 +157,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     emVooRef.current = true;
     setEstado("salvando");
     const enviado = textoRef.current;
+    enviadoRef.current = enviado;
     const usada = baseRef.current;
     let resposta: Awaited<ReturnType<typeof salvarAnotacao>>;
     try {
@@ -152,6 +172,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
       // A chamada nem chegou (ou voltou quebrada): o texto segue neste aparelho.
       if (nascida !== geracao.current) return;
       emVooRef.current = false;
+      enviadoRef.current = null;
       if (typeof navigator !== "undefined" && !navigator.onLine) setEstado("offline");
       else {
         setEstado("falha");
@@ -162,6 +183,7 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     // O editor que enviou já saiu da tela (outro Estudo, ou desmontado): a resposta não é mais dele.
     if (nascida !== geracao.current) return;
     emVooRef.current = false;
+    enviadoRef.current = null;
     const digitouDepois = textoRef.current !== enviado;
 
     if (resposta.ok) {
@@ -253,12 +275,46 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
     geracao.current += 1;
     apagarRascunhosDeOutros(estudanteId);
     const base = baseRef.current;
+    const textoAoAbrir = textoRef.current;
     // Qual rascunho a página recupera: dos rascunhos desta conta para este Estudo (de qualquer aba, inclusive
     // os de antes de recarregar), o MAIS RECENTE que difere do servidor. Os outros continuam guardados e vêm
     // nas próximas aberturas, um por vez. O que já é igual ao servidor não tem o que perder e sai.
-    apagarRascunhosIguais(estudanteId, estudoId, base.corpo);
+    apagarRascunhosIguais(estudanteId, estudoId, base.corpo, { confirmado: false });
     const rascunho = lerRascunhos(estudanteId, estudoId)[0] ?? null;
-    if (rascunho) {
+    const igualABase =
+      rascunho !== null &&
+      (rascunho.corpo === base.corpo || (estaVazio(rascunho.corpo) && base.id === null));
+    if (rascunho?.aCaminho && igualABase) {
+      // Escrito com um envio sem resposta e igual à base que a página tinha: o servidor pode ter recebido o
+      // texto que estava a caminho. Só o servidor, relido, diz se a edição (por exemplo, apagar tudo) ainda
+      // vale; se ele andou, as duas versões vão à pessoa, se não, o rascunho é igual a ele e sai.
+      void (async () => {
+        const nascida = geracao.current;
+        let lida: Awaited<ReturnType<typeof lerAnotacao>>;
+        try {
+          lida = await lerAnotacao(estudoId, estudanteId);
+        } catch {
+          return;
+        }
+        if (nascida !== geracao.current || textoRef.current !== textoAoAbrir) return;
+        if (!lida.ok) {
+          trocadaRef.current = true;
+          setEstado("sessao-trocada");
+          return;
+        }
+        const fresca = lida.anotacao;
+        if ((fresca?.id ?? null) === base.id && (fresca?.versao ?? 0) === base.versao) {
+          apagarRascunhosIguais(estudanteId, estudoId, base.corpo);
+          return;
+        }
+        conflitoRef.current = true;
+        contaDoConflito.current = baseDe(fresca);
+        setConflito({
+          conta: { corpo: fresca?.corpo ?? "", em: fresca ? new Date(fresca.atualizadoEm) : null },
+          rascunho: { corpo: rascunho.corpo, em: new Date(rascunho.salvoEm) },
+        });
+      })();
+    } else if (rascunho) {
       const mesmaBase = rascunho.baseId === base.id && rascunho.versaoBase === base.versao;
       if (mesmaBase) {
         textoRef.current = rascunho.corpo;

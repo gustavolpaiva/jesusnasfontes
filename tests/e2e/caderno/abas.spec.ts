@@ -288,3 +288,75 @@ test("digitar e apagar tudo antes de 1,5 s num Estudo sem Anotação não deixa 
   ).toBe(0);
   expect(await chaves(page)).toEqual([]);
 });
+
+// ───────────── envio pendente: a última edição nunca se perde, nem a de apagar ─────────────
+
+// Segura o PRIMEIRO envio da Anotação até `liberar()`; os seguintes passam.
+async function segurarPrimeiroEnvio(page: Page): Promise<() => void> {
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  let envios = 0;
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes("versaoBase")) {
+      envios += 1;
+      if (envios === 1) await portao;
+    }
+    await rota.continue();
+  });
+  return liberar;
+}
+
+test("apagar tudo durante um envio e navegar antes da resposta não perde a exclusão: ao voltar, o servidor tem o texto e o rascunho vazio vem como conflito", async ({
+  page,
+}) => {
+  const id = await entrar(page);
+  const liberar = await segurarPrimeiroEnvio(page);
+  await page.goto("/estudos/batismo-e-tentacao");
+  await esperarHidratado(campo(page));
+  const x = `X-${randomUUID()}`;
+  await campo(page).fill(x);
+  await expect(estado(page)).toHaveText("Salvando…");
+  // Durante o envio o campo volta a ser igual à base antiga (vazio, sem Anotação): o rascunho NÃO pode sair.
+  await campo(page).fill("");
+  expect(await chaves(page)).toHaveLength(1);
+
+  await page.getByRole("link", { name: "Anterior" }).click();
+  await expect(page).toHaveURL(/\/estudos\/o-nascimento$/);
+  liberar();
+  await expect
+    .poll(() =>
+      lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]).catch(
+        () => "",
+      ),
+    )
+    .toBe(x);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/estudos\/batismo-e-tentacao$/);
+  await esperarHidratado(campo(page));
+  // A exclusão que a pessoa fez não some calada: o servidor tem o texto e o rascunho vazio aparece ao lado.
+  await expect(painel(page)).toBeVisible();
+  await expect(painel(page).getByText(x)).toBeVisible();
+  await expect(painel(page).getByText("(vazio)")).toBeVisible();
+});
+
+test("se o campo mudou durante o envio, a resposta não declara Salvo: o editor reenvia o estado atual, inclusive apagar", async ({
+  page,
+}) => {
+  const id = await entrar(page);
+  const liberar = await segurarPrimeiroEnvio(page);
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  await campo(page).fill(`X-${randomUUID()}`);
+  await expect(estado(page)).toHaveText("Salvando…");
+  await campo(page).fill("");
+  liberar();
+  await expect(estado(page)).toHaveText("Salvo");
+  // O que o servidor guarda é o campo de agora (nada), e não o texto que estava a caminho.
+  await expect
+    .poll(() => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]))
+    .toBe(0);
+  expect(await chaves(page)).toEqual([]);
+});

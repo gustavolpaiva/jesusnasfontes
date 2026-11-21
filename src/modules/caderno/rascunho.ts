@@ -28,6 +28,11 @@ export type Rascunho = {
   baseId: string | null;
   /** Instante (ms) da última mudança do texto, para mostrar a data no conflito. */
   salvoEm: number;
+  /**
+   * Escrito com um envio ainda sem resposta. O texto a caminho pode ter chegado ao servidor, então um rascunho
+   * assim, mesmo igual à base que a página tinha, NÃO é "igual ao servidor": só o servidor, relido, diz.
+   */
+  aCaminho?: boolean;
 };
 
 const base = (estudanteId: string, estudoId: string) => `${PREFIXO}${estudanteId}:${estudoId}:`;
@@ -67,7 +72,8 @@ function lerChave(nomeDaChave: string): Rascunho | null {
     }
     if (baseId !== null && typeof baseId !== "string") return null;
     if (typeof salvoEm !== "number" || !Number.isFinite(salvoEm)) return null;
-    return { corpo, versaoBase, baseId, salvoEm };
+    const { aCaminho } = lido as Record<string, unknown>;
+    return { corpo, versaoBase, baseId, salvoEm, ...(aCaminho === true ? { aCaminho: true } : {}) };
   } catch {
     return null;
   }
@@ -118,12 +124,20 @@ export function apagarRascunhoDestaMontagem(
  * Apaga os rascunhos deste Estudo cujo texto, LIDO DO ARMAZENAMENTO AGORA, é igual a `corpo` (o que o servidor
  * acabou de confirmar, ou o que a pessoa acabou de descartar). Os de texto diferente ficam, seja de que aba for.
  */
-export function apagarRascunhosIguais(estudanteId: string, estudoId: string, corpo: string): void {
+export function apagarRascunhosIguais(
+  estudanteId: string,
+  estudoId: string,
+  corpo: string,
+  { confirmado = true }: { confirmado?: boolean } = {},
+): void {
   try {
     for (const c of chavesDeRascunho()) {
       if (!c.startsWith(base(estudanteId, estudoId))) continue;
       const agora = lerChave(c);
-      if (agora && mesmoTexto(agora.corpo, corpo)) armazem()?.removeItem(c);
+      // `confirmado: false` (a base que a página tinha, ainda não relida): os escritos com envio a caminho ficam.
+      if (agora && (confirmado || !agora.aCaminho) && mesmoTexto(agora.corpo, corpo)) {
+        armazem()?.removeItem(c);
+      }
     }
   } catch {
     // Sem armazenamento, não há o que apagar.

@@ -151,8 +151,9 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
           <CorpoEstudo estudo={estudo} volta={estado.volta} />
         </div>
         <AnotacaoEditor
-          // Troca de Estudo remonta o editor: o texto e o rascunho nunca vazam de um Estudo para outro.
-          key={`anotacao-${estudo.id}`}
+          // Troca de Estudo OU de conta remonta o editor: o texto, a base e o rascunho nunca vazam de um Estudo
+          // para outro nem de uma conta para outra (a página refeita com a sessão de B não herda o texto de A).
+          key={`anotacao-${usuario.id}-${estudo.id}`}
           estudanteId={usuario.id}
           estudoId={estudo.id}
           inicial={anotacao}

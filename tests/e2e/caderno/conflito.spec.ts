@@ -79,7 +79,15 @@ test("a aba que salva depois vê as duas versões inteiras; 'Manter a da conta' 
       .getByText(/^\d{2}\/\d{2}, \d{2}:\d{2}$/)
       .first(),
   ).toBeVisible();
-  // Nada foi sobrescrito.
+  // Nada foi sobrescrito, e com o painel aberto nenhum envio sai sozinho (nem ao voltar a conexão).
+  let enviosDepois = 0;
+  page.on("request", (r) => {
+    if (r.method() === "POST" && (r.postData() ?? "").includes("versaoBase")) enviosDepois += 1;
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await page.waitForTimeout(800);
+  expect(enviosDepois).toBe(0);
   expect(await corpoDe(id)).toBe("Texto do outro aparelho, com mais de uma linha.\nSegunda linha.");
   expect(await versaoDe(id)).toBe(1);
   // Não há botão que junte as duas.
