@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { lerAnotacao, salvarAnotacao } from "./anotacao";
 import type { AnotacaoDoEstudo, ContaDoConflito } from "./anotacao-nucleo";
 import { ConflictPanel } from "./conflict-panel";
-import { ANOTACAO_MAX, estaVazio } from "./limite";
+import { ANOTACAO_MAX, ENVIO_PERDIDO_MS, estaVazio, RELEITURA_DO_ENVIO_MS } from "./limite";
 import {
   apagarRascunhoDestaMontagem,
   apagarRascunhosDeOutros,
@@ -83,6 +83,9 @@ export function AnotacaoEditor({
   // O texto que está a caminho do servidor (resposta ainda não chegou): enquanto houver um, o servidor pode
   // passar a ter esse texto, então a base antiga já não diz o que a edição de agora muda.
   const enviadoRef = useRef<string | null>(null);
+  const enviadoEmRef = useRef(0);
+  // O temporizador da releitura que espera o efeito de um envio de OUTRA montagem (rascunho "a caminho").
+  const releituraRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // INCERTO: o envio não teve resposta (rede caiu, resposta perdida) e o servidor pode ou não ter gravado o texto
   // que estava a caminho. A base NÃO volta nem avança por palpite: na próxima oportunidade o editor relê o
   // servidor antes de decidir (`resolverIncerto`).
@@ -101,27 +104,32 @@ export function AnotacaoEditor({
   }, []);
 
   // O rascunho local acompanha o texto, sobre a base conhecida; sem diferença, não há rascunho.
-  const guardarLocal = useCallback(() => {
-    // Com um envio pendente, o campo que difere do texto a caminho tem de ficar no rascunho MESMO que seja igual
-    // à base antiga (apagar tudo num Estudo sem Anotação, por exemplo): é a única cópia da exclusão.
-    const aCaminho = enviadoRef.current;
-    const difereDoQueVoa = aCaminho !== null && textoRef.current !== aCaminho;
-    if (!sujo() && !difereDoQueVoa) {
-      // Sem diferença para o servidor o rascunho desta montagem (que espelha o campo) sai na hora, mesmo que o
-      // que ele guardava antes fosse outro texto; dos outros, saem só os de texto igual ao do servidor.
-      apagarRascunhoDestaMontagem(estudanteId, estudoId, donoDoRascunho);
-      apagarRascunhosIguais(estudanteId, estudoId, baseRef.current.corpo);
-      return;
-    }
-    const base = baseRef.current;
-    guardarRascunho(estudanteId, estudoId, donoDoRascunho, {
-      corpo: textoRef.current,
-      versaoBase: base.versao,
-      baseId: base.id,
-      salvoEm: Date.now(),
-      ...(aCaminho !== null ? { aCaminho: true } : {}),
-    });
-  }, [donoDoRascunho, estudanteId, estudoId, sujo]);
+  const guardarLocal = useCallback(
+    (confirmado = false) => {
+      // Com um envio pendente, o campo que difere do texto a caminho tem de ficar no rascunho MESMO que seja igual
+      // à base antiga (apagar tudo num Estudo sem Anotação, por exemplo): é a única cópia da exclusão.
+      const aCaminho = enviadoRef.current;
+      const difereDoQueVoa = aCaminho !== null && textoRef.current !== aCaminho;
+      if (!sujo() && !difereDoQueVoa) {
+        // Sem diferença para o servidor o rascunho desta montagem (que espelha o campo) sai na hora, mesmo que o
+        // que ele guardava antes fosse outro texto; dos outros, saem só os de texto igual ao do servidor.
+        apagarRascunhoDestaMontagem(estudanteId, estudoId, donoDoRascunho);
+        // `confirmado`: a base acabou de vir do servidor (resposta de envio); senão ela pode ser velha, e um rascunho
+        // "a caminho" de outra montagem só sai por uma releitura que mostre o efeito dele.
+        apagarRascunhosIguais(estudanteId, estudoId, baseRef.current.corpo, { confirmado });
+        return;
+      }
+      const base = baseRef.current;
+      guardarRascunho(estudanteId, estudoId, donoDoRascunho, {
+        corpo: textoRef.current,
+        versaoBase: base.versao,
+        baseId: base.id,
+        salvoEm: Date.now(),
+        ...(aCaminho !== null ? { aCaminho: { texto: aCaminho, em: enviadoEmRef.current } } : {}),
+      });
+    },
+    [donoDoRascunho, estudanteId, estudoId, sujo],
+  );
 
   const limparTemporizador = useCallback(() => {
     if (temporizador.current) clearTimeout(temporizador.current);
@@ -212,6 +220,7 @@ export function AnotacaoEditor({
     setEstado("salvando");
     const enviado = textoRef.current;
     enviadoRef.current = enviado;
+    enviadoEmRef.current = Date.now();
     const usada = baseRef.current;
     let resposta: Awaited<ReturnType<typeof salvarAnotacao>>;
     try {
@@ -245,7 +254,7 @@ export function AnotacaoEditor({
 
     if (resposta.ok) {
       baseRef.current = baseDe(resposta.anotacao);
-      guardarLocal();
+      guardarLocal(true);
       if (digitouDepois || reenviarRef.current) {
         // Houve mais texto durante o envio: o rascunho já tem a base nova, e a vez dele chega em seguida.
         reenviarRef.current = false;
@@ -346,39 +355,72 @@ export function AnotacaoEditor({
     // nas próximas aberturas, um por vez. O que já é igual ao servidor não tem o que perder e sai.
     apagarRascunhosIguais(estudanteId, estudoId, base.corpo, { confirmado: false });
     const rascunho = lerRascunhos(estudanteId, estudoId)[0] ?? null;
-    const igualABase =
-      rascunho !== null &&
-      (rascunho.corpo === base.corpo || (estaVazio(rascunho.corpo) && base.id === null));
-    if (rascunho?.aCaminho && igualABase) {
-      // Escrito com um envio sem resposta e igual à base que a página tinha: o servidor pode ter recebido o
-      // texto que estava a caminho. Só o servidor, relido, diz se a edição (por exemplo, apagar tudo) ainda
-      // vale; se ele andou, as duas versões vão à pessoa, se não, o rascunho é igual a ele e sai.
-      void (async () => {
+    if (rascunho?.aCaminho) {
+      // Escrito com um envio sem resposta (talvez de uma montagem que já saiu): o texto a caminho pode ainda
+      // chegar. Só uma releitura que MOSTRE o efeito do envio reconcilia este rascunho; uma releitura igual à base
+      // antiga não confirma nada e o rascunho fica. Passado `ENVIO_PERDIDO_MS` o envio é dado como perdido.
+      const aCaminho = rascunho.aCaminho;
+      const reconciliar = async (): Promise<void> => {
         const nascida = geracao.current;
+        const de = (ms: number) => {
+          releituraRef.current = setTimeout(() => {
+            if (nascida === geracao.current) void reconciliar();
+          }, ms);
+        };
         let lida: Awaited<ReturnType<typeof lerAnotacao>>;
         try {
           lida = await lerAnotacao(estudoId, estudanteId);
         } catch {
+          de(RELEITURA_DO_ENVIO_MS);
           return;
         }
-        if (nascida !== geracao.current || textoRef.current !== textoAoAbrir) return;
+        if (nascida !== geracao.current) return;
+        // A pessoa já escreveu nesta montagem: o rascunho antigo fica para a próxima abertura.
+        if (textoRef.current !== textoAoAbrir || conflitoRef.current) return;
         if (!lida.ok) {
           trocadaRef.current = true;
           setEstado("sessao-trocada");
           return;
         }
         const fresca = lida.anotacao;
-        if ((fresca?.id ?? null) === base.id && (fresca?.versao ?? 0) === base.versao) {
-          apagarRascunhosIguais(estudanteId, estudoId, base.corpo);
+        const efeitoVisivel =
+          fresca === null
+            ? rascunho.baseId !== null
+            : fresca.corpo === aCaminho.texto ||
+              fresca.id !== rascunho.baseId ||
+              fresca.versao > rascunho.versaoBase;
+        const perdido = Date.now() - aCaminho.em > ENVIO_PERDIDO_MS;
+        if (!efeitoVisivel && !perdido) {
+          de(RELEITURA_DO_ENVIO_MS);
           return;
         }
-        conflitoRef.current = true;
-        contaDoConflito.current = baseDe(fresca);
-        setConflito({
-          conta: { corpo: fresca?.corpo ?? "", em: fresca ? new Date(fresca.atualizadoEm) : null },
-          rascunho: { corpo: rascunho.corpo, em: new Date(rascunho.salvoEm) },
-        });
-      })();
+        // Reconciliado: o servidor de agora é a base e o rascunho passa a ser uma edição comum sobre ele.
+        baseRef.current = baseDe(fresca);
+        const doServidor = fresca?.corpo ?? "";
+        if (rascunho.corpo === doServidor || (estaVazio(rascunho.corpo) && estaVazio(doServidor))) {
+          apagarRascunhosIguais(estudanteId, estudoId, rascunho.corpo);
+          return;
+        }
+        // A Anotação sumiu do servidor (apagada em outro aparelho) depois da base do rascunho: é conflito, não recriar.
+        const noFinal =
+          fresca === null ? rascunho.baseId === null : fresca.corpo === aCaminho.texto;
+        if (efeitoVisivel && !noFinal) {
+          // O servidor foi para uma versão que não é o texto a caminho (outro aparelho): as duas versões.
+          conflitoRef.current = true;
+          contaDoConflito.current = baseDe(fresca);
+          setConflito({
+            conta: { corpo: doServidor, em: fresca ? new Date(fresca.atualizadoEm) : null },
+            rascunho: { corpo: rascunho.corpo, em: new Date(rascunho.salvoEm) },
+          });
+          return;
+        }
+        textoRef.current = rascunho.corpo;
+        setTexto(rascunho.corpo);
+        setEstado("recuperado");
+        guardarLocal();
+        if (navigator.onLine) agendar(ESPERA_MS);
+      };
+      void reconciliar();
     } else if (rascunho) {
       const mesmaBase = rascunho.baseId === base.id && rascunho.versaoBase === base.versao;
       if (mesmaBase) {
@@ -402,6 +444,7 @@ export function AnotacaoEditor({
     return () => {
       geracao.current += 1;
       limparTemporizador();
+      if (releituraRef.current) clearTimeout(releituraRef.current);
     };
   }, [estudanteId, estudoId]);
 

@@ -29,10 +29,11 @@ export type Rascunho = {
   /** Instante (ms) da última mudança do texto, para mostrar a data no conflito. */
   salvoEm: number;
   /**
-   * Escrito com um envio ainda sem resposta. O texto a caminho pode ter chegado ao servidor, então um rascunho
-   * assim, mesmo igual à base que a página tinha, NÃO é "igual ao servidor": só o servidor, relido, diz.
+   * Escrito com um envio ainda sem resposta: o texto que estava a caminho e o instante do envio. O texto pode
+   * ter chegado ao servidor, então um rascunho assim, mesmo igual à base que a página tinha, NÃO é "igual ao
+   * servidor": só uma releitura que MOSTRE o efeito do envio (ou o prazo, `ENVIO_PERDIDO_MS`) o reconcilia.
    */
-  aCaminho?: boolean;
+  aCaminho?: { texto: string; em: number };
 };
 
 const base = (estudanteId: string, estudoId: string) => `${PREFIXO}${estudanteId}:${estudoId}:`;
@@ -73,7 +74,15 @@ function lerChave(nomeDaChave: string): Rascunho | null {
     if (baseId !== null && typeof baseId !== "string") return null;
     if (typeof salvoEm !== "number" || !Number.isFinite(salvoEm)) return null;
     const { aCaminho } = lido as Record<string, unknown>;
-    return { corpo, versaoBase, baseId, salvoEm, ...(aCaminho === true ? { aCaminho: true } : {}) };
+    const a = aCaminho as { texto?: unknown; em?: unknown } | null | undefined;
+    const valido = a && typeof a.texto === "string" && typeof a.em === "number";
+    return {
+      corpo,
+      versaoBase,
+      baseId,
+      salvoEm,
+      ...(valido ? { aCaminho: { texto: a.texto as string, em: a.em as number } } : {}),
+    };
   } catch {
     return null;
   }

@@ -309,7 +309,7 @@ async function segurarPrimeiroEnvio(page: Page): Promise<() => void> {
   return liberar;
 }
 
-test("apagar tudo durante um envio e navegar antes da resposta não perde a exclusão: ao voltar, o servidor tem o texto e o rascunho vazio vem como conflito", async ({
+test("apagar tudo durante um envio e navegar antes da resposta não perde a exclusão: ao voltar com o servidor já com o texto, o apagar é enviado", async ({
   page,
 }) => {
   const id = await entrar(page);
@@ -336,10 +336,59 @@ test("apagar tudo durante um envio e navegar antes da resposta não perde a excl
   await page.goBack();
   await expect(page).toHaveURL(/\/estudos\/batismo-e-tentacao$/);
   await esperarHidratado(campo(page));
-  // A exclusão que a pessoa fez não some calada: o servidor tem o texto e o rascunho vazio aparece ao lado.
-  await expect(painel(page)).toBeVisible();
-  await expect(painel(page).getByText(x)).toBeVisible();
-  await expect(painel(page).getByText("(vazio)")).toBeVisible();
+  // O servidor mostra o efeito do envio (tem o texto): a edição guardada, apagar tudo, é enviada.
+  await expect(estado(page)).toHaveText("Salvo");
+  await expect(campo(page)).toHaveValue("");
+  await expect
+    .poll(() => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]))
+    .toBe(0);
+});
+
+test("sair e voltar ANTES de o envio chegar: a releitura ainda vazia não confirma nada, o rascunho de exclusão fica e, quando o servidor mostra o efeito, o apagar é enviado", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const id = await entrar(page);
+  const liberar = await segurarPrimeiroEnvio(page);
+  await page.goto("/estudos/batismo-e-tentacao");
+  await esperarHidratado(campo(page));
+  const x = `X-${randomUUID()}`;
+  await campo(page).fill(x);
+  await expect(estado(page)).toHaveText("Salvando…");
+  await campo(page).fill("");
+  expect(await chaves(page)).toHaveLength(1);
+
+  await page.getByRole("link", { name: "Anterior" }).click();
+  await expect(page).toHaveURL(/\/estudos\/o-nascimento$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/estudos\/batismo-e-tentacao$/);
+  await esperarHidratado(campo(page));
+  // O servidor ainda está vazio: a releitura não mostra o efeito do envio e NÃO confirma nada.
+  await page.waitForTimeout(1500);
+  expect(await chaves(page)).toHaveLength(1);
+  expect(
+    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(0);
+
+  // O envio antigo chega agora e grava o texto; a edição guardada (apagar) tem de ser enviada depois.
+  liberar();
+  await expect
+    .poll(
+      () => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+      {
+        timeout: 45_000,
+      },
+    )
+    .toBe(1);
+  await expect
+    .poll(
+      () => contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+      {
+        timeout: 45_000,
+      },
+    )
+    .toBe(0);
+  await expect(campo(page)).toHaveValue("");
 });
 
 test("se o campo mudou durante o envio, a resposta não declara Salvo: o editor reenvia o estado atual, inclusive apagar", async ({
@@ -428,4 +477,52 @@ test("resposta perdida sem o servidor ter gravado: relê, vê que nada chegou e 
   expect(
     await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
   ).toBe(texto);
+});
+
+test("rascunho marcado como a caminho: dentro do prazo fica sem ser enviado; passado o prazo (2 minutos) o envio é dado como perdido e ele volta a ser um rascunho comum", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const id = await entrar(page);
+  const estudoId = await lerTexto(
+    "select id::text as t from conteudo.estudo where slug = 'o-nascimento'",
+  );
+  const semear = (corpo: string, haMs: number) =>
+    page.evaluate(
+      ([dono, estudo, texto, atras]) => {
+        window.localStorage.setItem(
+          `jnf:rascunho:${dono}:${estudo}:semeado-${texto}`,
+          JSON.stringify({
+            corpo: texto,
+            versaoBase: 0,
+            baseId: null,
+            salvoEm: Date.now(),
+            aCaminho: { texto: "o que estava a caminho", em: Date.now() - Number(atras) },
+          }),
+        );
+      },
+      [id, estudoId, corpo, String(haMs)],
+    );
+  await page.goto("/trilhas");
+
+  // Dentro do prazo e sem o efeito do envio no servidor: nada é enviado e o rascunho fica.
+  await semear("RECENTE", 10_000);
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  await page.waitForTimeout(8000);
+  expect(
+    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(0);
+  expect(await chaves(page)).toHaveLength(1);
+  await campo(page).fill("");
+
+  // Passado o prazo: o envio foi dado como perdido e o rascunho, que difere do servidor, é enviado.
+  await page.evaluate(() => window.localStorage.clear());
+  await semear("EXPIRADO", 3 * 60_000);
+  await page.reload();
+  await esperarHidratado(campo(page));
+  await expect(estado(page)).toHaveText("Salvo", { timeout: 20_000 });
+  expect(
+    await lerTexto("select corpo as t from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe("EXPIRADO");
 });
