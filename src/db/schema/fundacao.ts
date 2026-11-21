@@ -4,6 +4,7 @@ import {
   customType,
   integer,
   pgSchema,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -49,12 +50,27 @@ export const anotacao = privado.table(
       .references(() => estudo.id, { onDelete: "restrict" }),
     corpo: text("corpo").notNull(),
     versao: integer("versao").notNull().default(1),
-    // 0014: o escritor (montagem do editor) que gravou por último e o número desse envio. Ver o núcleo.
+    // 0014: o escritor (montagem do editor) que gravou por último. A ordem dos envios está em
+    // `anotacaoEscritor` (0015). Ver o núcleo.
     montagem: uuid("montagem"),
-    seq: integer("seq").notNull().default(0),
     criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
     atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
     tsv: tsvector("tsv").generatedAlwaysAs(sql`to_tsvector('public.pt_unaccent', corpo)`),
   },
   (tabela) => [unique().on(tabela.estudanteId, tabela.estudoId)],
+);
+
+// 0015: um escritor (montagem do editor) por linha, sem Estudo, sem texto e sem data: o número do último envio
+// dele que o servidor processou e, se o último ato dele foi apagar a Anotação, o id da linha apagada.
+export const anotacaoEscritor = privado.table(
+  "anotacao_escritor",
+  {
+    estudanteId: uuid("estudante_id")
+      .notNull()
+      .references(() => usuario.id, { onDelete: "cascade" }),
+    montagem: uuid("montagem").notNull(),
+    seq: integer("seq").notNull(),
+    apagou: uuid("apagou"),
+  },
+  (tabela) => [primaryKey({ columns: [tabela.estudanteId, tabela.montagem] })],
 );

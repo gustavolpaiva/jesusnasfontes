@@ -11,9 +11,11 @@ import {
   apagarRascunho,
   apagarRascunhosDeOutros,
   apagarTodosRascunhos,
+  CHAVE_DA_SAIDA,
   guardarRascunho,
   lerRascunho,
   lerRascunhos,
+  marcaDaSaida,
   segurarEscritor,
 } from "./rascunho";
 import { type EstadoDeSalvamento, SaveStatus } from "./save-status";
@@ -97,8 +99,11 @@ export function AnotacaoEditor({
   const conflitoRef = useRef(false);
   // A versão do servidor que o painel de conflito mostra: sobre ela vale o que a pessoa escolher.
   const contaDoConflito = useRef<Base>(baseDe(null));
-  // O navegador passou a ser de outra conta: esta aba nunca mais envia nada (nem reenvia).
+  // ENCERRADO: o navegador passou a ser de outra conta, ou a conta saiu em alguma aba. Esta aba nunca mais
+  // envia nem grava rascunho, e o dela sai do aparelho; o texto fica só na tela, para copiar.
   const trocadaRef = useRef(false);
+  // A marca da saída que este editor viu ao abrir (`rascunho.ts`): se mudar, alguém saiu da conta.
+  const saidaRef = useRef<string | null>(null);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Há algo que o servidor não confirmou ter: o campo difere da base, ou o último envio ficou sem resposta.
@@ -107,9 +112,32 @@ export function AnotacaoEditor({
     return incertoRef.current || base.corpo === null || !mesmoTexto(textoRef.current, base.corpo);
   }, []);
 
-  // O rascunho é o estado do escritor enquanto houver algo não confirmado; confirmado, sai. Só o dono escreve.
+  const limparTemporizador = useCallback(() => {
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = null;
+  }, []);
+
+  const saiu = useCallback(() => marcaDaSaida() !== saidaRef.current, []);
+
+  const encerrar = useCallback(
+    (motivo: "sessao-trocada" | "encerrada") => {
+      trocadaRef.current = true;
+      limparTemporizador();
+      if (donoRef.current) apagarRascunho(estudanteId, estudoId, montagemRef.current);
+      setEstado(motivo);
+    },
+    [estudanteId, estudoId, limparTemporizador],
+  );
+
+  // O rascunho é o estado do escritor enquanto houver algo não confirmado; confirmado, sai. Só o dono escreve,
+  // e nunca depois de encerrado. A marca da saída é conferida antes E depois: a escrita que correu junto da
+  // limpeza de outra aba é desfeita.
   const guardarLocal = useCallback(() => {
-    if (!donoRef.current) return;
+    if (!donoRef.current || trocadaRef.current) return;
+    if (saiu()) {
+      encerrar("encerrada");
+      return;
+    }
     if (!sujo()) {
       apagarRascunho(estudanteId, estudoId, montagemRef.current);
       return;
@@ -122,12 +150,8 @@ export function AnotacaoEditor({
       baseId: baseRef.current.id,
       salvoEm: Date.now(),
     });
-  }, [estudanteId, estudoId, sujo]);
-
-  const limparTemporizador = useCallback(() => {
-    if (temporizador.current) clearTimeout(temporizador.current);
-    temporizador.current = null;
-  }, []);
+    if (saiu()) encerrar("encerrada");
+  }, [encerrar, estudanteId, estudoId, saiu, sujo]);
 
   // `enviar` e `agendar` se chamam (o envio agenda o reenvio de quem digitou durante ele): referência por
   // ref, para as duas poderem ser estáveis.
@@ -167,6 +191,10 @@ export function AnotacaoEditor({
     seqRef.current += 1;
     incertoRef.current = true;
     guardarLocal();
+    if (trocadaRef.current) {
+      emVooRef.current = false;
+      return;
+    }
     let resposta: Awaited<ReturnType<typeof salvarAnotacao>>;
     try {
       resposta = await salvarAnotacao({
@@ -226,9 +254,8 @@ export function AnotacaoEditor({
         setEstado("limite");
         return;
       case "sessao-trocada":
-        // Outra conta entrou neste navegador: o texto fica só na tela (e no rascunho de A, que B nunca lê).
-        trocadaRef.current = true;
-        setEstado("sessao-trocada");
+        // Outra conta entrou neste navegador: o texto fica só na tela; o rascunho de A sai do aparelho.
+        encerrar("sessao-trocada");
         return;
       case "conta-apagada":
         // A conta não existe mais: o rascunho deste aparelho vai embora com ela.
@@ -239,7 +266,7 @@ export function AnotacaoEditor({
         setEstado("falha");
         agendar(NOVA_TENTATIVA_MS);
     }
-  }, [agendar, estudanteId, estudoId, guardarLocal, limparTemporizador, sujo]);
+  }, [agendar, encerrar, estudanteId, estudoId, guardarLocal, limparTemporizador, sujo]);
 
   useEffect(() => {
     enviarRef.current = enviar;
@@ -260,8 +287,7 @@ export function AnotacaoEditor({
     }
     if (nascida !== geracao.current) return;
     if (!lida.ok) {
-      trocadaRef.current = true;
-      setEstado("sessao-trocada");
+      encerrar("sessao-trocada");
       return;
     }
     // A pessoa começou a escrever enquanto a resposta vinha: fica a base de antes, e o servidor dirá se mudou.
@@ -269,7 +295,7 @@ export function AnotacaoEditor({
     baseRef.current = baseDe(lida.anotacao);
     textoRef.current = lida.anotacao?.corpo ?? "";
     setTexto(textoRef.current);
-  }, [estudanteId, estudoId, sujo]);
+  }, [encerrar, estudanteId, estudoId, sujo]);
 
   // Ao abrir: decide QUAL escritor esta montagem é. Retoma o mais recente deste Estudo que nenhum editor vivo
   // segura (aba fechada, recarregada, ou este editor que saiu da tela e voltou); sem nenhum, nasce um novo.
@@ -277,6 +303,7 @@ export function AnotacaoEditor({
   useEffect(() => {
     geracao.current += 1;
     const nascida = geracao.current;
+    saidaRef.current = marcaDaSaida();
     let soltar = () => {};
     apagarRascunhosDeOutros(estudanteId);
     const textoAoAbrir = textoRef.current;
@@ -344,19 +371,25 @@ export function AnotacaoEditor({
     const aoPerderConexao = () => {
       if (sujo() && !conflitoRef.current && !trocadaRef.current) setEstado("offline");
     };
+    // A conta saiu em outra aba (a marca da saída mudou, ou o armazenamento foi limpo): para na hora.
+    const aoMudarArmazenamento = (evento: StorageEvent) => {
+      if ((evento.key === null || evento.key === CHAVE_DA_SAIDA) && saiu()) encerrar("encerrada");
+    };
     const aoMudarVisibilidade = () => {
       if (sujo()) void enviarRef.current();
       else if (document.visibilityState === "visible") void conferirServidor();
     };
     window.addEventListener("online", aoVoltarConexao);
     window.addEventListener("offline", aoPerderConexao);
+    window.addEventListener("storage", aoMudarArmazenamento);
     document.addEventListener("visibilitychange", aoMudarVisibilidade);
     return () => {
       window.removeEventListener("online", aoVoltarConexao);
       window.removeEventListener("offline", aoPerderConexao);
+      window.removeEventListener("storage", aoMudarArmazenamento);
       document.removeEventListener("visibilitychange", aoMudarVisibilidade);
     };
-  }, [conferirServidor, sujo]);
+  }, [conferirServidor, encerrar, saiu, sujo]);
 
   function aoDigitar(evento: ChangeEvent<HTMLTextAreaElement>) {
     const valor = evento.target.value;
@@ -417,7 +450,7 @@ export function AnotacaoEditor({
         id="anotacao-campo"
         value={texto}
         onChange={aoDigitar}
-        readOnly={conflito !== null || estado === "sessao-trocada"}
+        readOnly={conflito !== null || estado === "sessao-trocada" || estado === "encerrada"}
         aria-describedby="anotacao-ajuda anotacao-estado"
         aria-invalid={estado === "limite" ? true : undefined}
         autoComplete="off"

@@ -76,6 +76,10 @@ export async function semearConta(
       [id, terreno.estudos[0], `corpo ${marcador}`],
     );
     await c.query(
+      `insert into privado.anotacao_escritor (estudante_id, montagem, seq) values ($1, gen_random_uuid(), 1)`,
+      [id],
+    );
+    await c.query(
       `insert into privado.consentimento (estudante_id, versao_aviso, texto_hash) values ($1, '1', $2)`,
       [id, hash(marcador)],
     );

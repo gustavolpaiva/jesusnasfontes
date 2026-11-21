@@ -13,10 +13,26 @@
 //
 // O rascunho existe enquanto o escritor tem algo que o servidor não confirmou; confirmado, o dono o apaga.
 //
+// SAIR (e apagar a conta) vale para TODAS as abas: `apagarTodosRascunhos` troca primeiro a MARCA DA SAÍDA e só
+// depois apaga as chaves. Todo editor guarda a marca que viu ao abrir e, antes e depois de cada escrita, a
+// confere; mudou, ele se encerra: apaga a própria chave e nunca mais grava nem envia (e a ouve pelo evento
+// `storage`, para parar na hora). Uma escrita que corra junto da limpeza é desfeita pela conferência de depois.
+//
 // O texto é privado: a chave nunca o contém e nada aqui o manda a lugar algum além do `localStorage`. Acesso
 // negado ao armazenamento (navegação privativa, cota) nunca derruba a tela: o rascunho só deixa de existir.
 
 const PREFIXO = "jnf:rascunho:";
+/** Fora do prefixo dos rascunhos de propósito: a limpeza não a apaga, troca. */
+export const CHAVE_DA_SAIDA = "jnf:saida";
+
+/** A marca da última saída (ou apagamento da conta) neste aparelho; `null` se nunca houve. */
+export function marcaDaSaida(): string | null {
+  try {
+    return armazem()?.getItem(CHAVE_DA_SAIDA) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export type Rascunho = {
   /** O id do escritor dono desta chave. */
@@ -132,9 +148,10 @@ export function apagarRascunhosDeOutros(estudanteId: string): void {
   }
 }
 
-/** Todo rascunho deste aparelho: ao sair da conta e ao apagar a conta. */
+/** Todo rascunho deste aparelho: ao sair da conta e ao apagar a conta. A marca da saída muda ANTES. */
 export function apagarTodosRascunhos(): void {
   try {
+    armazem()?.setItem(CHAVE_DA_SAIDA, crypto.randomUUID());
     for (const c of chavesDeRascunho()) armazem()?.removeItem(c);
   } catch {
     // Sem armazenamento, não há o que apagar.

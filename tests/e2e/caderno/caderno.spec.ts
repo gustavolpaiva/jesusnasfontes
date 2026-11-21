@@ -258,3 +258,50 @@ test("a página do Caderno e do Estudo não vão para cache e o Caderno passa pe
   const comBusca = await new AxeBuilder({ page }).analyze();
   expect(comBusca.violations.map((v) => v.id)).toEqual([]);
 });
+
+test("limpar a busca antes de a resposta de outra busca chegar: a resposta atrasada não traz a busca de volta (revisão, rodada 10)", async ({
+  page,
+}) => {
+  const { id } = await entrar(page, "limpa");
+  // Só letras: o termo é uma palavra para a busca (números e hífens a dividiriam).
+  const sufixo = randomUUID().replace(/[^a-f]/g, "").slice(0, 8);
+  const um = `palavraum${sufixo}`;
+  const dois = `palavradois${sufixo}`;
+  await semearSessoes(id, 2, um);
+  await semearSessoes(id, 1, dois);
+  await abrirCaderno(page);
+  await expect(entradas(page)).toHaveCount(3);
+  await buscar(page, um);
+  await expect(entradas(page)).toHaveCount(2);
+
+  // A busca seguinte fica segura a caminho; a pessoa limpa a busca antes de a resposta chegar.
+  let liberar = () => {};
+  const portao = new Promise<void>((r) => {
+    liberar = r;
+  });
+  let respondido = () => {};
+  const chegou = new Promise<void>((r) => {
+    respondido = r;
+  });
+  await page.route("**/*", async (rota) => {
+    const pedido = rota.request();
+    if (pedido.method() === "POST" && (pedido.postData() ?? "").includes(dois)) {
+      await portao;
+      await rota.fulfill({ response: await rota.fetch() });
+      respondido();
+      return;
+    }
+    await rota.continue();
+  });
+  await buscar(page, dois);
+  await page.getByRole("button", { name: "Limpar busca" }).click();
+  await expect(busca(page)).toHaveValue("");
+  await expect(entradas(page)).toHaveCount(3);
+  liberar();
+  await chegou;
+  await page.waitForTimeout(800);
+  // A lista inteira continua; a busca limpa não voltou.
+  await expect(entradas(page)).toHaveCount(3);
+  await expect(busca(page)).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Limpar busca" })).toHaveCount(0);
+});

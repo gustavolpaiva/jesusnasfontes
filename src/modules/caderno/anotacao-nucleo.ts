@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { comEstudante, type Tx } from "@/db/com-estudante";
 import { ErroDeBanco } from "@/db/erro-banco";
-import { anotacao } from "@/db/schema/fundacao";
+import { anotacao, anotacaoEscritor } from "@/db/schema/fundacao";
 import { travarProgresso } from "@/modules/trilhas/consultas";
 import { ANOTACAO_MAX, estaVazio, semNulo } from "./limite";
 
@@ -19,17 +19,19 @@ import { ANOTACAO_MAX, estaVazio, semNulo } from "./limite";
 // apagar a conta: um espera o outro, na mesma ordem de travas.
 //
 // QUAL Anotação: a escrita leva o id e a versão do que a tela mostrava (`baseId`, `versaoBase`), nunca "a
-// Anotação aberta". A versão só cresce: apagar o texto guarda a linha com o corpo vazio (0014), então a
-// mesma versão nunca volta a valer para outro texto.
+// Anotação aberta". Só o número da versão não basta: apagar a Anotação e escrever outra do zero volta a
+// versão a 1, e uma aba que ainda mostrava a antiga (id diferente, versão 1) sobrescreveria a nova calada.
+// Texto vazio APAGA a linha.
 //
-// QUEM escreve e EM QUE ORDEM (0014): cada montagem do editor é um escritor com um id (`montagem`) e um
-// número de envio que só cresce (`seq`). A linha guarda o último escritor e o número do envio dele. Três
-// regras, e só elas:
-//  1. Envio de um escritor com número igual ou menor que o último gravado DELE é velho: recusado.
-//  2. Envio de um escritor que é o último que gravou continua o que ele mesmo gravou: aceito mesmo com a base
-//     velha (a resposta do envio anterior se perdeu, e ele não tem como saber se gravou).
+// QUEM escreve e EM QUE ORDEM: cada montagem do editor é um escritor com um id (`montagem`) e um número de
+// envio que só cresce (`seq`). `privado.anotacao_escritor` (0015) guarda, por escritor e sem Estudo, sem texto e
+// sem data, o número do último envio dele que foi processado e, se o último ato dele foi apagar, o id da linha
+// que apagou; a linha da Anotação guarda quem a gravou por último. Três regras, e só elas:
+//  1. Envio de um escritor com número igual ou menor que o último processado DELE é velho: recusado.
+//  2. Envio do escritor que gravou a linha por último (ou que a apagou, se ela não existe mais) continua o que
+//     ele mesmo fez: aceito mesmo com a base velha (a resposta do envio anterior se perdeu).
 //  3. Qualquer outro envio só grava sobre a base que a tela mostrava; senão é o conflito, com o que o servidor
-//     tem. Texto igual ao do servidor não é conflito (nada a decidir).
+//     tem. Texto igual ao do servidor (inclusive vazio sem linha) não é conflito: nada a decidir.
 // O navegador nunca adivinha se um envio chegou: manda o estado de agora com o número seguinte, e o servidor
 // ordena.
 
@@ -50,8 +52,8 @@ export type EntradaDeSalvar = {
 };
 
 export type ResultadoDeSalvar =
-  /** O que ficou gravado (corpo vazio: a Anotação apagada, cuja linha fica para guardar a ordem). */
-  | { ok: true; anotacao: AnotacaoDoEstudo }
+  /** `anotacao` nulo: não há Anotação (o texto era vazio e a linha foi apagada, ou nunca existiu). */
+  | { ok: true; anotacao: AnotacaoDoEstudo | null }
   /** `conta`: o que o servidor tem agora. `id` nulo e versão 0: não há linha. */
   | { ok: false; erro: "conflito"; conta: ContaDoConflito }
   | { ok: false; erro: "limite" | "nao-encontrado" };
@@ -69,7 +71,6 @@ const colunas = {
   versao: anotacao.versao,
   atualizadoEm: anotacao.atualizadoEm,
   montagem: anotacao.montagem,
-  seq: anotacao.seq,
 };
 
 const paraTela = (l: {
@@ -93,7 +94,7 @@ async function lerLinha(tx: Tx, estudanteId: string, estudoId: string) {
   return linha ?? null;
 }
 
-/** A Anotação do Estudante neste Estudo (corpo vazio: apagada), ou `null` se nunca houve escrita. */
+/** A Anotação do Estudante neste Estudo, ou `null`. */
 export async function lerAnotacaoDoEstudo(
   estudanteId: string,
   estudoId: string,
@@ -107,6 +108,19 @@ export async function lerAnotacaoDoEstudo(
 
 const semConta = (): ContaDoConflito => ({ id: null, corpo: "", versao: 0, atualizadoEm: null });
 
+const conflito = (atual: Awaited<ReturnType<typeof lerLinha>>): ResultadoDeSalvar => ({
+  ok: false,
+  erro: "conflito",
+  conta: atual
+    ? {
+        id: atual.id,
+        corpo: atual.corpo,
+        versao: atual.versao,
+        atualizadoEm: atual.atualizadoEm.toISOString(),
+      }
+    : semConta(),
+});
+
 // A chave estrangeira de `estudo_id` recusou: o Estudo não existe. (A de `estudante_id` é outra: conta apagada.)
 function estudoInexistente(erro: unknown): boolean {
   return (
@@ -117,8 +131,9 @@ function estudoInexistente(erro: unknown): boolean {
 }
 
 /**
- * Guarda o texto da Anotação pelas três regras do topo. Gravar sempre soma 1 à versão e registra o escritor e
- * o número do envio; texto vazio guarda o corpo vazio. O texto acima de 20 000 caracteres é recusado antes de
+ * Guarda o texto da Anotação pelas três regras do topo. Com linha, atualiza e soma 1 à versão; sem linha,
+ * insere com versão 1; texto vazio apaga a linha. Todo envio processado (gravado, sem nada a fazer ou em
+ * conflito) passa a ser o último daquele escritor. O texto acima de 20 000 caracteres é recusado antes de
  * qualquer consulta.
  */
 export async function salvarAnotacaoDoEstudo(
@@ -127,36 +142,74 @@ export async function salvarAnotacaoDoEstudo(
   { porta = comEstudante }: Opcoes = {},
 ): Promise<ResultadoDeSalvar> {
   if (entrada.corpo.length > ANOTACAO_MAX) return { ok: false, erro: "limite" };
-  const corpo = estaVazio(entrada.corpo) ? "" : semNulo(entrada.corpo);
+  const corpo = semNulo(entrada.corpo);
+  const vazio = estaVazio(corpo);
 
   try {
     return await porta(estudanteId, async (tx): Promise<ResultadoDeSalvar> => {
       await travarProgresso(tx, estudanteId);
       const atual = await lerLinha(tx, estudanteId, entrada.estudoId);
-      const desteEscritor = atual !== null && atual.montagem === entrada.montagem;
-      const conflito = (): ResultadoDeSalvar => ({
-        ok: false,
-        erro: "conflito",
-        conta: atual
-          ? {
-              id: atual.id,
-              corpo: atual.corpo,
-              versao: atual.versao,
-              atualizadoEm: atual.atualizadoEm.toISOString(),
-            }
-          : semConta(),
-      });
-      // 1. Envio velho deste escritor (chegou depois de um mais novo dele): nunca grava.
-      if (desteEscritor && entrada.seq <= atual.seq) return conflito();
+      const [escritor] = await tx
+        .select({ seq: anotacaoEscritor.seq, apagou: anotacaoEscritor.apagou })
+        .from(anotacaoEscritor)
+        .where(
+          and(
+            eq(anotacaoEscritor.estudanteId, estudanteId),
+            eq(anotacaoEscritor.montagem, entrada.montagem),
+          ),
+        );
+      // 1. Envio velho deste escritor (chegou depois de um mais novo dele): nunca grava, nada muda.
+      if (escritor && entrada.seq <= escritor.seq) return conflito(atual);
+
+      // Este envio passa a ser o último processado do escritor; `apagou`: o id da linha que ele apagou agora
+      // (nulo quando ele gravou texto; sem mudança quando nada foi gravado).
+      const registrar = async (apagou?: string | null) => {
+        await tx
+          .insert(anotacaoEscritor)
+          .values({
+            estudanteId,
+            montagem: entrada.montagem,
+            seq: entrada.seq,
+            apagou: apagou ?? null,
+          })
+          .onConflictDoUpdate({
+            target: [anotacaoEscritor.estudanteId, anotacaoEscritor.montagem],
+            set: { seq: entrada.seq, ...(apagou === undefined ? {} : { apagou }) },
+          });
+      };
+
       const baseBate = atual
         ? entrada.baseId === atual.id && entrada.versaoBase === atual.versao
         : entrada.baseId === null && entrada.versaoBase === 0;
-      // 2 e 3. Nem a base bate nem é a continuação do mesmo escritor.
-      if (!baseBate && !desteEscritor) {
-        if (atual && atual.corpo === corpo) return { ok: true, anotacao: paraTela(atual) };
-        return conflito();
+      // 2. Continuação: ele gravou a linha por último, ou foi quem a apagou (e a base é a linha que ele apagou).
+      const continua = atual
+        ? atual.montagem === entrada.montagem
+        : escritor?.apagou != null && escritor.apagou === entrada.baseId;
+      // 3.
+      if (!baseBate && !continua) {
+        await registrar();
+        const igual = atual ? !vazio && atual.corpo === corpo : vazio;
+        if (igual) return { ok: true, anotacao: atual ? paraTela(atual) : null };
+        return conflito(atual);
       }
-      const ordem = { montagem: entrada.montagem, seq: entrada.seq };
+
+      if (vazio) {
+        if (!atual) {
+          await registrar();
+          return { ok: true, anotacao: null };
+        }
+        await tx
+          .delete(anotacao)
+          .where(
+            and(
+              eq(anotacao.id, atual.id),
+              eq(anotacao.estudanteId, estudanteId),
+              eq(anotacao.versao, atual.versao),
+            ),
+          );
+        await registrar(atual.id);
+        return { ok: true, anotacao: null };
+      }
       if (!atual) {
         const [nova] = await tx
           .insert(anotacao)
@@ -165,16 +218,22 @@ export async function salvarAnotacaoDoEstudo(
             estudoId: entrada.estudoId,
             corpo,
             versao: 1,
-            ...ordem,
+            montagem: entrada.montagem,
             atualizadoEm: sql`clock_timestamp()`,
           })
           .returning(colunas);
         if (!nova) throw new Error("Anotação não gravada.");
+        await registrar(null);
         return { ok: true, anotacao: paraTela(nova) };
       }
       const [nova] = await tx
         .update(anotacao)
-        .set({ corpo, versao: atual.versao + 1, ...ordem, atualizadoEm: sql`clock_timestamp()` })
+        .set({
+          corpo,
+          versao: atual.versao + 1,
+          montagem: entrada.montagem,
+          atualizadoEm: sql`clock_timestamp()`,
+        })
         .where(
           and(
             eq(anotacao.id, atual.id),
@@ -184,6 +243,7 @@ export async function salvarAnotacaoDoEstudo(
         )
         .returning(colunas);
       if (!nova) throw new Error("Anotação não atualizada.");
+      await registrar(null);
       return { ok: true, anotacao: paraTela(nova) };
     });
   } catch (erro) {

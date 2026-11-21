@@ -12,7 +12,8 @@ export type EstadoDeSalvamento =
   | "falha"
   | "recuperado"
   | "limite"
-  | "sessao-trocada";
+  | "sessao-trocada"
+  | "encerrada";
 
 const FALHA = "Não foi possível salvar. O texto continua neste aparelho e vamos tentar de novo.";
 const LIMITE =
@@ -20,6 +21,10 @@ const LIMITE =
 
 const TROCADA =
   "Este navegador entrou com outra conta. O texto desta aba não foi enviado. Recarregue a página.";
+
+// Saiu da conta (ou apagou a conta) em outra aba: este editor se encerrou e o rascunho dele saiu do aparelho.
+const ENCERRADA =
+  "A conta saiu deste navegador em outra aba. O texto desta aba não fica guardado nem é enviado. Recarregue a página.";
 
 const textos = {
   salvo: { Icone: Check, texto: "Salvo" },
@@ -32,6 +37,7 @@ const textos = {
   falha: { Icone: SquareX, texto: FALHA, erro: true },
   limite: { Icone: SquareX, texto: LIMITE, erro: true },
   "sessao-trocada": { Icone: SquareX, texto: TROCADA, erro: true },
+  encerrada: { Icone: SquareX, texto: ENCERRADA, erro: true },
 } as const;
 
 type Props = { estado: EstadoDeSalvamento; id?: string };

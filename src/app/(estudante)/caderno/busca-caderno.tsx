@@ -49,6 +49,9 @@ export function BuscaCaderno({ estudanteId, inicial }: Props) {
   const [aviso, setAviso] = useState<Aviso>(inicial ? null : "falha");
   const [buscando, iniciarBusca] = useTransition();
   const [carregandoMais, iniciarMais] = useTransition();
+  // Muda a cada busca e a cada "Limpar busca": a resposta de um pedido de uma geração que já passou (a busca
+  // foi limpa, ou outra foi pedida depois) não muda a tela.
+  const geracao = useRef(0);
 
   // "Tentar de novo" refaz a página no servidor e a primeira página chega aqui como um `inicial` NOVO: sem
   // isto, o estado criado na primeira montagem (nulo, com o erro) ficaria para sempre. Uma busca em andamento
@@ -82,8 +85,11 @@ export function BuscaCaderno({ estudanteId, inicial }: Props) {
       setAviso("offline");
       return;
     }
+    geracao.current += 1;
+    const nascida = geracao.current;
     iniciarBusca(async () => {
       const r = await chamar(termo, null);
+      if (nascida !== geracao.current) return;
       if (!r) {
         setAviso(semConexao() ? "offline" : "falha");
         return;
@@ -98,6 +104,7 @@ export function BuscaCaderno({ estudanteId, inicial }: Props) {
   }
 
   function limpar() {
+    geracao.current += 1;
     setCampo("");
     setAviso(visaoInicial.current ? null : "falha");
     setVisao(visaoInicial.current);
@@ -110,8 +117,10 @@ export function BuscaCaderno({ estudanteId, inicial }: Props) {
       return;
     }
     const { termo, proximo } = visao;
+    const nascida = geracao.current;
     iniciarMais(async () => {
       const r = await chamar(termo, proximo);
+      if (nascida !== geracao.current) return;
       if (!r?.ok) {
         setAviso(
           r?.erro === "sessao-trocada"

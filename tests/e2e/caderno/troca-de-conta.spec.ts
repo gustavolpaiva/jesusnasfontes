@@ -69,7 +69,8 @@ test("a aba de A com texto pendente não grava na conta de B depois de a conta t
   // O envio volta (a conexão, o `online`, a aba visível de novo): a aba de A NÃO pode escrever em B.
   await religar();
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
-  await expect(estado(page)).toContainText("outra conta");
+  // Saiu em outra aba: o editor de A se encerra (a marca da saída mudou) e nunca mais envia.
+  await expect(estado(page)).toContainText("A conta saiu deste navegador");
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
   await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
   await page.waitForTimeout(2200);
@@ -83,6 +84,64 @@ test("a aba de A com texto pendente não grava na conta de B depois de a conta t
   await outra.goto(ESTUDO);
   await esperarHidratado(campo(outra));
   await expect(campo(outra)).toHaveValue("");
+});
+
+test("sair em outra aba encerra o editor de A: o reenvio dele não recria o rascunho de A no aparelho depois da limpeza (revisão, rodada 10)", async ({
+  page,
+  context,
+}) => {
+  const a = await conta(page, "saida-a");
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  const religar = await cortarEnvio(page);
+  const segredo = `PENDENTE-DE-A-${randomUUID()}`;
+  await campo(page).fill(segredo);
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+  expect(await chaves(page)).toEqual([expect.stringContaining(a.id)]);
+
+  // Outra aba: A sai (a limpeza apaga o rascunho) e B entra.
+  const outra = await context.newPage();
+  await outra.goto("/trilhas");
+  await outra.getByRole("button", { name: "Abrir menu" }).click();
+  await outra.getByRole("button", { name: "Sair" }).click();
+  await expect(outra.getByText("Você saiu.")).toBeVisible();
+  await expect.poll(() => chaves(outra)).toEqual([]);
+  const b = await conta(outra, "saida-b");
+
+  // Daqui em diante a aba de A não pode gravar rascunho algum: toda escrita é anotada.
+  await page.evaluate(() => {
+    const w = window as unknown as { escritasDeRascunho: string[] };
+    w.escritasDeRascunho = [];
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (chave: string, valor: string) {
+      if (chave.startsWith("jnf:rascunho:")) w.escritasDeRascunho.push(chave);
+      return original.call(this, chave, valor);
+    };
+  });
+  // O envio volta e as oportunidades de reenvio chegam (conexão, aba visível).
+  await religar();
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await page.waitForTimeout(2200);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { escritasDeRascunho: string[] }).escritasDeRascunho,
+    ),
+  ).toEqual([]);
+  expect(await chaves(page)).toEqual([]);
+  expect(
+    await page.evaluate(
+      (texto) =>
+        Object.keys(window.localStorage).some((c) =>
+          (window.localStorage.getItem(c) ?? "").includes(texto),
+        ),
+      segredo,
+    ),
+  ).toBe(false);
+  expect(await doEstudante(a.id)).toBe(0);
+  expect(await doEstudante(b.id)).toBe(0);
+  // O texto continua na tela de A, só para copiar.
+  await expect(campo(page)).toHaveValue(segredo);
 });
 
 test("o rascunho de A neste aparelho nunca aparece nem é reenviado para B no mesmo navegador", async ({

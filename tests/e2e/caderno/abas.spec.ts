@@ -26,11 +26,8 @@ const estado = (p: Page) => p.locator('[data-slot="save-status"]');
 const painel = (p: Page) => p.locator('[data-slot="conflict-panel"]');
 const chaves = (p: Page) =>
   p.evaluate(() => Object.keys(window.localStorage).filter((c) => c.startsWith("jnf:rascunho:")));
-// A Anotação apagada guarda a linha com o corpo vazio (0014): conta só a que tem texto.
 const comTextoDe = (id: string) =>
-  contar("select count(*) as n from privado.anotacao where estudante_id = $1 and corpo <> ''", [
-    id,
-  ]);
+  contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]);
 
 async function entrar(page: Page): Promise<string> {
   const email = emailDeTeste("abas");
