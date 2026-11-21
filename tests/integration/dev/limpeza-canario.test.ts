@@ -136,6 +136,40 @@ describe.skipIf(emNeon())("proteção da conta canário", () => {
     );
   });
 
+  it("desabilitar sem papel confere a função pela variável: a variável do Estudante apontando para um Admin não revoga nada", async () => {
+    const e = novoEmail("estudante-que-e-admin");
+    const id = await criarConta(e, "admin");
+    await dono.query(
+      "insert into admin.convite (email_norm, estado) values ($1, 'aceito') on conflict do nothing",
+      [e],
+    );
+    await dono.query(
+      "insert into auth.session (user_id, token, expires_at) values ($1, $2, now() + interval '1 hour')",
+      [id, randomUUID()],
+    );
+    await dono.query(
+      "insert into auth.two_factor (user_id, secret, backup_codes) values ($1, 'x', 'y')",
+      [id],
+    );
+    process.env.ADMIN_EMAIL_INICIAL = novoEmail("real-papel");
+    process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e; // marcada como Estudante, mas a conta é Admin
+    await expect(desabilitar(obterPool(), e)).rejects.toThrow(/papel da conta/);
+    await expect(desabilitar(obterPool(), e, "estudante")).rejects.toThrow(/papel da conta/);
+    // Papel pedido diferente do da variável também recusa, em habilitar e em desabilitar.
+    await expect(habilitar(obterPool(), e, "admin", false)).rejects.toThrow(/papel pedido/);
+    await expect(desabilitar(obterPool(), e, "admin")).rejects.toThrow(/papel pedido/);
+    expect(
+      await contar(
+        "select count(*) as n from admin.convite where email_norm = $1 and estado = 'aceito'",
+        [e],
+      ),
+    ).toBe(1);
+    expect(await contar("select count(*) as n from auth.session where user_id = $1", [id])).toBe(1);
+    expect(await contar("select count(*) as n from auth.two_factor where user_id = $1", [id])).toBe(
+      1,
+    );
+  });
+
   it("sem ADMIN_EMAIL_INICIAL no ambiente a proteção recusa (sem prova, não segue)", async () => {
     const e = novoEmail("semreal");
     process.env.JNF_CANARIO_ESTUDANTE_EMAIL = e;

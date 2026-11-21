@@ -36,10 +36,17 @@ export async function conferirContaCanario(
 ): Promise<{ usuarioId: string | null }> {
   await conferirAmbienteDev(c);
   const email = normalizarEmail(emailBruto);
-  const papeis: Papel[] = papel ? [papel] : ["estudante", "admin"];
-  if (!papeis.some((p) => emailDoCanario(p) === email)) {
+  // O papel é DERIVADO da variável que nomeia o endereço (estudante ou admin), nunca do chamador: um
+  // chamador que passa outro papel, ou nenhum, não muda o que é conferido contra a conta.
+  const derivado = (["estudante", "admin"] as Papel[]).find((p) => emailDoCanario(p) === email);
+  if (!derivado) {
     throw new RecusaCanario(
       "RecusaDeConta: o endereço não é o de um canário marcado no cofre; nada foi alterado.",
+    );
+  }
+  if (papel !== undefined && papel !== derivado) {
+    throw new RecusaCanario(
+      "RecusaDeConta: o papel pedido não é o da variável do canário; nada foi alterado.",
     );
   }
   if (
@@ -69,7 +76,7 @@ export async function conferirContaCanario(
   if (id !== null && id === dono.rows[0]?.id) {
     throw new RecusaCanario("RecusaDeConta: a conta é a do Admin inicial; nada foi alterado.");
   }
-  if (papel && conta.rows[0] && conta.rows[0].role !== papel) {
+  if (conta.rows[0] && conta.rows[0].role !== derivado) {
     throw new RecusaCanario(
       "RecusaDeConta: o papel da conta não é o do canário; nada foi alterado.",
     );
