@@ -53,6 +53,36 @@ describe.skipIf(emNeon())("exportarDados", () => {
     expect(dados.tabelas.anotacao?.[0]).not.toHaveProperty("tsv");
   });
 
+  it("o arquivo traz IP, navegador e datas das sessões do titular, sem token e sem as de outra conta (revisão da fase, plano 01-20)", async () => {
+    const uaA = `UA-DE-A-${t.a.marcador}`;
+    const uaB = `UA-DE-B-${t.b.marcador}`;
+    await comoDono(t.env, async (c) => {
+      for (const [id, ua, ip] of [
+        [t.a.id, uaA, "203.0.113.7"],
+        [t.b.id, uaB, "203.0.113.8"],
+      ]) {
+        await c.query(
+          `insert into auth.session (user_id, token, expires_at, ip_address, user_agent)
+           values ($1, $2, now() + interval '1 day', $3, $4)`,
+          [id, `token-ip-${ua}`, ip, ua],
+        );
+      }
+    });
+    const dados = await exportarDados(t.a.id);
+    const texto = JSON.stringify(dados);
+    expect(texto).toContain(uaA);
+    expect(texto).toContain("203.0.113.7");
+    expect(texto).not.toContain(uaB);
+    expect(texto).not.toContain("203.0.113.8");
+    expect(texto).not.toContain(`token-ip-${uaA}`);
+    const sessoes = (dados as unknown as { sessoes: Record<string, unknown>[] }).sessoes;
+    const dela = sessoes.find((s) => s.navegador === uaA);
+    expect(dela).toMatchObject({ ip: "203.0.113.7" });
+    expect(Object.keys(dela ?? {}).sort()).toEqual(
+      ["atualizadaEm", "criadaEm", "ip", "navegador", "venceEm"].sort(),
+    );
+  });
+
   it("exportar espera quem está na fila de escrita da conta (apagar ou progresso) e sai inteiro", async () => {
     let soltar = () => {};
     const portao = new Promise<void>((r) => {

@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { comEstudante, type Tx } from "@/db/com-estudante";
-import { convite } from "@/db/schema/entrada";
+import { convite, sessao } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
 import { travarProgresso } from "@/modules/trilhas/consultas";
 
@@ -18,6 +18,14 @@ export type DadosExportados = {
   versaoFormato: 1;
   perfil: { email: string; criadaEm: string | null };
   convite: { estado: string; criadoEm: string | null; aceitoEm: string | null } | null;
+  // Metadados das sessões abertas da conta (IP e navegador são dado pessoal). Nunca o token.
+  sessoes: {
+    criadaEm: string | null;
+    atualizadaEm: string | null;
+    venceEm: string | null;
+    ip: string | null;
+    navegador: string | null;
+  }[];
   tabelas: Record<string, Record<string, unknown>[]>;
 };
 
@@ -50,7 +58,7 @@ export async function exportarDados(
   // Tudo numa só transação e atrás da mesma fila das escritas de progresso e do apagar a conta: quem
   // apaga a conta em outra aba espera esta leitura terminar (ou esta acha a conta já apagada e para).
   // Sem a fila, o arquivo podia trazer as Anotações e perder o resto, um estado que nunca existiu.
-  const { conta, conv, tabelas } = await porta(estudanteId, async (tx) => {
+  const { conta, conv, sessoes, tabelas } = await porta(estudanteId, async (tx) => {
     await travarProgresso(tx, estudanteId);
     const [conta] = await tx
       .select({ email: usuario.email, criadaEm: usuario.createdAt })
@@ -61,6 +69,18 @@ export async function exportarDados(
       .select({ estado: convite.estado, criadoEm: convite.criadoEm, aceitoEm: convite.aceitoEm })
       .from(convite)
       .where(eq(convite.emailNorm, conta.email));
+    // Só campos permitidos, explícitos: o token e os identificadores internos ficam de fora.
+    const sessoes = await tx
+      .select({
+        criadaEm: sessao.createdAt,
+        atualizadaEm: sessao.updatedAt,
+        venceEm: sessao.expiresAt,
+        ip: sessao.ipAddress,
+        navegador: sessao.userAgent,
+      })
+      .from(sessao)
+      .where(eq(sessao.userId, estudanteId))
+      .orderBy(sessao.createdAt);
     const saida: Record<string, Record<string, unknown>[]> = {};
     for (const t of await listarTabelasPrivadas(tx)) {
       const colunas = sql.join(
@@ -73,7 +93,7 @@ export async function exportarDados(
       );
       saida[t.nome] = linhas.rows;
     }
-    return { conta, conv, tabelas: saida };
+    return { conta, conv, sessoes, tabelas: saida };
   });
 
   return {
@@ -83,6 +103,13 @@ export async function exportarDados(
     convite: conv
       ? { estado: conv.estado, criadoEm: iso(conv.criadoEm), aceitoEm: iso(conv.aceitoEm) }
       : null,
+    sessoes: sessoes.map((x) => ({
+      criadaEm: iso(x.criadaEm),
+      atualizadaEm: iso(x.atualizadaEm),
+      venceEm: iso(x.venceEm),
+      ip: x.ip,
+      navegador: x.navegador,
+    })),
     tabelas,
   };
 }
