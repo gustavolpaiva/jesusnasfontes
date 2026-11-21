@@ -1,5 +1,6 @@
 import { StatusMessage } from "@/components/estado/status-message";
 import { LimparRascunhos } from "@/modules/caderno/limpar-rascunhos";
+import { lerSessao } from "@/modules/identidade/sessao";
 import { FormularioEntrada } from "./formulario-email";
 
 // Primeira tela de quem ainda não entrou. O estado do formulário (etapa 1 e 2) mora no cliente.
@@ -25,10 +26,14 @@ export default async function PaginaEntrar({
       texto: "Esta conta não tem mais acesso. Fale com quem organiza o grupo.",
     };
 
+  // O marcador na URL não prova que a pessoa saiu: um link ou favorito com `?saiu=1`, aberto por quem continua entrado,
+  // apagaria os rascunhos que ainda não foram enviados. Só limpa quem de fato não tem sessão (a saída e o apagar da
+  // conta encerram a sessão antes de chegar aqui).
+  const semSessao = (await lerSessao()) === null;
   return (
     <div className="coluna-leitura flex flex-col gap-6">
       {/* Sair e apagar a conta levam o rascunho de Anotação deste aparelho embora (aviso de privacidade). */}
-      <LimparRascunhos apagar={saiu === "1" || apagada === "1"} />
+      <LimparRascunhos apagar={semSessao && (saiu === "1" || apagada === "1")} />
       {aviso ? <StatusMessage tipo={aviso.tipo}>{aviso.texto}</StatusMessage> : null}
       <FormularioEntrada />
     </div>

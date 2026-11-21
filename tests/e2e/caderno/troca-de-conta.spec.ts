@@ -354,3 +354,22 @@ test("a página do Caderno refeita com outra conta remonta: a lista de A não fi
   });
   await expect(page.locator("main").getByText(palavra)).toHaveCount(0);
 });
+
+test("abrir /entrar?saiu=1 com a sessão ativa não apaga os rascunhos deste aparelho (revisão da fase, plano 01-20)", async ({
+  page,
+}) => {
+  await conta(page, "rascunho-link");
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  const religar = await cortarEnvio(page);
+  await campo(page).fill(`TEXTO-LOCAL-${randomUUID()}`);
+  await expect(estado(page)).toContainText("Não foi possível salvar");
+  expect((await chaves(page)).length).toBeGreaterThan(0);
+  await religar();
+
+  // Um link ou favorito com o marcador de saída, aberto por quem continua entrado, não é uma saída.
+  await page.goto("/entrar?saiu=1");
+  expect((await chaves(page)).length).toBeGreaterThan(0);
+  await page.goto("/entrar?apagada=1");
+  expect((await chaves(page)).length).toBeGreaterThan(0);
+});
