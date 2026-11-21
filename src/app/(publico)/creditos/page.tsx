@@ -36,7 +36,7 @@ export default function PaginaCreditos() {
                 <dt className={rotulo}>Licença</dt>
                 <dd className="text-leitura [overflow-wrap:anywhere]">
                   {e.urlLicenca ? (
-                    <a href={e.urlLicenca} className="underline">
+                    <a href={e.urlLicenca} className="inline-block min-h-11 py-2 underline">
                       {e.licenca}
                     </a>
                   ) : (
@@ -53,7 +53,10 @@ export default function PaginaCreditos() {
                     <>
                       {" "}
                       (
-                      <a href={e.urlOrigem} className="break-all underline">
+                      <a
+                        href={e.urlOrigem}
+                        className="inline-block min-h-11 py-2 break-all underline"
+                      >
                         {e.urlOrigem.replace(/^https?:\/\//, "")}
                       </a>
                       )
