@@ -2,7 +2,7 @@ import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, inject, it, vi } from "vitest";
 import { obterDb, obterPool } from "@/db/cliente";
-import { convite, sessao, verificacao } from "@/db/schema/entrada";
+import { convite, doisFatores, sessao, verificacao } from "@/db/schema/entrada";
 import { usuario } from "@/db/schema/fundacao";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
 
@@ -133,6 +133,31 @@ describe.skipIf(emNeon())("canario: habilitar e desabilitar, medidos", () => {
     expect(r.sessoesAnteriores).toBe(0);
     expect(r.estado.convite).toBe("ausente");
     expect(r.confirmado).toBe(true);
+  });
+
+  it("Admin canário: habilitar zera o segundo fator velho e desabilitar mede que não sobra nenhum", async () => {
+    const { habilitar, desabilitar } = await import("../../../scripts/dev/canario");
+    const e = email("adm");
+    await habilitar(obterPool(), e, "admin", false);
+    const [u] = await obterDb().select().from(usuario).where(eq(usuario.email, e));
+    if (!u) throw new Error("usuário do teste não foi criado");
+    ids.push(u.id);
+    expect(u.role).toBe("admin");
+    const poe = () =>
+      obterDb().insert(doisFatores).values({ secret: "x", backupCodes: "y", userId: u.id });
+    const linhas = async () =>
+      (await obterDb().select().from(doisFatores).where(eq(doisFatores.userId, u.id))).length;
+    // Controle positivo: o fator velho existe antes; habilitar de novo o zera.
+    await poe();
+    expect(await linhas()).toBe(1);
+    await habilitar(obterPool(), e, "admin", false);
+    expect(await linhas()).toBe(0);
+    // desabilitar também zera e só confirma com zero linhas.
+    await poe();
+    const r = await desabilitar(obterPool(), e);
+    expect(r.segundosFatores).toBe(0);
+    expect(r.confirmado).toBe(true);
+    expect(await linhas()).toBe(0);
   });
 
   it("recusa banco que não é o de dev (o mesmo guarda do conferidor)", async () => {

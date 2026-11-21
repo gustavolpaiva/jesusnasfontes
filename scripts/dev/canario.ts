@@ -8,6 +8,7 @@ import {
   convidar,
 } from "../../src/modules/identidade/convite";
 import { lerEmail, normalizarEmail } from "../../src/modules/identidade/normalizar-email";
+import { recuperarSegundoFator } from "../admin/recuperar-segundo-fator";
 import { conferirAmbienteDev, NaoMedido } from "./conferir-entrada";
 
 // pnpm exec tsx scripts/dev/canario.ts <habilitar|desabilitar|estado> [--papel estudante|admin] [--enviar]
@@ -25,7 +26,12 @@ import { conferirAmbienteDev, NaoMedido } from "./conferir-entrada";
 //                e entrada nova recusada (o gancho de criação de sessão exige convite ativo).
 //   estado       só lê. Sai 0 se a conta está inteiramente habilitada ou inteiramente desabilitada.
 //
-// Recusa rodar se o marcador `acervo.ambiente` do banco não for 'dev'.
+// Recusa rodar se o marcador `acervo.ambiente` do banco não for 'dev' (em 'producao', ou sem marcador
+// legível, sai com 2 antes de ler ou escrever qualquer coisa).
+//
+// Canário de Admin: o teste cadastra o segundo fator de novo a cada rodada, então `habilitar` e
+// `desabilitar` zeram o segundo fator dele (pela mesma função do script de recuperação do dono, em
+// duas etapas) e `desabilitar` mede que não sobrou linha de segundo fator.
 // Saída: 0 = confirmado pela medição · 1 = a medição diz que não · 2 = não foi possível medir.
 
 export type Papel = "estudante" | "admin";
@@ -64,6 +70,28 @@ export async function lerEstado(c: Cliente, emailBruto: string): Promise<EstadoC
   };
 }
 
+// Zera o segundo fator da conta de Admin canário (prévia, depois escrita com o id lido). Conta que não
+// existe ou que não é Admin não tem o que zerar. Qualquer outra recusa é erro: não deixa fator velho.
+async function zerarSegundoFator(emailNorm: string): Promise<void> {
+  const previa = await recuperarSegundoFator(emailNorm);
+  if (previa.codigo !== 0) {
+    if (/^(ContaInexistente|ContaNaoAdmin)/.test(previa.mensagem)) return;
+    throw new Error("A prévia da recuperação do segundo fator do canário recusou.");
+  }
+  const id = /^id: ([0-9a-f-]{36})$/m.exec(previa.mensagem)?.[1];
+  if (!id) throw new Error("A prévia da recuperação não devolveu o id.");
+  const feita = await recuperarSegundoFator(emailNorm, { executar: true, id });
+  if (feita.codigo !== 0) throw new Error("A recuperação do segundo fator do canário recusou.");
+}
+
+async function segundosFatoresDe(c: Cliente, emailNorm: string): Promise<number> {
+  const r = await c.query(
+    `select count(*)::int as n from auth.two_factor t join auth."user" u on u.id = t.user_id where u.email = $1`,
+    [emailNorm],
+  );
+  return (r.rows[0]?.n as number) ?? 0;
+}
+
 export async function habilitar(
   c: Cliente,
   emailBruto: string,
@@ -78,12 +106,14 @@ export async function habilitar(
     if (!(erro instanceof ConviteDuplicado)) throw erro;
     criado = false;
   }
+  if (papel === "admin") await zerarSegundoFator(email);
   return { criado, estado: await lerEstado(c, email) };
 }
 
 export type ResultadoDesabilitar = {
   sessoesAnteriores: number;
   estado: EstadoCanario;
+  segundosFatores: number;
   confirmado: boolean;
 };
 
@@ -120,6 +150,7 @@ export async function desabilitar(
     tx.release();
   }
   await apagarVerificacoesDe(email);
+  await zerarSegundoFator(email);
 
   // Depois: a medição, não o relato do que foi feito.
   const estado = await lerEstado(c, email);
@@ -131,12 +162,14 @@ export async function desabilitar(
         )
       ).rows[0]?.n
     : 0;
+  const segundosFatores = await segundosFatoresDe(c, email);
   const confirmado =
     (estado.convite === "revogado" || estado.convite === "ausente") &&
     estado.sessoes === 0 &&
     aindaValidas === 0 &&
+    segundosFatores === 0 &&
     !estado.entradaPermitida;
-  return { sessoesAnteriores: tokens.length, estado, confirmado };
+  return { sessoesAnteriores: tokens.length, estado, segundosFatores, confirmado };
 }
 
 function imprimirEstado(e: EstadoCanario, extra: Record<string, string | number | boolean> = {}) {
@@ -190,7 +223,10 @@ async function principal(): Promise<number> {
       return r.estado.entradaPermitida ? 0 : 1;
     }
     const r = await desabilitar(pool, email);
-    imprimirEstado(r.estado, { sessoes_anteriores: r.sessoesAnteriores });
+    imprimirEstado(r.estado, {
+      sessoes_anteriores: r.sessoesAnteriores,
+      segundos_fatores: r.segundosFatores,
+    });
     console.log(`desabilitado_confirmado=${r.confirmado}`);
     return r.confirmado ? 0 : 1;
   } catch (erro) {
