@@ -260,3 +260,31 @@ test("a resposta de um envio que chega depois de o editor sair da tela não mexe
   await expect(painel(page)).toBeVisible();
   await expect(painel(page).getByText(t3)).toBeVisible();
 });
+
+test("digitar e apagar tudo antes de 1,5 s num Estudo sem Anotação não deixa rascunho: ao recarregar nada volta nem é enviado", async ({
+  page,
+}) => {
+  const id = await entrar(page);
+  const envios: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && (r.postData() ?? "").includes("versaoBase")) envios.push(r.url());
+  });
+  await page.goto(ESTUDO);
+  await esperarHidratado(campo(page));
+  await campo(page).fill(`TEXTO-APAGADO-${randomUUID()}`);
+  // O campo volta a ser igual ao servidor (vazio, sem Anotação) antes de o envio de 1,5 s acontecer.
+  await campo(page).fill("");
+  expect(await chaves(page)).toEqual([]);
+
+  await page.reload();
+  await esperarHidratado(campo(page));
+  await expect(campo(page)).toHaveValue("");
+  await expect(estado(page)).toHaveText("");
+  // Espera mais que o tempo do envio automático: nada pode ter ido ao servidor, e nada foi criado.
+  await page.waitForTimeout(2200);
+  expect(envios).toEqual([]);
+  expect(
+    await contar("select count(*) as n from privado.anotacao where estudante_id = $1", [id]),
+  ).toBe(0);
+  expect(await chaves(page)).toEqual([]);
+});

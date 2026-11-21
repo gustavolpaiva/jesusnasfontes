@@ -99,6 +99,22 @@ const mesmoTexto = (a: string, b: string) =>
   semNulo(a) === semNulo(b) || (estaVazio(a) && estaVazio(b));
 
 /**
+ * Apaga o rascunho DESTA montagem do editor (só o dele). Ele espelha o campo: quando o campo volta a ser igual
+ * ao servidor (inclusive vazio, sem Anotação), o que ele guardou de antes já não vale e sai na hora.
+ */
+export function apagarRascunhoDestaMontagem(
+  estudanteId: string,
+  estudoId: string,
+  dono: string,
+): void {
+  try {
+    armazem()?.removeItem(`${base(estudanteId, estudoId)}${dono}`);
+  } catch {
+    // Sem armazenamento, não há o que apagar.
+  }
+}
+
+/**
  * Apaga os rascunhos deste Estudo cujo texto, LIDO DO ARMAZENAMENTO AGORA, é igual a `corpo` (o que o servidor
  * acabou de confirmar, ou o que a pessoa acabou de descartar). Os de texto diferente ficam, seja de que aba for.
  */

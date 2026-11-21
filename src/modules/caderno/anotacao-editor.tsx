@@ -8,6 +8,7 @@ import type { AnotacaoDoEstudo, ContaDoConflito } from "./anotacao-nucleo";
 import { ConflictPanel } from "./conflict-panel";
 import { ANOTACAO_MAX, estaVazio } from "./limite";
 import {
+  apagarRascunhoDestaMontagem,
   apagarRascunhosDeOutros,
   apagarRascunhosIguais,
   apagarTodosRascunhos,
@@ -83,7 +84,9 @@ export function AnotacaoEditor({ estudanteId, estudoId, inicial }: Props) {
   // O rascunho local acompanha o texto, sobre a base conhecida; sem diferença, não há rascunho.
   const guardarLocal = useCallback(() => {
     if (!sujo()) {
-      // Sem diferença para o servidor: saem os rascunhos de texto igual a ele (e só esses, de qualquer aba).
+      // Sem diferença para o servidor o rascunho desta montagem (que espelha o campo) sai na hora, mesmo que o
+      // que ele guardava antes fosse outro texto; dos outros, saem só os de texto igual ao do servidor.
+      apagarRascunhoDestaMontagem(estudanteId, estudoId, donoDoRascunho);
       apagarRascunhosIguais(estudanteId, estudoId, baseRef.current.corpo);
       return;
     }
