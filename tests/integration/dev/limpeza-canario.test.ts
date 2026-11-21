@@ -16,8 +16,8 @@ import {
   limparTudo,
   TETO_POR_TABELA,
 } from "../../../scripts/dev/limpeza-canario";
-import { OutraExecucao, tomarTrava } from "../../../scripts/dev/trava-canario";
 import { conferirContaCanario, RecusaCanario } from "../../../scripts/dev/protecao-canario";
+import { OutraExecucao, tomarTrava } from "../../../scripts/dev/trava-canario";
 import { ESTUDO_DE_TESTE } from "../../support/estudo-de-teste";
 import { aplicarEnvDeTeste } from "../../support/preparar-banco";
 
