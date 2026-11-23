@@ -212,3 +212,61 @@ create policy rascunho_do_admin on acervo.ficha_item for select to jnf_app
 drop policy if exists so_admin on acervo.conferencia_item;
 create policy so_admin on acervo.conferencia_item for select to jnf_app
   using ((select acervo.exigir_admin_mfa(nullif(current_setting('app.sessao_admin', true), '')::uuid)) is not null);
+
+-- ───────────────────────── ACER-09: texto integral de obra protegida, segunda camada ─────────────────────────
+-- A primeira camada são as restrições de linha de 0016 (obra protegida não é texto integral; texto integral
+-- exige licença e origem). Uma restrição de linha não olha outra tabela, então o parágrafo e a mudança
+-- posterior da Fonte ficam com gatilhos. Disparam para TODOS os papéis, inclusive o dono do esquema.
+-- `security definer` com caminho fixo: a checagem lê `fonte` e `fonte_secao` sem depender da política de
+-- linha de quem escreve (uma política que escondesse a Fonte faria o `exists` dar falso e deixaria passar).
+
+create or replace function acervo.recusar_texto_integral_protegido() returns trigger
+language plpgsql security definer
+set search_path = pg_catalog
+as $$
+begin
+  if exists (
+    select 1
+      from acervo.fonte_secao s
+      join acervo.fonte f on f.id = s.fonte_id
+     where s.id = new.secao_id and (f.obra_protegida or f.tipo_texto <> 'integral')
+  ) then
+    raise exception 'texto integral recusado: obra protegida ou ficha' using errcode = '23514';
+  end if;
+  return new;
+end
+$$;
+
+revoke all on function acervo.recusar_texto_integral_protegido() from public;
+
+drop trigger if exists fonte_paragrafo_sem_obra_protegida on acervo.fonte_paragrafo;
+create trigger fonte_paragrafo_sem_obra_protegida
+  before insert or update of texto, secao_id on acervo.fonte_paragrafo
+  for each row execute function acervo.recusar_texto_integral_protegido();
+
+-- Sem este, `update fonte set obra_protegida = true` (ou `tipo_texto = 'ficha'`) depois da carga deixaria
+-- o texto integral lá.
+create or replace function acervo.recusar_fonte_protegida_com_texto() returns trigger
+language plpgsql security definer
+set search_path = pg_catalog
+as $$
+begin
+  if (new.obra_protegida or new.tipo_texto <> 'integral') and exists (
+    select 1
+      from acervo.fonte_secao s
+      join acervo.fonte_paragrafo p on p.secao_id = s.id
+     where s.fonte_id = new.id
+  ) then
+    raise exception 'texto integral recusado: a Fonte já tem parágrafo e não pode virar obra protegida ou ficha'
+      using errcode = '23514';
+  end if;
+  return new;
+end
+$$;
+
+revoke all on function acervo.recusar_fonte_protegida_com_texto() from public;
+
+drop trigger if exists fonte_protegida_sem_texto on acervo.fonte;
+create trigger fonte_protegida_sem_texto
+  before update of obra_protegida, tipo_texto on acervo.fonte
+  for each row execute function acervo.recusar_fonte_protegida_com_texto();
