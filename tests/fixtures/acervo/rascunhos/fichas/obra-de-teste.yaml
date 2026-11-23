@@ -1,0 +1,29 @@
+# FICHA DE TESTE: obra inventada ("Obra de Teste"), sem relação com livro algum. Serve só para provar o
+# carregador, a política de linha e a verificação. RASCUNHO NÃO VERIFICADO.
+slug: obra-de-teste
+titulo: Obra de Teste
+autor: Autora de Teste
+ano: 2001
+editora: Editora de Teste
+edicao_consultada: Primeira edição de teste, 2001
+estado: rascunho
+origem_do_rascunho: memoria-do-modelo
+idioma_trechos: en
+tese_pt: A obra de teste afirma, só para fins de teste, que um carregador de rascunhos nunca marca nada como verificado.
+limites_pt: Obra inventada; nada nela é fato histórico.
+serve_a:
+  - bh00-a0
+itens:
+  - tipo: argumento
+    texto_pt: Primeiro argumento de teste, em português.
+    pagina: "10"
+    confianca: media
+  - tipo: argumento
+    texto_pt: Segundo argumento de teste, em português.
+    pagina: "12-14"
+    confianca: baixa
+  - tipo: trecho
+    texto_pt: Tradução do trecho de teste, em português.
+    trecho_original: This is an invented test sentence, not taken from any book.
+    pagina: xi-xii
+    confianca: alta

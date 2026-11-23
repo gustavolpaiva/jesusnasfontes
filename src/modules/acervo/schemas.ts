@@ -177,6 +177,83 @@ export const esquemaFonteYaml = z
   });
 export type FonteYaml = z.infer<typeof esquemaFonteYaml>;
 
+// ───────────────────────── YAML da ficha (rascunho) ─────────────────────────
+// Uma ficha só ENTRA como rascunho (D-03, D-17): o contrato não tem campo de verificação, e `estado` só aceita
+// 'rascunho'. Quem verifica é um Admin com segundo fator, pelas funções do banco (plano 05), nunca este arquivo.
+// Os tetos de citação repetem os do banco (D-19) para o erro vir com o nome do campo antes de abrir conexão.
+
+export const TETO_TRECHO_ORIGINAL = 300;
+export const TETO_TEXTO_PT = 2000;
+
+const PAGINA = /^[0-9A-Za-z]+(?:-[0-9A-Za-z]+)?$/;
+const PAGINA_NUMERICA = /^([0-9]+)(?:-([0-9]+))?$/;
+
+export type PaginaInterpretada = {
+  inicio: number | null;
+  fim: number | null;
+  texto: string | null;
+};
+
+/** "39" e "39-53" viram inteiros; qualquer outra forma ("xi-xii", "12a") fica como texto. */
+export function interpretarPagina(pagina: string): PaginaInterpretada {
+  const m = PAGINA_NUMERICA.exec(pagina);
+  if (!m) return { inicio: null, fim: null, texto: pagina };
+  const inicio = Number(m[1]);
+  return { inicio, fim: m[2] === undefined ? inicio : Number(m[2]), texto: null };
+}
+
+// Página escrita sem aspas no YAML ("pagina: 39") chega como número: vira texto antes de validar.
+const paginaDoItem = z.preprocess(
+  (v) => (typeof v === "number" ? String(v) : v),
+  z
+    .string()
+    .trim()
+    .min(1, "toda página é obrigatória")
+    .max(20, "página longa demais")
+    .regex(PAGINA, "página inválida (use 39, 39-53 ou xi-xii)"),
+);
+
+const esquemaItemFicha = z
+  .object({
+    tipo: z.enum(["argumento", "trecho"]),
+    texto_pt: textoNaoVazio.refine(
+      (t) => t.length <= TETO_TEXTO_PT,
+      `no máximo ${TETO_TEXTO_PT} caracteres`,
+    ),
+    pagina: paginaDoItem,
+    trecho_original: z
+      .string()
+      .min(1)
+      .max(TETO_TRECHO_ORIGINAL, `no máximo ${TETO_TRECHO_ORIGINAL} caracteres`)
+      .nullish(),
+    confianca: z.enum(["alta", "media", "baixa"]),
+  })
+  .strict()
+  .superRefine((item, ctx) => {
+    const p = interpretarPagina(item.pagina);
+    if (p.inicio !== null && p.fim !== null && p.fim < p.inicio)
+      ctx.addIssue({ code: "custom", path: ["pagina"], message: "faixa de páginas invertida" });
+  });
+
+export const esquemaFichaYaml = z
+  .object({
+    slug,
+    titulo: textoNaoVazio,
+    autor: textoNaoVazio,
+    ano: z.number().int().min(1).max(2100),
+    editora: z.string().min(1).nullish(),
+    edicao_consultada: textoNaoVazio,
+    estado: z.literal("rascunho", { error: "a ficha só entra como rascunho" }),
+    origem_do_rascunho: z.enum(["memoria-do-modelo", "consulta-direta"]),
+    idioma_trechos: z.enum(IDIOMAS),
+    tese_pt: textoNaoVazio,
+    limites_pt: z.string().min(1).nullish(),
+    serve_a: z.array(slug).default([]),
+    itens: z.array(esquemaItemFicha).min(1, "a ficha precisa de ao menos um item").max(200),
+  })
+  .strict();
+export type FichaYaml = z.infer<typeof esquemaFichaYaml>;
+
 // ───────────────────────── leitura ─────────────────────────
 
 function descrever(erro: z.ZodError): string {
@@ -199,6 +276,19 @@ export function interpretarDerivado(bruto: unknown, rotulo: string): Derivado {
   const r = esquemaDerivado.safeParse(bruto);
   if (!r.success)
     throw new ErroContrato(`derivado ${rotulo} fora do contrato: ${descrever(r.error)}`);
+  return r.data;
+}
+
+/** Lê e valida o YAML de uma ficha em rascunho. O erro nomeia o campo e nunca traz o texto da ficha. */
+export function interpretarFichaYaml(conteudo: string, rotulo: string): FichaYaml {
+  let bruto: unknown;
+  try {
+    bruto = lerYaml(conteudo);
+  } catch {
+    throw new ErroContrato(`YAML ${rotulo} ilegível`);
+  }
+  const r = esquemaFichaYaml.safeParse(bruto);
+  if (!r.success) throw new ErroContrato(`YAML ${rotulo} fora do contrato: ${descrever(r.error)}`);
   return r.data;
 }
 
