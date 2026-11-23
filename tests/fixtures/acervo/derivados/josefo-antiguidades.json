@@ -1,0 +1,36 @@
+{
+  "versao_formato": 1,
+  "slug": "josefo-antiguidades",
+  "idioma": "en",
+  "origem_id": "perseus-greeklit-josefo",
+  "origem_sha256": "5b69b55d72abd11ff1b9f55ff570dbeaf4369579546f38cec8e83db462cd8a09",
+  "gerado_por": "recorte de teste, escrito a mao a partir de tlg0526.tlg001.perseus-eng2.xml (PerseusDL/canonical-greekLit, commit dacb04909e43dc47738828d33cc3d2b0635bc54c)",
+  "secoes": [
+    {
+      "slug": "18",
+      "titulo": "Book 18",
+      "ordem": 18,
+      "paragrafos": [
+        {
+          "ref": "18.63",
+          "ref_inicio": 63,
+          "ref_fim": 64,
+          "texto": "Now there was about this time Jesus, a wise man, if it be lawful to call him a man; for he was a doer of wonderful works, a teacher of such men as receive the truth with pleasure. He drew over to him both many of the Jews and many of the Gentiles. He was [the] Christ. And when Pilate, at the suggestion of the principal men amongst us, had condemned him to the cross, those that loved him at the first did not forsake him; for he appeared to them alive again the third day; as the divine prophets had foretold these and ten thousand other wonderful things concerning him. And the tribe of Christians, so named from him, are not extinct at this day."
+        }
+      ]
+    },
+    {
+      "slug": "20",
+      "titulo": "Book 20",
+      "ordem": 20,
+      "paragrafos": [
+        {
+          "ref": "20.197",
+          "ref_inicio": 197,
+          "ref_fim": 203,
+          "texto": "AND now Caesar, upon hearing the death of Festus, sent Albinus into Judea, as procurator. But the king deprived Joseph of the high priesthood, and bestowed the succession to that dignity on the son of Ananus, who was also himself called Ananus. Now the report goes that this eldest Ananus proved a most fortunate man; for he had five sons who had all performed the office of a high priest to God, and who had himself enjoyed that dignity a long time formerly, which had never happened to any other of our high priests. But this younger Ananus, who, as we have told you already, took the high priesthood, was a bold man in his temper, and very insolent; he was also of the sect of the Sadducees, who are very rigid in judging offenders, above all the rest of the Jews, as we have already observed; when, therefore, Ananus was of this disposition, he thought he had now a proper opportunity [to exercise his authority]. Festus was now dead, and Albinus was but upon the road; so he assembled the sanhedrim of judges, and brought before them the brother of Jesus, who was called Christ, whose name was James, and some others, [or, some of his companions]; and when he had formed an accusation against them as breakers of the law, he delivered them to be stoned: but as for those who seemed the most equitable of the citizens, and such as were the most uneasy at the breach of the laws, they disliked what was done; they also sent to the king [Agrippa], desiring him to send to Ananus that he should act so no more, for that what he had already done was not to be justified; nay, some of them went also to meet Albinus, as he was upon his journey from Alexandria, and informed him that it was not lawful for Ananus to assemble a sanhedrim without his consent. Whereupon Albinus complied with what they said, and wrote in anger to Ananus, and threatened that he would bring him to punishment for what he had done; on which king Agrippa took the high priesthood from him, when he had ruled but three months, and made Jesus, the son of Damneus, high priest."
+        }
+      ]
+    }
+  ]
+}

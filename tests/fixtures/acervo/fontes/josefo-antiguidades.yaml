@@ -1,0 +1,34 @@
+# Fixture de teste: metadados da Fonte do recorte real de duas unidades das Antiguidades (tradução de Whiston).
+# O resumo e as palavras-chave são de teste, escritos para exercitar a carga.
+slug: josefo-antiguidades
+titulo: Antiguidades Judaicas
+autor: Flávio Josefo
+epoca: cerca de 93 d.C.
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: cc-by-sa-4.0
+licenca_url: https://creativecommons.org/licenses/by-sa/4.0/
+origem_nome: Perseus Digital Library
+origem_url: https://www.perseus.tufts.edu/
+tradutor: William Whiston
+traducao_ano: 1737
+edicao: The Works of Flavius Josephus, Alden and Beardsley, 1856
+traduzida_por_nos: false
+limites_pt: >-
+  Obra escrita em grego por um autor judeu a serviço de Roma, por volta de 93 d.C. O texto lido aqui é a
+  tradução inglesa de Whiston, feita a partir de manuscritos medievais.
+secoes:
+  - slug: "18"
+    titulo: Livro 18
+    resumo_pt: >-
+      Resumo de teste: trecho do livro 18 em que Josefo fala de Jesus, do governador Pilatos e do grupo
+      dos cristãos.
+    palavras_chave_pt: [Jesus, Pilatos, cristãos]
+  - slug: "20"
+    titulo: Livro 20
+    resumo_pt: >-
+      Resumo de teste: trecho do livro 20 sobre o sumo sacerdote Anano, o julgamento de Tiago e a
+      reação do governador Albino.
+    palavras_chave_pt: [Tiago, Anano, Albino]

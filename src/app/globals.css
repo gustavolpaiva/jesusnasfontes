@@ -222,6 +222,12 @@
     font-style: italic;
     font-weight: 400;
   }
+  /* Parágrafo de Fonte alcançado por um link de Citação (#p-<ref>): forma, não cor. Preenchimento
+     --paper-soft e filete esquerdo de 2 px em --ink. */
+  .paragrafo-fonte:target {
+    background: var(--paper-soft);
+    box-shadow: inset 2px 0 0 var(--ink);
+  }
   /* Coluna de leitura: 65 caracteres, medida sobre o papel de leitura (acompanha a escala). */
   .coluna-leitura {
     max-width: calc(25.5 * var(--text-leitura));

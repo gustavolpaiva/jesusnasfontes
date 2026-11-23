@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import pg from "pg";
 import { inject } from "vitest";
+import type { ResultadoFontes } from "../../scripts/acervo/carregar";
 import type { ResultadoConteudo } from "../../scripts/content/carregar";
 import { bootstrapPapeis } from "../../scripts/db/bootstrap-papeis";
 import { type Ambiente, executarMigracoes } from "../../scripts/db/migrar";
@@ -125,4 +126,35 @@ export async function semearConteudo(
   const { lerPasta } = await import("../../scripts/content/esquema");
   const conteudo = await lerPasta(pasta);
   return comCarga(env, (cliente) => carregarConteudo(conteudo, { cliente }));
+}
+
+/**
+ * Carrega no banco da execução as Fontes de `<pasta>/fontes/*.yaml` com o derivado de cada uma em
+ * `<pasta>/derivados/<slug>.json`, pela mesma `carregarFontes` do `acervo:load`, sem rede e sem lock
+ * (o lock é do conteúdo real; a fixture é um recorte de teste).
+ */
+export async function semearAcervo(
+  pasta: string,
+  env: FonteDeEnv = process.env,
+): Promise<ResultadoFontes> {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const path = await import("node:path");
+  const { carregarFontes } = await import("../../scripts/acervo/carregar");
+  const { interpretarDerivado, interpretarFonteYaml } = await import(
+    "../../src/modules/acervo/schemas"
+  );
+  const dirFontes = path.join(pasta, "fontes");
+  const itens = readdirSync(dirFontes)
+    .filter((nome) => nome.endsWith(".yaml"))
+    .sort()
+    .map((nome) => {
+      const fonte = interpretarFonteYaml(readFileSync(path.join(dirFontes, nome), "utf8"), nome);
+      const arquivo = `${fonte.slug}.json`;
+      const derivado = interpretarDerivado(
+        JSON.parse(readFileSync(path.join(pasta, "derivados", arquivo), "utf8")),
+        arquivo,
+      );
+      return { fonte, derivado };
+    });
+  return comCarga(env, (cliente) => carregarFontes(itens, { cliente }));
 }

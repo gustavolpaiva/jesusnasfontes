@@ -102,9 +102,26 @@ export const fonte = acervo.table("fonte", {
   titulo: text("titulo").notNull(),
   autor: text("autor"),
   dataPublicacao: date("data_publicacao"),
+  /** Código da licença do texto (`dominio-publico`, `cc-by-sa-4.0`...). */
   licenca: text("licenca"),
   obraProtegida: boolean("obra_protegida").notNull().default(false),
   criadaEm: timestamp("criada_em", { withTimezone: true }).notNull().defaultNow(),
+  // 0016: identidade pública e proveniência. `slug` é contrato das Citações e das URLs.
+  slug: text("slug").notNull(),
+  tipoTexto: text("tipo_texto").notNull().default("ficha"),
+  idioma: text("idioma").notNull().default("pt"),
+  epoca: text("epoca"),
+  origemNome: text("origem_nome"),
+  origemUrl: text("origem_url"),
+  licencaUrl: text("licenca_url"),
+  tradutor: text("tradutor"),
+  traducaoAno: smallint("traducao_ano"),
+  edicao: text("edicao"),
+  traduzidaPorNos: boolean("traduzida_por_nos").notNull().default(false),
+  limitesPt: text("limites_pt"),
+  publicada: boolean("publicada").notNull().default(false),
+  origemRegistro: text("origem_registro").notNull().default("arquivo"),
+  conjuntoId: text("conjunto_id").references(() => conjuntoDados.id),
 });
 
 export const fonteSecao = acervo.table(
@@ -116,6 +133,11 @@ export const fonteSecao = acervo.table(
       .references(() => fonte.id),
     ordem: smallint("ordem").notNull(),
     titulo: text("titulo"),
+    slug: text("slug").notNull(),
+    refInicio: integer("ref_inicio"),
+    refFim: integer("ref_fim"),
+    resumoPt: text("resumo_pt"),
+    palavrasChavePt: text("palavras_chave_pt").array().notNull().default([]),
   },
   (tabela) => [unique().on(tabela.fonteId, tabela.ordem)],
 );
@@ -129,6 +151,12 @@ export const fonteParagrafo = acervo.table(
       .references(() => fonteSecao.id),
     ordem: smallint("ordem").notNull(),
     texto: text("texto").notNull(),
+    /** Numeração da obra (18.63); o id é `<slug da Fonte>/<ref>`. */
+    ref: text("ref").notNull(),
+    refInicio: integer("ref_inicio"),
+    refFim: integer("ref_fim"),
+    idioma: text("idioma"),
+    notas: jsonb("notas").notNull().default([]),
   },
   (tabela) => [unique().on(tabela.secaoId, tabela.ordem)],
 );
