@@ -184,7 +184,7 @@ describe.skipIf(emNeon())(
     async function criarCitacao(): Promise<void> {
       await comoDono(async (c) => {
         await c.query(
-          "insert into acervo.fonte (id, slug, nivel, titulo) values ('00000000-0000-4000-8000-000000000012', 'fonte-de-teste', 'primaria', 'Fonte de teste') on conflict do nothing",
+          "insert into acervo.fonte (id, slug, nivel, titulo, tipo_texto, licenca, origem_url) values ('00000000-0000-4000-8000-000000000012', 'fonte-de-teste', 'primaria', 'Fonte de teste', 'integral', 'dominio-publico', 'https://exemplo.invalid/t') on conflict do nothing",
         );
         await c.query(
           "insert into acervo.fonte_secao (id, fonte_id, slug, ordem) values ('teste-s1', '00000000-0000-4000-8000-000000000012', 's1', 1) on conflict do nothing",
