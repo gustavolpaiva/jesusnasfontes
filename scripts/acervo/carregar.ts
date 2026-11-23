@@ -2,11 +2,28 @@
 // versionado no produto). Uma transação só (qualquer erro desfaz tudo), trava consultiva própria, idempotente por
 // slug da Fonte, id da seção e id do parágrafo. Nenhuma rede: este módulo só lê o que já está no disco.
 
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type pg from "pg";
 import { decidirAmbiente } from "../../src/db/ambiente";
 import { sanitizarErroDeBanco } from "../../src/db/erro-banco";
-import type { Derivado, FonteYaml } from "../../src/modules/acervo/schemas";
-import { ErroCarga } from "../ingest/carregar-biblia";
+import { registrarErro } from "../../src/lib/registro";
+import {
+  type Derivado,
+  ErroContrato,
+  type FonteYaml,
+  interpretarFonteYaml,
+} from "../../src/modules/acervo/schemas";
+import { abrirCarga, ErroCarga } from "../ingest/carregar-biblia";
+import {
+  CAMINHO_LOCK,
+  ErroDerivado,
+  lerDerivado,
+  lerLock,
+  PASTA_DERIVADOS,
+  verificarDerivados,
+} from "./derivados";
 
 export type Contagem = {
   inseridos: number;
@@ -350,4 +367,120 @@ async function carregarUma(
       ],
     );
   }
+}
+
+// ───────────────────────── comando: pnpm acervo:load ─────────────────────────
+
+const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+export const PASTA_FONTES = path.join(RAIZ, "content", "acervo", "fontes");
+
+export type OpcoesDoComando = { fontes: string; derivados: string; lock: string };
+export type DependenciasDoComando = {
+  /** Abre o cliente `jnf_carga`. Só é chamado depois de TODA conferência passar. */
+  abrir?: () => Promise<pg.Client>;
+  escrever?: (linha: string) => void;
+};
+export type ResultadoDoComando = {
+  carregadas: number;
+  puladas: string[];
+  resultado?: ResultadoFontes;
+};
+
+function lerYamls(pasta: string): FonteYaml[] {
+  let nomes: string[];
+  try {
+    nomes = readdirSync(pasta)
+      .filter((n) => n.endsWith(".yaml"))
+      .sort();
+  } catch (erro) {
+    if ((erro as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw erro;
+  }
+  return nomes.map((nome) =>
+    interpretarFonteYaml(readFileSync(path.join(pasta, nome), "utf8"), nome),
+  );
+}
+
+/**
+ * Confere o lock, o orçamento e o contrato de cada YAML e de cada derivado, TUDO antes de criar o cliente do banco;
+ * só então carrega. Sem derivado a carregar, não abre conexão. Erro lança (o comando sai com 1); nada é gravado.
+ */
+export async function executarCarga(
+  opcoes: OpcoesDoComando,
+  deps: DependenciasDoComando = {},
+): Promise<ResultadoDoComando> {
+  const escrever = deps.escrever ?? ((l: string) => console.log(l));
+  const lock = lerLock(opcoes.lock);
+  const conferidos = verificarDerivados(opcoes.derivados, lock);
+  const yamls = lerYamls(opcoes.fontes);
+
+  const slugsDosYamls = new Set(yamls.map((y) => y.slug));
+  for (const d of conferidos) {
+    if (!slugsDosYamls.has(d.slug))
+      throw new ErroDerivado(`derivado ${d.slug}: não há YAML de Fonte com esse slug`);
+  }
+  const itens: FonteParaCarga[] = [];
+  const puladas: string[] = [];
+  const comDerivado = new Set(conferidos.map((d) => d.slug));
+  for (const fonte of yamls) {
+    if (comDerivado.has(fonte.slug)) {
+      itens.push({ fonte, derivado: lerDerivado(opcoes.derivados, lock, fonte.slug) });
+    } else if (fonte.publicada) {
+      throw new ErroCarga(`Fonte ${fonte.slug}: publicada e sem derivado`);
+    } else {
+      puladas.push(fonte.slug);
+    }
+  }
+  if (puladas.length > 0)
+    escrever(`puladas (não publicadas e sem derivado): ${puladas.join(", ")}`);
+  if (itens.length === 0) {
+    escrever("acervo:load: não há derivado a carregar");
+    return { carregadas: 0, puladas };
+  }
+
+  const abrir = deps.abrir ?? abrirCarga;
+  const cliente = await abrir();
+  try {
+    const resultado = await carregarFontes(itens, { cliente });
+    escrever(
+      `inseridos=${resultado.inseridos} atualizados=${resultado.atualizados} inalterados=${resultado.inalterados} removidos=${resultado.removidos}`,
+    );
+    escrever(
+      `fontes=${itens.length} secoes=${resultado.secoes.inseridos + resultado.secoes.atualizados + resultado.secoes.inalterados} paragrafos=${resultado.paragrafos.inseridos + resultado.paragrafos.atualizados + resultado.paragrafos.inalterados}`,
+    );
+    return { carregadas: itens.length, puladas, resultado };
+  } finally {
+    await cliente.end().catch(() => {});
+  }
+}
+
+function lerOpcoes(argumentos: string[]): OpcoesDoComando {
+  const valor = (flag: string, padrao: string): string => {
+    const i = argumentos.indexOf(flag);
+    if (i < 0) return padrao;
+    const v = argumentos[i + 1];
+    if (!v)
+      throw new ErroCarga(
+        "Uso: acervo:load [--fontes <pasta>] [--derivados <pasta>] [--lock <arquivo>]",
+      );
+    return path.resolve(v);
+  };
+  return {
+    fontes: valor("--fontes", PASTA_FONTES),
+    derivados: valor("--derivados", PASTA_DERIVADOS),
+    lock: valor("--lock", CAMINHO_LOCK),
+  };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  executarCarga(lerOpcoes(process.argv.slice(2))).then(
+    () => process.exit(0),
+    (erro) => {
+      // Só erro nosso mostra texto; o resto vai só com código e classe (a URL do banco é segredo).
+      if (erro instanceof ErroDerivado || erro instanceof ErroContrato || erro instanceof ErroCarga)
+        console.error(erro.message);
+      else registrarErro("acervo-load", erro);
+      process.exit(1);
+    },
+  );
 }
