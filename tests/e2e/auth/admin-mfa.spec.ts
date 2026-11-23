@@ -365,7 +365,11 @@ const ISENTAS = new Set(["/admin/segundo-fator"]);
 // Rotas que respondem com um anexo (download), não com uma página.
 const ROTAS_DE_ARQUIVO = new Set(["/conta/exportar"]);
 // Rota com parâmetro na URL: o endereço de exemplo que o teste percorre (um Estudo real da carga).
-const EXEMPLOS: Record<string, string> = { "/estudos/[slug]": "/estudos/batismo-e-tentacao" };
+const EXEMPLOS: Record<string, string> = {
+  "/estudos/[slug]": "/estudos/batismo-e-tentacao",
+  // O recorte do Josefo semeado de tests/fixtures/acervo pelo executor de e2e.
+  "/acervo/[slug]/[secao]": "/acervo/josefo-antiguidades/18",
+};
 
 function rotasDoApp(): string[] {
   const raiz = join(process.cwd(), "src", "app");
