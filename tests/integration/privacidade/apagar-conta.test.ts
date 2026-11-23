@@ -70,6 +70,7 @@ describe.skipIf(emNeon())("removerConta", () => {
       for (const l of ligadas) {
         const nome = `${l.tabela}.${l.coluna}`;
         if (nome === "admin.convite.criado_por") continue; // vale para quem CRIOU o convite (abaixo)
+        if (nome === "admin.registro_verificacao.por") continue; // set null: o histórico fica (abaixo)
         expect(
           contagem[nome],
           `${nome}: falta linha de teste de ${conta.marcador}`,
@@ -85,6 +86,14 @@ describe.skipIf(emNeon())("removerConta", () => {
   });
 
   it("apagar A leva TODAS as linhas dela do catálogo e deixa a conta vizinha B intacta", async () => {
+    // Uma verificação de ficha feita por A: apagar a conta não apaga o histórico.
+    await comoDono(t.env, (c) =>
+      c.query(
+        `insert into admin.registro_verificacao (acao, alvo, hash, por)
+         values ('verificar-ficha', 'obra-de-teste', $1, $2)`,
+        ["c".repeat(64), t.a.id],
+      ),
+    );
     const antesB = await contagemDaConta(t.env, t.b);
     const antesA = await contagemDaConta(t.env, t.a);
     expect(Object.values(antesA).every((n) => n >= 0)).toBe(true);
@@ -118,6 +127,14 @@ describe.skipIf(emNeon())("removerConta", () => {
       return r.rows;
     });
     expect(convidado).toEqual([{ criado_por: null }]);
+    // O registro de verificação de A continua, sem o nome (D-05: o histórico não some com a conta).
+    const registro = await comoDono(t.env, async (c) => {
+      const r = await c.query(
+        "select por from admin.registro_verificacao where alvo = 'obra-de-teste'",
+      );
+      return r.rows;
+    });
+    expect(registro).toEqual([{ por: null }]);
   });
 
   it("apagar de novo, ou um ID que não existe, não apaga mais nada", async () => {

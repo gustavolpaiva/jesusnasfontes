@@ -28,7 +28,9 @@ const SEM_VINCULO_COM_A_CONTA: Record<string, string> = {
 };
 
 // Colunas que apontam para a conta mas NÃO em cascata, de propósito.
-const SET_NULL_ESPERADO = new Set(["admin.convite.criado_por"]);
+// `admin.registro_verificacao.por`: quem verificou uma ficha; apagar a conta do Admin não apaga o
+// histórico de verificação (o registro fica, sem o nome).
+const SET_NULL_ESPERADO = new Set(["admin.convite.criado_por", "admin.registro_verificacao.por"]);
 
 describe("catálogo: exportar e apagar a conta cobrem toda tabela", () => {
   it("exportar: as tabelas lidas são exatamente as de `privado` do catálogo, e todas têm estudante_id", async () => {
