@@ -110,23 +110,26 @@ function temCapitular(md: string): boolean {
 }
 
 // Capitular: três linhas de altura, Cormorant Garamond 600 em rubrica, derivada do Corpo de leitura
-// (não é um quinto tamanho). Com `::first-letter`, o leitor de tela lê a palavra inteira. Onde o
-// navegador tem `initial-letter` (Chromium e Safari), é ele quem acerta as três linhas pela linha de
-// base; onde não tem, vale a letra flutuante do contrato (3,4 vezes o Corpo, altura de linha 0,82).
+// (não é um quinto tamanho). Com `::first-letter`, o leitor de tela lê a palavra inteira. Vale a letra
+// flutuante do contrato (3,4 vezes o Corpo, altura de linha 0,82) em TODOS os navegadores.
 // O parágrafo vira `flow-root` para conter a letra flutuante: com menos de três linhas de texto, a
-// capitular não pode vazar para o bloco seguinte. As classes ficam escritas por inteiro: o Tailwind só
-// gera o que acha escrito no código, nunca o que se monta por concatenação.
+// capitular não pode vazar para o bloco seguinte, e o chip "Fonte em preparação" (`clear-both`) desce
+// para baixo dela.
+// Sem `initial-letter` (desvio do UI-SPEC linha 175, medido em produção em 23/11/2026): no Chromium a
+// letra de `initial-letter` não é flutuante, então nem o `flow-root` nem o `clear-both` do chip a
+// respeitam; num primeiro parágrafo de duas linhas ("A ceia e o lava-pés") a letra invadia o chip,
+// contra o UI-SPEC linha 1164 ("nunca sobre o texto"). As classes ficam escritas por inteiro: o
+// Tailwind só gera o que acha escrito no código, nunca o que se monta por concatenação.
 const CAPITULAR =
   "[&>[data-secao]:first-of-type>p:first-of-type]:flow-root " +
   "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:font-display " +
   "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:font-semibold " +
   "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:text-rubric " +
   "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:pr-2 " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:supports-[initial-letter:3]:first-letter:[initial-letter:3] " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:float-left " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:[font-size:calc(var(--text-leitura)*3.4)] " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:leading-[0.82] " +
-  "[&>[data-secao]:first-of-type>p:first-of-type]:not-supports-[initial-letter:3]:first-letter:pt-1";
+  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:float-left " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:[font-size:calc(var(--text-leitura)*3.4)] " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:leading-[0.82] " +
+  "[&>[data-secao]:first-of-type>p:first-of-type]:first-letter:pt-1";
 
 const TRILHA_DAS_PERGUNTAS = "leitura-continua";
 

@@ -136,7 +136,10 @@ describe("CorpoEstudo: Afirmação e chip (TRIL-07)", () => {
 });
 
 describe("CorpoEstudo: capitular", () => {
-  const c = (md: string) => html(estudo(md)).includes("first-letter:[initial-letter:3]");
+  const c = (md: string) => html(estudo(md)).includes("first-letter:float-left");
+  it("é sempre a letra flutuante, nunca `initial-letter` (que não respeita o clear do chip)", () => {
+    expect(html(estudo("## O ponto\n\nJesus é batizado."))).not.toContain("initial-letter");
+  });
   it("vale quando o primeiro caractere do primeiro parágrafo é uma letra", () => {
     expect(c("## O ponto\n\nJesus é batizado.")).toBe(true);
     expect(c("## O ponto\n\n:afirmacao[Jesus é batizado]{#pc01-a1}.")).toBe(true);

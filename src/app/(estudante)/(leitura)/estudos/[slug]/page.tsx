@@ -87,7 +87,7 @@ function metaDoEstudo(estudo: EstudoCompleto): string {
     estudo.trilha.id === TRILHA_LEITURA_CONTINUA
       ? "um capítulo, de 4 a 8 minutos"
       : estudo.minutos
-        ? `cerca de ${estudo.minutos} minutos`
+        ? `cerca de ${estudo.minutos} ${estudo.minutos === 1 ? "minuto" : "minutos"}`
         : null;
   return [duracao, estudo.passagens.length > 0 ? null : "sem leitura bíblica neste Estudo"]
     .filter(Boolean)
