@@ -5,6 +5,9 @@ const porta = process.env.PORTA_E2E ?? "3100";
 // `preview` (sem servidor local, sem aquecimento, sem banco de execução). Sem PREVIEW_URL o projeto
 // `preview` não existe, e os testes de `tests/e2e/preview` ficam fora dos demais.
 const urlPreview = process.env.PREVIEW_URL;
+// Fumaça contra a produção (plano 01-21): com PRODUCAO_URL a configuração é só do projeto `producao`,
+// sem servidor local, sem banco e sem segredo de passagem (a produção não tem proteção de implantação).
+const urlProducao = process.env.PRODUCAO_URL;
 // Quando a proteção de implantação está ligada, o segredo de automação libera as requisições.
 const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 // Com JNF_LOG_SERVIDOR, a saída do servidor (stdout e stderr) vai para esse arquivo.
@@ -59,9 +62,20 @@ const configPreview = defineConfig({
   ],
 });
 
+const configProducao = defineConfig({
+  testDir: "tests/e2e/producao",
+  outputDir: "test-results/e2e-producao",
+  reporter: "list",
+  workers: 1,
+  fullyParallel: false,
+  forbidOnly: true,
+  use: { baseURL: urlProducao },
+  projects: [{ name: "producao", use: { browserName: "chromium" as const } }],
+});
+
 const configLocal = defineConfig({
   testDir: "tests/e2e",
-  testIgnore: /preview\//,
+  testIgnore: /(preview|producao)\//,
   outputDir: `test-results/e2e-${porta}`,
   reporter: "list",
   fullyParallel: true,
@@ -126,4 +140,4 @@ const configLocal = defineConfig({
   ],
 });
 
-export default urlPreview ? configPreview : configLocal;
+export default urlProducao ? configProducao : urlPreview ? configPreview : configLocal;
