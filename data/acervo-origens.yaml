@@ -80,7 +80,13 @@ perseus-latinlit-tacito:
     que a própria edição usa; o texto das palavras não foi reescrito.
   formato: tei
   publicavel: true
-  motivo: "conferência de 1895: IGUAL em 2026-11-24 (capítulo 15.44, o citado; os demais capítulos não foram conferidos)"
+  # [AUTO-DECISION] (revisão cruzada do plano 02-04, 2026-11-24) O texto do Perseus segue uma reimpressão de 1942
+  # "com alterações significativas", possivelmente ainda protegida. Publica-se SÓ o que foi provado IGUAL à edição
+  # de 1895: hoje o capítulo 15.44 dos Anais. A Fonte é um EXCERTO (a Fonte declara isso em `limites_pt`, que a
+  # página mostra). Para ampliar: conferir cada capítulo contra 1895 e só então acrescentar a unidade aqui.
+  motivo: "excerto: só os capítulos provados IGUAIS à edição de 1895 (hoje 15.44, conferido em 2026-11-24); o Perseus segue a reimpressão de 1942 com alterações significativas, então nenhum outro capítulo é publicado sem a sua própria conferência"
+  unidades_conferidas:
+    - "15.44"
   arquivos:
     - id: phi1351.phi005.perseus-eng2.xml
       url: https://raw.githubusercontent.com/PerseusDL/canonical-latinLit/8cef51623130f2412da410858e32c322eb796c0a/data/phi1351/phi005/phi1351.phi005.perseus-eng2.xml
