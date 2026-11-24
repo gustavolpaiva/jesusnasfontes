@@ -85,6 +85,13 @@ const hashDoItemNoBanco = async (id: string): Promise<string> =>
       .rows[0] as { conteudo_hash: string }
   ).conteudo_hash;
 
+/** Em série: a conexão do dono é uma só. */
+const hashesDe = async (ids: string[]): Promise<string[]> => {
+  const r: string[] = [];
+  for (const id of ids) r.push(await hashDoItemNoBanco(id));
+  return r;
+};
+
 const hashDaFichaNoBanco = async (fichaId: string): Promise<string> =>
   (
     (await migra.query("select conteudo_hash from acervo.ficha where fonte_id = $1", [fichaId]))
@@ -778,3 +785,221 @@ describe.skipIf(emNeon())("módulo verificacao.ts (porta comAdmin, erros tipados
     expect(String((erro as { code?: string }).code)).toMatch(/^22/);
   });
 });
+
+describe.skipIf(emNeon())("a verificação cai sozinha quando o conteúdo muda (T-02-19)", () => {
+  it("recarregar a ficha com um item de texto alterado: a ficha some para o Estudante; conferir só o item alterado e verificar de novo a traz de volta", async () => {
+    const f = await carregarFicha();
+    const verificada = await verificarFichaParaTeste(envDoBanco, f.slug);
+    expect(await leituraDoEstudante(f.slug)).toEqual({ fonte: 1, item: 3 });
+    const hashVerificado = await hashDaFichaNoBanco(f.fichaId);
+    const hashesDosItens = await hashesDe(f.itens);
+
+    // Recarga pelo carregador de rascunhos, com o texto do segundo argumento alterado.
+    const yaml = yamlDe("obra-de-teste.yaml")
+      .replace(/^slug: .*$/m, `slug: ${f.slug}`)
+      .replace("Segundo argumento de teste", "Segundo argumento de teste, corrigido");
+    await carregarRascunhos([interpretarFichaYaml(yaml, `${f.slug}.yaml`)], { cliente: carga });
+
+    // O hash da ficha mudou, a verificação deixou de valer em silêncio e a ficha saiu da vista do Estudante.
+    expect(await hashDaFichaNoBanco(f.fichaId)).not.toBe(hashVerificado);
+    expect(await leituraDoEstudante(f.slug)).toEqual({ fonte: 0, item: 0 });
+    // A linha de verificação continua lá (o histórico fica), mas amarrada ao hash antigo.
+    expect(await verificacoesDe(f.fichaId)).toBe(1);
+
+    // Os itens inalterados continuam conferidos; só o alterado voltou a "a conferir".
+    const depois = await hashesDe(f.itens);
+    expect(depois[0]).toBe(hashesDosItens[0]);
+    expect(depois[1]).not.toBe(hashesDosItens[1]);
+    expect(depois[2]).toBe(hashesDosItens[2]);
+    const conferem = (
+      await migra.query(
+        `select c.item_id, (c.item_hash = i.conteudo_hash) as confere
+           from acervo.conferencia_item c join acervo.ficha_item i on i.id = c.item_id
+          where i.ficha_id = $1 order by c.item_id`,
+        [f.fichaId],
+      )
+    ).rows;
+    expect(conferem.map((l) => l.confere)).toEqual([true, false, true]);
+
+    // Verificar sem conferir o item alterado é recusado e diz que falta 1 (controle negativo).
+    const sessao = verificada.sessaoId;
+    const hashNovo = await hashDaFichaNoBanco(f.fichaId);
+    const faltou = await verificarFicha(sessao, f.fichaId, hashNovo).catch((e: unknown) => e);
+    expect(faltou).toBeInstanceOf(FaltamPaginas);
+    expect((faltou as FaltamPaginas).faltam).toBe(1);
+
+    // Conferir SÓ o item alterado e verificar de novo: a ficha volta.
+    await conferirItem(sessao, f.itens[1] as string, depois[1] as string);
+    await verificarFicha(sessao, f.fichaId, hashNovo);
+    expect(await leituraDoEstudante(f.slug)).toEqual({ fonte: 1, item: 3 });
+    const evidencia = (
+      await migra.query("select ficha_hash from acervo.verificacao_ficha where ficha_id = $1", [
+        f.fichaId,
+      ])
+    ).rows[0];
+    expect(evidencia.ficha_hash).toBe(hashNovo);
+  });
+
+  it("editar a Fonte (título) também derruba a verificação; a ficha só volta com nova verificação", async () => {
+    const f = await carregarFicha();
+    const v = await verificarFichaParaTeste(envDoBanco, f.slug);
+    expect(await leituraDoEstudante(f.slug)).toEqual({ fonte: 1, item: 3 });
+    await carga.query("update acervo.fonte set titulo = 'Obra de Teste, corrigida' where id = $1", [
+      f.fichaId,
+    ]);
+    expect(await leituraDoEstudante(f.slug)).toEqual({ fonte: 0, item: 0 });
+    // Item algum mudou: todas as conferências seguem valendo, e uma nova verificação basta.
+    await verificarFicha(v.sessaoId, f.fichaId, await hashDaFichaNoBanco(f.fichaId));
+    expect(await leituraDoEstudante(f.slug)).toEqual({ fonte: 1, item: 3 });
+  });
+
+  it("não existe função que desfaça conferência ou verificação (sem retirar)", async () => {
+    const r = await superusuario.query<{ nome: string }>(
+      `select p.proname as nome from pg_proc p
+        where p.pronamespace = 'acervo'::regnamespace
+          and p.proname ~* '(desfaz|retir|revog|apag|remov|cancel)'`,
+    );
+    expect(r.rows).toEqual([]);
+    // Controle: a consulta enxerga as funções que existem.
+    const existem = await superusuario.query(
+      "select count(*)::int as n from pg_proc where pronamespace = 'acervo'::regnamespace and proname in ('conferir_item', 'verificar_ficha')",
+    );
+    expect(existem.rows[0].n).toBe(2);
+  });
+});
+
+describe.skipIf(emNeon())(
+  "o nome de quem verificou mora só no registro interno (D-05, T-02-18)",
+  () => {
+    /** Linhas de admin.registro_verificacao que o jnf_app lê, com a sessão pedida (ou nenhuma). */
+    async function registroLidoPeloApp(sessao: string | null, alvo: string) {
+      const app = await cliente("app");
+      try {
+        await app.query("begin");
+        if (sessao !== null)
+          await app.query("select set_config('app.sessao_admin', $1, true)", [sessao]);
+        const r = await app.query(
+          "select acao, alvo, hash, por from admin.registro_verificacao where alvo = $1 or alvo like $2 order by em, id",
+          [alvo, `${alvo}/%`],
+        );
+        await app.query("commit");
+        return r.rows;
+      } finally {
+        await app.end().catch(() => {});
+      }
+    }
+
+    it("jnf_carga e jnf_assistente não leem o registro (sem privilégio); o Estudante e o app sem sessão leem 0 linhas; o Admin com segundo fator lê com `por`", async () => {
+      const f = await carregarFicha();
+      const v = await verificarFichaParaTeste(envDoBanco, f.slug);
+      const adminId = (
+        await superusuario.query<{ user_id: string }>(
+          "select user_id from auth.session where id = $1",
+          [v.sessaoId],
+        )
+      ).rows[0]?.user_id;
+
+      for (const [papel, c] of [
+        ["jnf_carga", carga],
+        ["jnf_assistente", assistente],
+      ] as const) {
+        await expect(
+          c.query("select * from admin.registro_verificacao"),
+          `${papel} lendo o registro`,
+        ).rejects.toMatchObject({ code: "42501" });
+      }
+
+      // Negativos de leitura do app: sem sessão, Estudante, Admin sem segundo fator, geração antiga, sessão vencida.
+      expect(await registroLidoPeloApp(null, f.slug)).toEqual([]);
+      for (const caso of [
+        "estudante",
+        "admin-sem-segundo-fator",
+        "geracao-antiga",
+        "sessao-vencida",
+      ] as const)
+        expect(await registroLidoPeloApp(sessoes[caso], f.slug), caso).toEqual([]);
+      expect(await registroLidoPeloApp(SEM_SESSAO, f.slug)).toEqual([]);
+
+      // Controle positivo: Admin com segundo fator lê as linhas (3 conferências + 1 verificação), com a pessoa.
+      const linhas = await registroLidoPeloApp(sessoes["admin-com-segundo-fator"], f.slug);
+      expect(linhas.map((l) => l.acao).sort()).toEqual([
+        "conferir-item",
+        "conferir-item",
+        "conferir-item",
+        "verificar-ficha",
+      ]);
+      const daVerificacao = linhas.find((l) => l.acao === "verificar-ficha");
+      // O alvo da verificação é o slug da ficha, e o hash é o do conteúdo verificado.
+      expect(daVerificacao?.alvo).toBe(f.slug);
+      expect(daVerificacao?.hash).toBe(v.hash);
+      expect(daVerificacao?.por).toBe(adminId);
+      // `por` só é lido por uma sessão cuja conta é de Admin. A sessão do ajudante é outra: confirma pela leitura do dono.
+      const donoLe = (
+        await migra.query("select por from admin.registro_verificacao where alvo = $1", [f.slug])
+      ).rows[0];
+      expect(donoLe.por).toBe(adminId);
+    });
+
+    it("nada que o Estudante e o Assistente leem do Acervo carrega pessoa (verificacao_ficha, ficha e item)", async () => {
+      const f = await carregarFicha();
+      await verificarFichaParaTeste(envDoBanco, f.slug);
+      const colunas = await superusuario.query<{ tabela: string; coluna: string }>(
+        `select table_name as tabela, column_name as coluna from information_schema.columns
+        where table_schema = 'acervo'
+          and table_name in ('verificacao_ficha', 'ficha', 'ficha_item', 'conferencia_item')`,
+      );
+      // Nenhuma coluna aponta para a conta (`por`, `user_id`, `admin_id`, `verificada_por`, ...).
+      expect(
+        colunas.rows.filter((c) => /(^|_)(por|user|usuario|admin|autor_da)(_|$)/.test(c.coluna)),
+      ).toEqual([]);
+      // Controle: o detector acusa uma coluna dessas quando ela existe (a tabela do registro, no esquema admin).
+      expect("verificada_por").toMatch(/(^|_)(por|user|usuario|admin|autor_da)(_|$)/);
+      // E o Assistente, que lê a ficha verificada, não alcança o esquema admin.
+      await expect(
+        assistente.query("select por from admin.registro_verificacao"),
+      ).rejects.toMatchObject({ code: "42501" });
+    });
+
+    it("apagar a conta do Admin que verificou: a linha do registro continua com `por` nulo, e a ficha continua verificada", async () => {
+      const f = await carregarFicha();
+      const v = await verificarFichaParaTeste(envDoBanco, f.slug);
+      const adminId = (
+        await superusuario.query<{ user_id: string }>(
+          "select user_id from auth.session where id = $1",
+          [v.sessaoId],
+        )
+      ).rows[0]?.user_id as string;
+      expect(
+        await contar("select count(*)::int as n from admin.registro_verificacao where por = $1", [
+          adminId,
+        ]),
+      ).toBe(4);
+
+      await superusuario.query('delete from auth."user" where id = $1', [adminId]);
+
+      expect(
+        await contar("select count(*)::int as n from admin.registro_verificacao where por = $1", [
+          adminId,
+        ]),
+      ).toBe(0);
+      // As quatro linhas (3 conferências e a verificação) seguem lá, sem pessoa.
+      const restantes = await migra.query(
+        "select por from admin.registro_verificacao where alvo = $1 or alvo like $2",
+        [f.slug, `${f.slug}/%`],
+      );
+      expect(restantes.rows).toHaveLength(4);
+      expect(restantes.rows.every((l) => l.por === null)).toBe(true);
+      // A evidência de verificação não depende da conta: a ficha continua legível ao Estudante.
+      expect(await verificacoesDe(f.fichaId)).toBe(1);
+      expect(await leituraDoEstudante(f.slug)).toEqual({ fonte: 1, item: 3 });
+      // Controle: a sessão do Admin apagado já não prova nada (a função recusa com 42501).
+      await expect(
+        conferirItem(
+          v.sessaoId,
+          f.itens[0] as string,
+          await hashDoItemNoBanco(f.itens[0] as string),
+        ),
+      ).rejects.toBeInstanceOf(SegundoFatorVencido);
+    });
+  },
+);

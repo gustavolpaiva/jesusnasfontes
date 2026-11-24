@@ -10,8 +10,8 @@ import { aplicarEnvDeTeste } from "../../support/preparar-banco";
 
 // Varredura do catálogo do esquema `acervo`, sem lista fixa de tabelas existentes: toda tabela precisa
 // estar CLASSIFICADA aqui como pública ou protegida. Tabela nova sem classificação faz o teste falhar,
-// dizendo o nome. Só leitura do catálogo (roda também no Neon dev). Os planos 05 e 19 acrescentam as
-// tabelas deles às listas (verificação por função, aprovação de Afirmação, proposta de grau).
+// dizendo o nome. Só leitura do catálogo (roda também no Neon dev). O plano 19 acrescenta as tabelas dele às
+// listas (aprovação de Afirmação, proposta de grau); as funções de evidência do plano 05 têm o teste próprio abaixo.
 
 // Conteúdo público de referência: qualquer um dos papéis lê, sem política de linha.
 const PUBLICAS = [
@@ -41,6 +41,12 @@ const PROTEGIDAS = [
 // Evidência: ninguém da aplicação escreve; só as funções do banco (plano 05).
 const EVIDENCIAS = ["conferencia_item", "verificacao_ficha"] as const;
 const PAPEIS = ["jnf_carga", "jnf_app", "jnf_assistente"] as const;
+
+// As duas únicas funções que gravam evidência (plano 05, migração 0020).
+const FUNCOES_DE_EVIDENCIA = [
+  "acervo.conferir_item(uuid, text, text)",
+  "acervo.verificar_ficha(uuid, uuid, text)",
+] as const;
 
 type Consulta = (sql: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
 
@@ -161,6 +167,42 @@ describe("catálogo: toda tabela do Acervo está classificada", () => {
         false,
       ]);
     }
+  });
+
+  it("as funções que gravam evidência existem com execute só para jnf_app (nunca carga, assistente nem o público) e o registro interno tem RLS", async () => {
+    for (const assinatura of FUNCOES_DE_EVIDENCIA) {
+      const r = await consultarNoPool(
+        `select p as papel, has_function_privilege(p, $1::regprocedure, 'execute') as pode
+           from unnest($2::text[]) as p`,
+        [assinatura, [...PAPEIS]],
+      );
+      expect(Object.fromEntries(r.rows.map((l) => [String(l.papel), l.pode])), assinatura).toEqual({
+        jnf_carga: false,
+        jnf_app: true,
+        jnf_assistente: false,
+      });
+      const publico = await consultarNoPool(
+        `select exists (
+           select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+            where p.oid = $1::regprocedure and a.grantee = 0 and a.privilege_type = 'EXECUTE') as pode`,
+        [assinatura],
+      );
+      expect(publico.rows[0]?.pode, `${assinatura}: público`).toBe(false);
+      // Security definer de jnf_migra: é o dono que grava a evidência por dentro da função.
+      const definidora = await consultarNoPool(
+        `select prosecdef as definidora, pg_get_userbyid(proowner) as dono
+           from pg_proc where oid = $1::regprocedure`,
+        [assinatura],
+      );
+      expect(definidora.rows[0], assinatura).toEqual({ definidora: true, dono: "jnf_migra" });
+    }
+    const registro = await consultarNoPool(
+      `select c.relrowsecurity as ativa,
+              exists (select 1 from pg_policy p where p.polrelid = c.oid
+                       and p.polroles && array['jnf_app'::regrole::oid]) as politica
+         from pg_class c where c.oid = 'admin.registro_verificacao'::regclass`,
+    );
+    expect(registro.rows[0]).toEqual({ ativa: true, politica: true });
   });
 
   it("nenhum papel da aplicação tem truncate em tabela alguma do Acervo", async () => {
