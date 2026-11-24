@@ -147,6 +147,8 @@ describe("catálogo: toda tabela do Acervo está classificada", () => {
         "ficha_item",
         "citacao",
         "proposta_grau",
+        // Só LEITURA (0029): a carga precisa ver a aprovação para recusar texto e id de Afirmação aprovada.
+        "aprovacao_afirmacao",
       ].sort(),
     );
   });

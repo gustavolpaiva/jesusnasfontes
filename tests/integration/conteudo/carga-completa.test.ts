@@ -290,5 +290,76 @@ describe.skipIf(emNeon())(
       const volta = await carregarConteudo(await lerPasta(dir));
       expect(volta.afirmacoes.inseridos).toBe(1);
     }, 120_000);
+
+    // Pitfall 7: a aprovação do Grau e a proposta de grau também seguram o texto e o id, mesmo sem nenhuma Citação.
+    // As linhas entram direto, como dono: o que se prova aqui é o CARREGADOR; o mecanismo de aprovação tem teste próprio.
+    const HASH = "a".repeat(64);
+    const semear = {
+      "aprovação de grau": () =>
+        comoDono((c) =>
+          c.query(
+            "insert into acervo.aprovacao_afirmacao (afirmacao_id, texto_hash, grau, citacoes_hash) values ($1, $2, 'consenso', $2)",
+            [ID, HASH],
+          ),
+        ),
+      "proposta de grau": () =>
+        comoDono((c) =>
+          c.query(
+            "insert into acervo.proposta_grau (afirmacao_id, grau_proposto, justificativa, texto_hash) values ($1, 'consenso', 'j', $2)",
+            [ID, HASH],
+          ),
+        ),
+    } as const;
+    const limpar = {
+      "aprovação de grau": () =>
+        comoDono((c) =>
+          c.query("delete from acervo.aprovacao_afirmacao where afirmacao_id = $1", [ID]),
+        ),
+      "proposta de grau": () =>
+        comoDono((c) => c.query("delete from acervo.proposta_grau where afirmacao_id = $1", [ID])),
+    } as const;
+
+    for (const tipo of ["aprovação de grau", "proposta de grau"] as const) {
+      it(`texto mudado ou id removido com ${tipo} (e sem Citação): a carga recusa, nomeia o id e não muda nada`, async () => {
+        const dir = copiaDoConteudo();
+        const original = readFileSync(arquivoDoEstudo(dir), "utf8");
+        const antes = await textoDoBanco();
+        await semear[tipo]();
+        try {
+          writeFileSync(
+            arquivoDoEstudo(dir),
+            original.replace(FRASE, "Lucas abriu dizendo que investigou tudo desde o início"),
+          );
+          const erroTexto = await carregarConteudo(await lerPasta(dir)).catch((e: unknown) => e);
+          expect(erroTexto).toBeInstanceOf(ErroCarga);
+          expect((erroTexto as Error).message).toContain(ID);
+          expect((erroTexto as Error).message).toContain(tipo);
+          expect(await textoDoBanco()).toBe(antes);
+
+          const semMarca = original.replace(
+            new RegExp(`:afirmacao\\[([^\\]]*)\\]\\{#${ID}\\}`),
+            "$1",
+          );
+          writeFileSync(arquivoDoEstudo(dir), semMarca);
+          const erroId = await carregarConteudo(await lerPasta(dir)).catch((e: unknown) => e);
+          expect(erroId).toBeInstanceOf(ErroCarga);
+          expect((erroId as Error).message).toContain(ID);
+          expect(
+            await contar("select count(*)::int as n from acervo.afirmacao where id = $1", [ID]),
+          ).toBe(1);
+        } finally {
+          await limpar[tipo]();
+        }
+        // Controle positivo: sem a pendência, a mesma mudança de texto é aceita (e desfeita em seguida).
+        writeFileSync(
+          arquivoDoEstudo(dir),
+          original.replace(FRASE, "Lucas abriu dizendo que investigou tudo desde o início"),
+        );
+        expect((await carregarConteudo(await lerPasta(dir))).afirmacoes.atualizados).toBe(1);
+        writeFileSync(arquivoDoEstudo(dir), original);
+        await carregarConteudo(await lerPasta(dir));
+        expect(await textoDoBanco()).toBe(antes);
+      }, 120_000);
+    }
   },
 );

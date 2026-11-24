@@ -261,8 +261,23 @@ async function reconciliarAfirmacoes(
     estudoId,
   ]);
   const porId = new Map(atuais.rows.map((r) => [r.id, r]));
-  const temCitacao = async (id: string): Promise<boolean> =>
-    ((await c.query("select 1 from acervo.citacao where afirmacao_id = $1 limit 1", [id])).rowCount ?? 0) > 0;
+  // O que já pende sobre a Afirmação e depende do texto dela: Citação, aprovação do Grau (D-04) e proposta de grau. Cada
+  // uma é revisão do dono ou do agente amarrada ao texto; mudar o texto ou apagar o id por baixo dela é decisão que a carga
+  // não toma sozinha (Pitfall 7). A leitura da aprovação pela carga vem da migração 0029.
+  const pendencias = async (id: string): Promise<string[]> => {
+    const r = await c.query<{ citacao: boolean; aprovacao: boolean; proposta: boolean }>(
+      `select exists (select 1 from acervo.citacao where afirmacao_id = $1) as citacao,
+              exists (select 1 from acervo.aprovacao_afirmacao where afirmacao_id = $1) as aprovacao,
+              exists (select 1 from acervo.proposta_grau where afirmacao_id = $1) as proposta`,
+      [id],
+    );
+    const l = r.rows[0];
+    return [
+      ...(l?.citacao ? ["Citação"] : []),
+      ...(l?.aprovacao ? ["aprovação de grau"] : []),
+      ...(l?.proposta ? ["proposta de grau"] : []),
+    ];
+  };
 
   for (const a of e.afirmacoes) {
     const atual = porId.get(a.id);
@@ -276,8 +291,11 @@ async function reconciliarAfirmacoes(
     } else if (atual.estudo_id !== estudoId) {
       throw new ErroCarga(`Afirmação ${a.id}: o id já pertence a outro Estudo`);
     } else if (atual.texto_hash !== hash) {
-      if (await temCitacao(a.id))
-        throw new ErroCarga(`Afirmação ${a.id}: o texto mudou e ela já tem Citação; revise a Citação antes`);
+      const pendentes = await pendencias(a.id);
+      if (pendentes.length > 0)
+        throw new ErroCarga(
+          `Afirmação ${a.id}: o texto mudou e ela já tem ${pendentes.join(" e ")}; revise a aprovação e a Citação antes de mudar o texto`,
+        );
       await c.query("update acervo.afirmacao set texto = $2, texto_hash = $3, ordem = $4 where id = $1", [
         a.id,
         a.texto,
@@ -295,8 +313,11 @@ async function reconciliarAfirmacoes(
   const queFicam = new Set(e.afirmacoes.map((a) => a.id));
   for (const r of atuais.rows) {
     if (r.estudo_id !== estudoId || queFicam.has(r.id)) continue;
-    if (await temCitacao(r.id))
-      throw new ErroCarga(`Afirmação ${r.id}: o id saiu do conteúdo e ela já tem Citação`);
+    const pendentes = await pendencias(r.id);
+    if (pendentes.length > 0)
+      throw new ErroCarga(
+        `Afirmação ${r.id}: o id saiu do conteúdo e ela já tem ${pendentes.join(" e ")}`,
+      );
     await c.query("delete from acervo.afirmacao where id = $1", [r.id]);
     contagem.removidas++;
   }

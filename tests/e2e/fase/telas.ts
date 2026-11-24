@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
+import { semearCitacoesDaVarredura } from "../../support/citacao-e2e";
 import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { falharFala, instalarFalaFalsa, VOZ_PT_BR } from "../../support/fala-falsa";
 import {
@@ -87,6 +88,30 @@ function fonteEmConflitoDaVarredura(): Promise<string> {
     return slug;
   })();
   return conflitoDaVarredura;
+}
+
+// O Estudo com Citações aprovadas (plano 02-19), UMA vez por banco: Passagem, parágrafo de Fonte, ficha e as três juntas.
+// A aprovação nasce pela função real do banco; a ficha é a verificada da varredura. Trava entre processos no ajudante.
+let citacaoDaVarredura: Promise<string> | undefined;
+function estudoComCitacaoDaVarredura(): Promise<string> {
+  citacaoDaVarredura ??= fichaVerificadaDaVarredura().then((ficha) =>
+    semearCitacoesDaVarredura(ficha),
+  );
+  return citacaoDaVarredura;
+}
+
+/** Abre todos os painéis de Citação do Estudo (um clique em cada botão, depois de hidratado). */
+export async function abrirPaineisDeCitacao(page: Page): Promise<number> {
+  const botoes = page.locator('[data-slot="citacao-botao"]');
+  const n = await botoes.count();
+  for (let i = 0; i < n; i++) {
+    const botao = botoes.nth(i);
+    await esperarHidratado(botao);
+    await botao.click();
+    await expect(botao).toHaveAttribute("aria-expanded", "true");
+  }
+  await expect(page.locator('[data-slot="citacao-painel"]')).toHaveCount(n);
+  return n;
 }
 
 const ESTUDO_COM_PASSAGEM = "batismo-e-tentacao";
@@ -273,6 +298,23 @@ export const TELAS: Tela[] = [
     },
   },
   // Estudo
+  {
+    id: "estudo-com-citacao",
+    quem: "estudante",
+    abrir: async (page) => {
+      await irParaEstudo(page, await estudoComCitacaoDaVarredura());
+      await expect(page.locator('[data-slot="citacao-botao"]').first()).toBeVisible();
+    },
+  },
+  {
+    id: "estudo-com-citacao-aberta",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await irParaEstudo(page, await estudoComCitacaoDaVarredura());
+      expect(await abrirPaineisDeCitacao(page)).toBeGreaterThanOrEqual(4);
+    },
+  },
   {
     id: "estudo-com-passagem",
     quem: "estudante",

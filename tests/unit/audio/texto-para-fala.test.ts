@@ -85,6 +85,48 @@ describe("estudoParaFala", () => {
     }
   });
 
+  it("a Afirmação com Citação aprovada é falada igual à sem Citação: nenhum selo, grau, painel ou botão entra na fala (ACER-06)", () => {
+    const corpoMd =
+      "## O que acontece\n\n:afirmacao[Jesus é batizado por João no Jordão]{#pc03-a1} e ouve a voz do Pai.\n\n- :afirmacao[Item com fato]{#pc03-a3}";
+    const semCitacao = estudoParaFala(estudo({ corpoMd }));
+    // O Estudo completo traz as Citações aprovadas por Afirmação; a fala só recebe o Markdown de origem.
+    const comCitacao = estudoParaFala({
+      ...estudo({ corpoMd }),
+      afirmacoes: [
+        {
+          id: "pc03-a1",
+          citacao: {
+            grau: "consenso",
+            itens: [
+              {
+                tipo: "passagem",
+                id: "c1",
+                nivel: "primaria",
+                referencia: "Lucas 2:7",
+                edicao: "n4",
+                versiculos: [{ numero: 7, texto: "Texto da Passagem citada." }],
+                inicio: 42002007,
+                fim: 42002007,
+              },
+            ],
+          },
+        },
+      ],
+    } as EstudoFalavel);
+    expect(comCitacao).toBe(semCitacao);
+    for (const proibido of [
+      "Fonte primária",
+      "Pesquisa acadêmica",
+      "Consenso",
+      "Grau de certeza",
+      "Mostrar a Citação",
+      "Texto da Passagem citada",
+      "O que são os dois selos",
+    ]) {
+      expect(comCitacao, proibido).not.toContain(proibido);
+    }
+  });
+
   it("não lê rótulos de interface: eyebrow, meta, botões, volta, Sessão", () => {
     const fala = estudoParaFala(estudo(), { volta: 3 });
     for (const rotulo of [
