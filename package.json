@@ -76,6 +76,7 @@
     "acervo:conferir": "tsx scripts/acervo/conferir-fontes.ts",
     "acervo:verify": "tsx scripts/ingest/acervo-verificar.ts",
     "acervo:load": "tsx scripts/acervo/carregar.ts",
+    "acervo:count": "tsx scripts/acervo/contar.ts",
     "acervo:rascunhos": "tsx scripts/acervo/carregar-rascunhos.ts",
     "acervo:validar-propostas": "tsx scripts/acervo/validar-propostas.ts",
     "convidar": "tsx scripts/admin/convidar.ts",
