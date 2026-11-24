@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { esperarHidratado } from "../../support/hidratacao";
 import { convidarParaTeste, emailDeTeste, entrarPorLink, escrever } from "../../support/login-e2e";
 import { entrarComo, prepararTela, slugDeCapitulo, TELAS } from "./telas";
@@ -52,6 +53,7 @@ test("cinza: erro e acento diferem por ícone e por palavra, não só por cor", 
   // Acento (Feito.): concluir um Estudo.
   await entrarComo(page, "estudante");
   await page.goto("/estudos/batismo-e-tentacao");
+  await esperarEstudoAssentado(page);
   const concluir = page.getByRole("button", { name: "Marcar como concluído" });
   await esperarHidratado(concluir);
   await concluir.click();
@@ -80,12 +82,14 @@ test("cinza: concluído e por fazer diferem por marca e por palavra, na lista e 
 }) => {
   test.setTimeout(120_000);
   const email = emailDeTeste("cinza-c");
+  await usarVozImediata(page);
   await convidarParaTeste(email);
   await entrarPorLink(page, email);
   // Conclui o primeiro Estudo da Base histórica e um capítulo da Leitura contínua.
   const slugs = ["o-que-a-historia-consegue-afirmar", await slugDeCapitulo()];
   for (const slug of slugs) {
     await page.goto(`/estudos/${slug}`);
+    await esperarEstudoAssentado(page);
     const concluir = page.getByRole("button", { name: "Marcar como concluído" });
     await esperarHidratado(concluir);
     await concluir.click();

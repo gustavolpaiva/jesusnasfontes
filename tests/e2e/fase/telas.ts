@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { falharFala, instalarFalaFalsa, VOZ_PT_BR } from "../../support/fala-falsa";
 import { esperarHidratado } from "../../support/hidratacao";
 import { entrarComoAdmin } from "../../support/login-admin-e2e";
@@ -36,6 +37,10 @@ const ESTUDO_COM_DIVERGENCIA = "nicodemos-nascer-de-novo";
 
 export async function entrarComo(page: Page, quem: Quem): Promise<void> {
   if (quem === "anonimo") return;
+  // Voz pt-BR já disponível: a busca de voz do controle "Ouvir" termina na hora e a linha "Procurando
+  // voz…" não empurra a página no meio do teste (ver `estudo-assentado.ts`). As telas de `ouvir`
+  // reinstalam o próprio motor depois, e o último instalado vale.
+  await usarVozImediata(page);
   if (quem === "estudante") {
     const email = emailDeTeste("fase");
     await convidarParaTeste(email);
@@ -94,6 +99,7 @@ export async function slugDeCapitulo(): Promise<string> {
 async function irParaEstudo(page: Page, slug: string): Promise<void> {
   await page.goto(`/estudos/${slug}`);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 30_000 });
+  await esperarEstudoAssentado(page);
 }
 
 async function ouvirNo(page: Page, vozes: Parameters<typeof instalarFalaFalsa>[1]): Promise<void> {

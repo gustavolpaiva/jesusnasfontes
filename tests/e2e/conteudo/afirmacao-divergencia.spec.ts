@@ -1,4 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
+import {
+  esperarEstudoAssentado,
+  medirJuntos,
+  usarVozImediata,
+} from "../../support/estudo-assentado";
 import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/login-e2e";
 
 // Afirmação com "Fonte em preparação" (TRIL-07, D-07) e Divergência entre tradições (TRIL-08), de
@@ -12,7 +17,11 @@ test.skip(
 
 const NICODEMOS = "/estudos/nicodemos-nascer-de-novo";
 
+// Estes testes MEDEM a página: a voz imediata e a espera do texto bíblico tiram do layout o que muda depois
+// de carregar (ver `estudo-assentado.ts`); sem isso, a medição caía no meio de um deslocamento de 30 a
+// 1137 px e falhava de vez em quando.
 async function entrar(page: Page): Promise<void> {
+  await usarVozImediata(page);
   const email = emailDeTeste("c");
   await convidarParaTeste(email);
   await entrarPorLink(page, email);
@@ -38,6 +47,7 @@ test("a Afirmação leva o chip 'Fonte em preparação' abaixo do bloco, sem sub
 }) => {
   await entrar(page);
   await page.goto(NICODEMOS);
+  await esperarEstudoAssentado(page);
   const frase = page.locator('[data-afirmacao-id="pc17-a1"]');
   await expect(frase).toHaveText("Um líder religioso procura Jesus de noite");
   const chip = page.locator('[data-slot="chip-fonte"]');
@@ -84,6 +94,7 @@ test("o resumo recolhido vem antes da primeira seção com Afirmação e abre ao
 }) => {
   await entrar(page);
   await page.goto(NICODEMOS);
+  await esperarEstudoAssentado(page);
   const gatilho = page.getByRole("button", { name: "O que é “Fonte em preparação”?" });
   await expect(gatilho).toHaveAttribute("aria-expanded", "false");
   const texto = page.getByText("Esta frase afirma um fato histórico.");
@@ -91,8 +102,7 @@ test("o resumo recolhido vem antes da primeira seção com Afirmação e abre ao
 
   // Antes do título da primeira seção que contém a Afirmação.
   const titulo = page.getByRole("heading", { level: 2, name: "O que acontece" });
-  const caixaGatilho = await gatilho.boundingBox();
-  const caixaTitulo = await titulo.boundingBox();
+  const [caixaGatilho, caixaTitulo] = await medirJuntos(page, [gatilho, titulo]);
   expect((caixaGatilho?.y ?? 0) + (caixaGatilho?.height ?? 0)).toBeLessThanOrEqual(
     caixaTitulo?.y ?? 0,
   );
@@ -109,6 +119,7 @@ test("a Divergência mostra as três tradições nomeadas, na mesma ordem e com 
 }) => {
   await entrar(page);
   await page.goto(NICODEMOS);
+  await esperarEstudoAssentado(page);
   const secao = page.getByRole("region", { name: "Divergência entre tradições" });
   await expect(secao).toBeVisible();
   await expect(secao).toContainText(
@@ -121,12 +132,8 @@ test("a Divergência mostra as três tradições nomeadas, na mesma ordem e com 
     "Tradição protestante",
   ]);
 
-  const caixas: { x: number; y: number; width: number; height: number }[] = [];
-  for (const bloco of await secao.locator("[data-tradicao]").all()) {
-    const caixa = await bloco.boundingBox();
-    if (!caixa) throw new Error("tradição sem caixa");
-    caixas.push(caixa);
-  }
+  // As três caixas de uma vez: uma chamada por caixa deixa o layout mudar entre uma e outra.
+  const caixas = await medirJuntos(page, await secao.locator("[data-tradicao]").all());
   expect(caixas).toHaveLength(3);
   const [c0, c1, c2] = caixas as [
     (typeof caixas)[number],
