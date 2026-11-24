@@ -106,3 +106,24 @@ describe("parsearTei: casos sintéticos", () => {
     expect(JSON.stringify(parsearTei(xml))).toBe(JSON.stringify(parsearTei(xml)));
   });
 });
+
+describe("parsearTei: numeração fora de ordem na origem", () => {
+  it("unidade fora de ordem e a anterior ficam sem faixa; as demais mantêm", () => {
+    const sec = (n: string) => `<div subtype="section" n="${n}"><p>t${n}</p></div>`;
+    const r = parsearTei(
+      TEI(
+        `<div subtype="book" n="17">${["320", "332", "13", "342", "345"].map(sec).join("")}</div>`,
+      ),
+    );
+    const faixas = Object.fromEntries(
+      (r.secoes[0]?.paragrafos ?? []).map((p) => [p.ref, [p.ref_inicio, p.ref_fim]]),
+    );
+    expect(faixas).toEqual({
+      "17.320": [320, 331],
+      "17.332": [null, null],
+      "17.13": [null, null],
+      "17.342": [342, 344],
+      "17.345": [null, null],
+    });
+  });
+});

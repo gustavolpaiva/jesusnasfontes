@@ -5,7 +5,7 @@
 //
 // Estrutura lida (Perseus, `perseus-eng2`): `div[subtype=book][n]` > `div[subtype=section][n]` > `p`.
 // O `n` da seção é o PRIMEIRO parágrafo da numeração de Niese que a unidade de Whiston contém; a faixa vai até
-// o `n` da seção seguinte menos 1 (a última seção do livro fica sem faixa, o fim não está no arquivo).
+// o `n` da seção seguinte menos 1 (a última seção do livro, e as de numeração fora de ordem, ficam sem faixa).
 // `note` (nota de editor) e `head` ficam fora do texto; as notas voltam à parte para conferir que nenhuma
 // entrou num parágrafo. `q` vira aspas curvas (o arquivo guarda a citação como elemento, sem o sinal).
 
@@ -151,7 +151,14 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
       const inicio = inteiro(s.n);
       const seguinte = l.secoes[j + 1];
       const proximo = seguinte ? inteiro(seguinte.n) : null;
-      const comFaixa = inicio !== null && proximo !== null && proximo > inicio;
+      const anterior = j > 0 ? inteiro((l.secoes[j - 1] as Pendente).n) : null;
+      // A faixa só vale com a vizinhança em ordem crescente: o Perseus tem uma unidade fora de ordem
+      // (17.13, entre 17.332 e 17.342), e nela e na anterior uma faixa seria número inventado.
+      const comFaixa =
+        inicio !== null &&
+        proximo !== null &&
+        proximo > inicio &&
+        (j === 0 || (anterior !== null && anterior < inicio));
       paragrafos.push({
         ref: `${l.n}.${s.n}`,
         ref_inicio: comFaixa ? inicio : null,

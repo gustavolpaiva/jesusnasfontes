@@ -1,5 +1,10 @@
 {
   "orcamento_arquivo_bytes": 8388608,
   "orcamento_total_bytes": 31457280,
-  "derivados": {}
+  "derivados": {
+    "josefo-antiguidades": {
+      "sha256": "1d3d83162fceb012bb30cfb739c1fc6dff3b9598bcb8399bc4302405436af6f8",
+      "bytes": 2743226
+    }
+  }
 }
