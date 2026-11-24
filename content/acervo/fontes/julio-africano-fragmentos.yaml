@@ -1,0 +1,36 @@
+# Fonte do Acervo: fragmentos da Cronografia, de Júlio Africano, na edição do volume 6 da coleção
+# Ante-Nicene Fathers (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/julio-africano-
+# fragmentos.json`, gerado por `pnpm acervo:derivar` a partir da origem `ccel-anf06`
+# (data/acervo-origens.yaml): esta Fonte é a divisão v.v do volume, onde está o fragmento que menciona
+# Thalo e o escurecimento do sol na paixão. O resumo auxiliar é escrita automática de busca (D-18).
+slug: julio-africano-fragmentos
+titulo: Fragmentos da Cronografia
+autor: Júlio Africano
+epoca: por volta de 221 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf06.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf06
+# O cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da série; o pubHistory não existe e nenhum
+# tradutor do texto é declarado. Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 6, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Cronografia em cinco livros, obra perdida escrita em grego por um cristão da Palestina: o que resta são
+  os fragmentos citados por autores posteriores, reunidos pelos editores da coleção. O texto lido é a
+  tradução inglesa do volume 6 da coleção Ante-Nicene Fathers, que não declara o tradutor.
+secoes:
+  - slug: v-v
+    titulo: Fragmentos
+    resumo_pt: >-
+      Fragmentos da cronografia em cinco livros: a cronologia mítica dos egípcios e dos caldeus, com os seus
+      milhares de anos, recusada como vã, o dilúvio, a tenda do pastor Jacó conservada em Edessa até o tempo
+      de Antonino e as concordâncias de datas pelas Olimpíadas, com Beroso, Thallus, Castor e outros citados.
+      Traz a resposta a Thallus, que chamou de eclipse do sol a escuridão na paixão do Salvador, e fecha com
+      ação de graças ao Pai por Jesus Cristo, Salvador de todos.
+    palavras_chave_pt: [fragmentos, cronologia, Olimpíadas, Thallus, eclipse do sol, escuridão, Beroso, Edessa]

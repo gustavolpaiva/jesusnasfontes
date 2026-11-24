@@ -1,0 +1,117 @@
+# Fonte do Acervo: História Eclesiástica, de Eusébio de Cesareia, na tradução de McGiffert do volume 1 da
+# segunda série da coleção Nicene and Post-Nicene Fathers (CCEL, ThML). O texto vem do derivado
+# `data/acervo-derivados/eusebio-historia-eclesiastica.json`, gerado por `pnpm acervo:derivar` a partir da
+# origem `ccel-npnf201` (data/acervo-origens.yaml): esta Fonte são os dez livros (divisões iii.vi a iii.xvi,
+# na ordem do volume, com as passagens sobre Papias em 3.39 e Josefo em 1.11). O resumo auxiliar é escrita
+# automática de busca (D-18) e nunca substitui o texto.
+slug: eusebio-historia-eclesiastica
+titulo: História Eclesiástica
+autor: Eusébio de Cesareia
+epoca: começos do século IV d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/npnf201.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/npnf201
+# O cabeçalho digital (DC.Creator) nomeia Arthur Cushman McGiffert, tradutor e editor do volume, e Philip
+# Schaff, editor da série; o pubHistory está vazio e o printSourceInfo declara a edição de Nova York, 1890.
+tradutor: McGiffert, Rev. Arthur Cushman, Ph.D. com Schaff, Philip (1819-1893)
+edicao: "Nicene and Post-Nicene Fathers, 2ª série, vol. 1 (Nova York: Christian Literature Publishing Co., 1890, como declara o cabeçalho; edição digital CCEL)"
+traduzida_por_nos: false
+# Teto próprio de seção (Pitfall 9): a seção é o LIVRO (divisão natural da edição, como em josefo e Ireneu);
+# o maior livro medido tem 91.847 caracteres (Livro VI). O teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 100000
+  motivo: >-
+    a seção é um livro inteiro da História Eclesiástica, divisão natural da edição, página de leitura contínua
+    aceita pelo UI-SPEC; o maior livro medido tem 91.847 caracteres, o Livro VI (plano 02-11, teto do plano
+    02-08)
+limites_pt: >-
+  História da Igreja em dez livros, escrita em grego por um bispo de Cesareia: narram-se as sucessões dos
+  apóstolos, os mártires e os mestres até os dias do autor. O livro 10 fecha a obra depois do fim da
+  perseguição, dedicado a Paulino como selo do conjunto. O texto lido é a tradução inglesa de McGiffert na
+  coleção Nicene and Post-Nicene Fathers, da edição de Nova York declarada no cabeçalho.
+secoes:
+  - slug: iii-vi
+    titulo: Livro 1
+    resumo_pt: >-
+      Abre com o plano da obra: as sucessões dos santos apóstolos, os tempos decorridos do Salvador até os
+      dias do autor e os acontecimentos da história da Igreja. Traz o testemunho de Josefo sobre João Batista
+      e sobre Jesus (capítulo 11), a carta de Abgar e a pregação de Tadeu em Edessa, com os documentos
+      siríacos traduzidos que fecham o livro.
+    palavras_chave_pt: [plano da obra, Josefo, João Batista, Abgar, Tadeu, Edessa, sucessões apostólicas]
+  - slug: iii-vii
+    titulo: Livro 2
+    resumo_pt: >-
+      Cobre os acontecimentos depois da ascensão de Cristo, confirmados das Escrituras e de outros escritos,
+      começando pelo caminho dos apóstolos. Fecha com Josefo, citado longamente sobre as calamidades da
+      nação judaica: os notáveis açoitados e crucificados por Floro em Jerusalém e a destruição dos judeus
+      por toda a Síria na revolta.
+    palavras_chave_pt: [ascensão, apóstolos, Josefo, Florus, Jerusalém, revolta dos judeus, Síria]
+  - slug: iii-viii
+    titulo: Livro 3
+    resumo_pt: >-
+      Trata da pregação e da morte dos apóstolos — Pedro crucificado de cabeça para baixo em Roma, Paulo e os
+      demais — e das sucessões dos bispos, começando pela Igreja de Roma. Fecha com o que Papias deixou por
+      escrito: os cinco livros da Exposição dos oráculos do Senhor, Marcos como intérprete de Pedro, que
+      escreveu com exatidão o que lembrou, e Mateus, que pôs os oráculos em hebraico.
+    palavras_chave_pt: [Pedro, Paulo, bispos de Roma, Papias, cinco livros, Marcos, Mateus, oráculos]
+  - slug: iii-ix
+    titulo: Livro 4
+    resumo_pt: >-
+      Cobre os bispos de Roma — Alexandre, o quinto na sucessão de Pedro e Paulo, depois de Evaresto — e as
+      calamidades dos judeus no tempo de Trajano. Percorre os mestres e os hereges do período, e fecha com a
+      morte de Soter, bispo de Roma, depois de refutar um desertor do valentinianismo que não se lavou de
+      todo da velha heresia.
+    palavras_chave_pt: [Alexandre de Roma, Trajano, calamidades dos judeus, hereges, Valentinus, Soter]
+  - slug: iii-x
+    titulo: Livro 5
+    resumo_pt: >-
+      Cobre o tempo dos mártires, com o relato que o autor compôs na sua coleção de martírios: enquanto os
+      historiadores comuns registram vitórias de guerra e feitos de generais manchados de sangue, a Igreja
+      narra os troféus dos mártires. Trata ainda das sucessões e dos escritores do período, e fecha refutando
+      os hereges que negam a lei e os profetas.
+    palavras_chave_pt: [mártires, martírios, troféus, sucessões, escritores eclesiásticos, hereges, profetas]
+  - slug: iii-xi
+    titulo: Livro 6
+    resumo_pt: >-
+      Cobre a formação de Orígenes desde a infância, contada com os pormenores da sua vida de estudo, e a sua
+      obra de mestre em Alexandria, com as perseguições do tempo de Sétimo Severo e os bispos do período.
+      Fecha com as cartas de Dionísio de Alexandria sobre os bispos de Antioquia e de Jerusalém e sobre os
+      confessores de Roma.
+    palavras_chave_pt: [Orígenes, Alexandria, Dionísio de Alexandria, bispos, Antioquia, Jerusalém, cartas]
+  - slug: iii-xii
+    titulo: Livro 7
+    resumo_pt: >-
+      Cobre a malícia de Décio e de Galo, os imperadores da perseguição, e a morte de Orígenes, aos sessenta
+      e nove anos. Percorre as sucessões e as controvérsias do tempo, e fecha declarando ter escrito, nestes
+      livros, a conta das sucessões do nascimento do Salvador até a destruição dos lugares de culto —
+      trezentos e cinco anos —, passando aos combates dos mártires dos seus dias.
+    palavras_chave_pt: [Décio, Galo, morte de Orígenes, sucessões, destruição dos lugares de culto, 305 anos]
+  - slug: iii-xiii
+    titulo: Livro 8
+    resumo_pt: >-
+      Trata dos acontecimentos que precederam a perseguição dos seus dias: a glória e a liberdade com que a
+      palavra de piedade era honrada entre gregos e bárbaros antes dela, os mártires da perseguição de
+      Diocleciano e os edictos contra o culto. Fecha com as mortes dos quatro imperadores que se sucederam e
+      a confissão pública do edicto de um deles.
+    palavras_chave_pt: [perseguição de Diocleciano, mártires, edictos, imperadores, glória da Igreja, confissão]
+  - slug: iii-xv
+    titulo: Livro 9
+    resumo_pt: >-
+      Cobre os tiranos depois da perseguição: um governante que, sem poder opor-se aos superiores, mandou
+      relaxar em segredo a perseguição, com a carta latina de Sabinus aos governadores, e a tirania de
+      Maxêncio no Ocidente. Fecha com os ímpios removidos e o governo preservado, firme e sem disputa, para
+      Constantino e Licínio.
+    palavras_chave_pt: [tiranos, Maxêncio, Sabinus, perseguição relaxada, Constantino, Licínio]
+  - slug: iii-xvi
+    titulo: Livro 10
+    resumo_pt: >-
+      Último livro, oferecido a Paulino como selo de toda a obra: canta em prosa e em citações dos salmos a
+      restauração das igrejas depois da perseguição, com a dedicação dos templos reconstruídos e a paz
+      devolvida. Fecha com toda a tirania purgada e o império preservado para Constantino e seus filhos, e a
+      nota explícita de fim do décimo livro da História Eclesiástica.
+    palavras_chave_pt: [Paulino, restauração das igrejas, dedicação dos templos, paz, Constantino, fim da obra]

@@ -1,0 +1,103 @@
+# Fonte do Acervo: Contra Celso, de Orígenes, na edição do volume 4 da coleção Ante-Nicene Fathers (CCEL,
+# ThML). O texto vem do derivado `data/acervo-derivados/origenes-contra-celso.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf04` (data/acervo-origens.yaml): os oito livros são divisões
+# div3 dentro da divisão vi.ix do volume, e a entrada do registro usa `divisao_secao: div3` com o seu
+# próprio esperado. O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: origenes-contra-celso
+titulo: Contra Celso
+autor: Orígenes
+epoca: por volta de 248 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf04.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf04
+# O cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da série; o pubHistory não existe e nenhum
+# tradutor do texto é declarado. Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 4, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+# Teto próprio de seção (Pitfall 9): a seção é o LIVRO (divisões div3 vi.ix.i–viii, a divisão natural da
+# edição neste volume); o maior livro medido tem 223.515 caracteres (Livro IV). O teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 230000
+  motivo: >-
+    a seção é um livro inteiro de Contra Celso — neste volume os livros são divisões div3 dentro da divisão
+    única vi.ix, lidas pela entrada do registro com divisao_secao: div3 —, página de leitura contínua aceita
+    pelo UI-SPEC; o maior livro medido tem 223.515 caracteres, o Livro IV (plano 02-11, teto do plano 02-08)
+limites_pt: >-
+  Resposta em oito livros ao Discurso Verdadeiro, como o próprio Celso o intitulou, escrito por um filósofo
+  pagão contra os cristãos; Orígenes a compôs a pedido de Ambrósio, a quem os livros são endereçados.
+  Conserva, citadas, muitas falas do adversário. O texto lido é a tradução inglesa do volume 4 da coleção
+  Ante-Nicene Fathers, que não declara o tradutor; o livro 4 fecha com uma elucidação do editor americano
+  apensa à tradução.
+secoes:
+  - slug: vi-ix-i
+    titulo: Livro 1
+    resumo_pt: >-
+      Abre com o prefácio: como Cristo permaneceu em silêncio diante das testemunhas falsas, Orígenes
+      responde ao Discurso Verdadeiro de Celso, que começa atacando pelos judeus e endereçando falas a
+      Jesus. Expõe e rebate ponto a ponto as acusações da primeira parte, e fecha quando Celso despeja sobre
+      Jesus o abuso de feitiço de um homem odiado por Deus, o que Orígenes recusa examinando o nome e a
+      coisa.
+    palavras_chave_pt: [prefácio, Ambrósio, Discurso Verdadeiro, judeu, Jesus, feitiçaria, acusações]
+  - slug: vi-ix-ii
+    titulo: Livro 2
+    resumo_pt: >-
+      Responde às acusações que o judeu dirige aos que crêem em Jesus: cita João sobre Pedro e comenta os
+      mestres do cristianismo para a circuncisão, e defende dos ataques a doutrina e a vida da Igreja
+      nascente. Fecha refutando a conclusão do judeu, de que Jesus era apenas um homem, contra quem teve a
+      coragem de espalhar pelo mundo inteiro a sua doutrina de adoração.
+    palavras_chave_pt: [judeu, Pedro, circuncisão, mestres, Igreja nascente, Jesus era um homem, refutação]
+  - slug: vi-ix-iii
+    titulo: Livro 3
+    resumo_pt: >-
+      Passa da fala do judeu aos ataques diretos de Celso: a controvérsia entre judeus e cristãos, que ele
+      chama de briga pela sombra de um asno, a origem das opiniões sobre Deus e as charges contra a fé.
+      Discute os mitos gregos e a sabedoria dos bárbaros, e fecha aceitando, contra Celso, o que os filósofos
+      ensinaram de comum com os cristãos sobre a imortalidade da alma.
+    palavras_chave_pt: [sombra de um asno, controvérsia, mitos gregos, bárbaros, filósofos, imortalidade da alma]
+  - slug: vi-ix-iv
+    titulo: Livro 4
+    resumo_pt: >-
+      Oferecido com oração, responde ao que se segue: a descida do Filho de Deus sobre a terra, que Celso
+      chama de afirmação desavergonhada, e a necessidade de crer. Percorre as profecias e a filosofia dos
+      gregos, e fecha com a réplica ao argumento de que todas as coisas não foram feitas para o homem mais
+      do que para os leões, as águias e os golfinhos; a tradução apensa uma elucidação do editor sobre o
+      castigo eterno.
+    palavras_chave_pt: [Filho de Deus, descida, profecias, castigo eterno, leões e golfinhos, elucidação]
+  - slug: vi-ix-v
+    titulo: Livro 5
+    resumo_pt: >-
+      Rebate a afirmativa de que nenhum Deus ou filho de Deus desceu ou descerá à terra, tratando dos
+      milagres e dos relatos gregos comparados aos cristãos, e da ideia de anjos e poderes. Discute os
+      mistérios e os símbolos das escolas, e fecha mostrando falsa a alegação de que todos os que divergem
+      dizem a mesma coisa, pois há seitas heréticas, como os ebionitas, que não recebem as cartas de Paulo.
+    palavras_chave_pt: [milagres, anjos, mistérios, símbolos, ebionitas, cartas de Paulo, seitas]
+  - slug: vi-ix-vi
+    titulo: Livro 6
+    resumo_pt: >-
+      Passa às acusações que Celso faz aos cristãos com apoio em escritos de filósofos: defende a
+      simplicidade da linguagem das Escrituras, que os profetas, Jesus e os apóstolos não cuidaram do
+      discurso polido, e trata do Logos e dos estoicos citados pelo adversário. Fecha com a resposta a quem
+      pergunta por que Deus enviou o Filho entre homens maus que o castigariam.
+    palavras_chave_pt: [simplicidade das Escrituras, linguagem, Logos, estoicos, filósofos, Filho enviado]
+  - slug: vi-ix-vii
+    titulo: Livro 7
+    resumo_pt: >-
+      Combate a negação de Celso, que rejeita que os profetas judeus tenham anunciado os acontecimentos da
+      vida de Jesus, e trata da criação, do livre-arbítrio e do governo do mundo pelo Verbo de Deus. Discute
+      os poderes inferiores e os que dizem haver departamentos atribuídos por Deus, inclusive a demônios, e
+      fecha com essa questão proposta ao exame minucioso.
+    palavras_chave_pt: [profetas, livre-arbítrio, Verbo de Deus, poderes inferiores, demônios, departamentos]
+  - slug: vi-ix-viii
+    titulo: Livro 8
+    resumo_pt: >-
+      Começado com invocação a Deus e ao seu Unigênito, o Verbo, responde ao último trecho do Discurso
+      Verdadeiro: por que os cristãos não adoram os demônios, a sabedoria divina contra a dos gregos e a
+      conduta que se exige dos que creem. Fecha com a doxologia ao Deus único, dada por terminada a refutação
+      de toda a obra de Celso.
+    palavras_chave_pt: [demônios, adoração, sabedoria, conduta, refutação concluída, doxologia]
