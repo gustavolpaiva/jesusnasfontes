@@ -151,6 +151,8 @@ export const fonteSecao = acervo.table(
     valoresArquivo: jsonb("valores_arquivo"),
     // 0024: sobe a cada edição da seção pelo painel; o formulário a devolve e o banco recusa a velha.
     revisao: integer("revisao").notNull().default(0),
+    // 0025: identidade da VERSÃO da seção (uuid regerado a cada escrita): a edição só vale sobre a versão que o formulário viu.
+    versao: uuid("versao").notNull().defaultRandom(),
   },
   (tabela) => [unique().on(tabela.fonteId, tabela.ordem)],
 );

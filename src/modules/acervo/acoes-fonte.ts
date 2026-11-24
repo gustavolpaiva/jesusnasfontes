@@ -62,8 +62,8 @@ export async function salvarFonte(dados: unknown): Promise<ResultadoDeSalvar> {
   // O banco recusa "criar" sobre endereço que existe, então um formulário com estado velho nunca sobrescreve seção.
   const secoes = comSecoes.map((s) => ({
     cid: s.cid,
-    modo: s.slug ? "editar" : "criar",
-    ...(s.slug ? { slug: s.slug, revisao: s.revisao } : {}),
+    modo: s.id ? "editar" : "criar",
+    ...(s.id ? { id: s.id, versao: s.versao } : {}),
     titulo: s.titulo,
     texto: s.texto,
     resumo_pt: s.resumo_pt,
@@ -79,18 +79,17 @@ export async function salvarFonte(dados: unknown): Promise<ResultadoDeSalvar> {
           sql`select acervo.salvar_fonte(${sessao.sessao.id}::uuid, ${JSON.stringify({ ...campos, modo: f.modo, slug })}::jsonb)`,
         );
         // Cada seção volta com o `cid` que o formulário mandou: o casamento no cliente é por ele, nunca pela posição.
-        const salvas: { cid: string; slug: string; revisao: number }[] = [];
+        const salvas: { cid: string; id: string; versao: string }[] = [];
         for (const { cid, ...secaoDoBanco } of secoes) {
           const r = await tx.execute(
             sql`select acervo.salvar_secao_painel(${sessao.sessao.id}::uuid, ${slug}, ${JSON.stringify(secaoDoBanco)}::jsonb) as id`,
           );
           const id = String((r.rows[0] as { id: string } | undefined)?.id ?? "");
-          const endereco = id.slice(slug.length + 1);
           const lida = await tx
-            .select({ revisao: fonteSecao.revisao })
+            .select({ versao: fonteSecao.versao })
             .from(fonteSecao)
             .where(eq(fonteSecao.id, id));
-          salvas.push({ cid, slug: endereco, revisao: lida[0]?.revisao ?? 0 });
+          salvas.push({ cid, id, versao: lida[0]?.versao ?? "" });
         }
         const atual = await tx
           .select({ revisao: fonte.revisao })

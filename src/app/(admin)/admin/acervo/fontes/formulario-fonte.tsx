@@ -29,6 +29,7 @@ import {
   aplicarSalvamento,
   novoCid,
   type SecaoEmEdicao,
+  secoesIniciais,
 } from "@/modules/acervo/secoes-do-formulario";
 
 // Formulário de Fonte DO PAINEL (incluir e editar), UI-SPEC tela 11: uma coluna, um `Field` por campo, grupos com título
@@ -81,15 +82,17 @@ function estadoInicial(f?: FonteDoPainel): Estado {
     limites_pt: f?.limitesPt ?? "",
     publicada: f?.publicada ?? false,
     revisao: f?.revisao,
-    secoes: (f?.secoes ?? []).map((s) => ({
-      cid: novoCid(),
-      slug: s.slug,
-      revisao: s.revisao,
-      titulo: s.titulo ?? "",
-      texto: s.texto,
-      resumo_pt: s.resumoPt ?? "",
-      palavras_chave_pt: s.palavrasChavePt.join(", "),
-    })),
+    // Determinístico: o mesmo `cid` no servidor e no navegador (ids e `htmlFor` iguais na hidratação).
+    secoes: secoesIniciais(
+      (f?.secoes ?? []).map((s) => ({
+        id: s.id,
+        versao: s.versao,
+        titulo: s.titulo,
+        texto: s.texto,
+        resumoPt: s.resumoPt,
+        palavrasChavePt: s.palavrasChavePt,
+      })),
+    ),
   };
 }
 
@@ -442,7 +445,7 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
                 mudar={(parte) => mudarSecao(s.cid, parte)}
                 erros={erros}
                 congelada={pendente}
-                aoRemover={s.slug === undefined ? () => removerSecao(s.cid) : undefined}
+                aoRemover={s.id === undefined ? () => removerSecao(s.cid) : undefined}
               />
             ))}
             <ErroDoCampo id="secoes" erros={erros} />

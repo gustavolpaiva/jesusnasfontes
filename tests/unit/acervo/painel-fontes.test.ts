@@ -105,13 +105,16 @@ describe("contrato do formulário de Fonte", () => {
       ]);
   });
 
-  it("seção que já tem endereço precisa da revisão que o formulário viu; a nova não tem nenhum dos dois; o cid é obrigatório", () => {
+  it("seção que já existe leva id E versão (uuid) juntos; a nova não leva nenhum; o cid é obrigatório", () => {
     const base = { cid: "c1", titulo: "S", texto: "x", resumo_pt: "", palavras_chave_pt: "" };
+    const v = "11111111-1111-4111-8111-111111111111";
     const com = (secao: Record<string, unknown>) =>
       esquemaFonteFormulario.safeParse({ ...valido, secoes: [secao] }).success;
     expect(com(base)).toBe(true);
-    expect(com({ ...base, slug: "secao-1" })).toBe(false);
-    expect(com({ ...base, slug: "secao-1", revisao: 0 })).toBe(true);
+    expect(com({ ...base, id: "obra/secao-1", versao: v })).toBe(true);
+    expect(com({ ...base, id: "obra/secao-1" })).toBe(false);
+    expect(com({ ...base, versao: v })).toBe(false);
+    expect(com({ ...base, id: "obra/secao-1", versao: "7" })).toBe(false);
     expect(com({ titulo: "S", texto: "x", resumo_pt: "", palavras_chave_pt: "" })).toBe(false);
   });
 

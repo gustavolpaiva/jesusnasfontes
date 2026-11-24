@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   aplicarSalvamento,
+  cidDaSecaoPersistida,
   novoCid,
   type SecaoEmEdicao,
+  type SecaoPersistida,
+  secoesIniciais,
 } from "@/modules/acervo/secoes-do-formulario";
 
-// A resposta do servidor é casada com as linhas do formulário pelo `cid`, nunca pela posição (2ª revisão cruzada do plano
-// 02-17): remover uma linha enquanto o pedido está no ar não pode dar à vizinha o endereço da removida.
+// Casamento da resposta com as linhas por `cid` (nunca pela posição) e `cid` inicial determinístico (revisões cruzadas do
+// plano 02-17).
 
 const linha = (cid: string, titulo: string, parte: Partial<SecaoEmEdicao> = {}): SecaoEmEdicao => ({
   cid,
@@ -16,68 +19,110 @@ const linha = (cid: string, titulo: string, parte: Partial<SecaoEmEdicao> = {}):
   palavras_chave_pt: "",
   ...parte,
 });
+const V1 = "11111111-1111-4111-8111-111111111111";
+const V2 = "22222222-2222-4222-8222-222222222222";
 
 describe("casamento da resposta com as linhas do formulário", () => {
-  it("cada linha recebe o endereço e a revisão da SUA resposta", () => {
-    const atuais = [linha("a", "A"), linha("b", "B")];
-    const r = aplicarSalvamento(atuais, [
-      { cid: "a", slug: "secao-1", revisao: 0 },
-      { cid: "b", slug: "secao-2", revisao: 0 },
-    ]);
-    expect(r.map((l) => [l.cid, l.slug])).toEqual([
-      ["a", "secao-1"],
-      ["b", "secao-2"],
+  it("cada linha recebe o id e a versão da SUA resposta", () => {
+    const r = aplicarSalvamento(
+      [linha("a", "A"), linha("b", "B")],
+      [
+        { cid: "a", id: "f/secao-1", versao: V1 },
+        { cid: "b", id: "f/secao-2", versao: V2 },
+      ],
+    );
+    expect(r.map((l) => [l.cid, l.id, l.versao])).toEqual([
+      ["a", "f/secao-1", V1],
+      ["b", "f/secao-2", V2],
     ]);
   });
 
-  it("A e B enviadas, A removida durante o pedido: B fica com o endereço de B, não com o de A", () => {
+  it("A e B enviadas, A removida durante o pedido: B fica com o id de B, não com o de A", () => {
     const enviadas = [linha("a", "A"), linha("b", "B")];
     const respostas = [
-      { cid: "a", slug: "secao-1", revisao: 0 },
-      { cid: "b", slug: "secao-2", revisao: 0 },
+      { cid: "a", id: "f/secao-1", versao: V1 },
+      { cid: "b", id: "f/secao-2", versao: V2 },
     ];
-    // Durante o voo a linha A saiu da lista (o que o casamento por posição não suporta).
     const atuais = enviadas.filter((l) => l.cid !== "a");
     const r = aplicarSalvamento(atuais, respostas);
     expect(r).toHaveLength(1);
-    expect(r[0]).toMatchObject({ cid: "b", titulo: "B", slug: "secao-2" });
-    // O casamento por posição, que era o defeito, daria o endereço de A a B: o controle prova que o teste o enxerga.
-    const porPosicao = atuais.map((l, i) => ({ ...l, slug: respostas[i]?.slug }));
-    expect(porPosicao[0]?.slug).toBe("secao-1");
+    expect(r[0]).toMatchObject({ cid: "b", titulo: "B", id: "f/secao-2", versao: V2 });
+    // Controle: o casamento por posição, que era o defeito, daria o id de A a B (o teste enxerga o erro).
+    const porPosicao = atuais.map((l, i) => ({ ...l, id: respostas[i]?.id }));
+    expect(porPosicao[0]?.id).toBe("f/secao-1");
   });
 
-  it("linha nova adicionada durante o pedido não recebe endereço de ninguém", () => {
-    const atuais = [linha("a", "A"), linha("c", "C (nova, adicionada no voo)")];
-    const r = aplicarSalvamento(atuais, [{ cid: "a", slug: "secao-1", revisao: 0 }]);
-    expect(r[0]).toMatchObject({ cid: "a", slug: "secao-1" });
-    expect(r[1]?.slug).toBeUndefined();
-    expect(r[1]?.revisao).toBeUndefined();
+  it("linha nova adicionada durante o pedido não recebe id de ninguém", () => {
+    const r = aplicarSalvamento(
+      [linha("a", "A"), linha("c", "C (nova, adicionada no voo)")],
+      [{ cid: "a", id: "f/secao-1", versao: V1 }],
+    );
+    expect(r[0]).toMatchObject({ cid: "a", id: "f/secao-1" });
+    expect(r[1]?.id).toBeUndefined();
+    expect(r[1]?.versao).toBeUndefined();
   });
 
-  it("resposta de linha que já não existe é descartada; a ordem das linhas não muda", () => {
-    const atuais = [linha("b", "B"), linha("c", "C")];
-    const r = aplicarSalvamento(atuais, [
-      { cid: "c", slug: "secao-3", revisao: 2 },
-      { cid: "x", slug: "secao-9", revisao: 0 },
-    ]);
+  it("resposta de linha que já não existe é descartada; a ordem não muda; o digitado no voo fica", () => {
+    const r = aplicarSalvamento(
+      [linha("b", "B"), linha("c", "C editada", { texto: "Novo." })],
+      [
+        { cid: "c", id: "f/secao-3", versao: V2 },
+        { cid: "x", id: "f/secao-9", versao: V1 },
+      ],
+    );
     expect(r.map((l) => l.cid)).toEqual(["b", "c"]);
-    expect(r[0]?.slug).toBeUndefined();
-    expect(r[1]).toMatchObject({ slug: "secao-3", revisao: 2 });
-  });
-
-  it("o que o usuário digitou durante o pedido continua: só endereço e revisão mudam", () => {
-    const atuais = [linha("a", "A editada no voo", { texto: "Texto novo." })];
-    const r = aplicarSalvamento(atuais, [{ cid: "a", slug: "secao-1", revisao: 4 }]);
-    expect(r[0]).toMatchObject({
-      titulo: "A editada no voo",
-      texto: "Texto novo.",
-      slug: "secao-1",
-      revisao: 4,
-    });
+    expect(r[0]?.id).toBeUndefined();
+    expect(r[1]).toMatchObject({ id: "f/secao-3", versao: V2, texto: "Novo." });
   });
 
   it("novoCid nunca repete", () => {
-    const vistos = new Set(Array.from({ length: 1000 }, () => novoCid()));
-    expect(vistos.size).toBe(1000);
+    expect(new Set(Array.from({ length: 1000 }, () => novoCid())).size).toBe(1000);
+  });
+});
+
+describe("`cid` inicial determinístico (a hidratação não diverge)", () => {
+  const persistidas: SecaoPersistida[] = [
+    {
+      id: "obra/secao-1",
+      versao: V1,
+      titulo: "A",
+      texto: "A1.",
+      resumoPt: null,
+      palavrasChavePt: [],
+    },
+    {
+      id: "obra/secao-2",
+      versao: V2,
+      titulo: null,
+      texto: "B1.",
+      resumoPt: "R",
+      palavrasChavePt: ["x", "y"],
+    },
+  ];
+
+  it("a mesma entrada dá os mesmos `cid` em duas chamadas (servidor e navegador) e eles não dependem de contador nem de relógio", () => {
+    const servidor = secoesIniciais(persistidas).map((s) => s.cid);
+    novoCid();
+    novoCid(); // o navegador já criou linhas novas antes de a hidratação terminar: não muda os iniciais
+    const navegador = secoesIniciais(persistidas).map((s) => s.cid);
+    expect(navegador).toEqual(servidor);
+    expect(servidor).toEqual([
+      cidDaSecaoPersistida("obra/secao-1"),
+      cidDaSecaoPersistida("obra/secao-2"),
+    ]);
+  });
+
+  it("o `cid` é seguro como atributo de id (sem barra, espaço ou dois-pontos) e distinto por seção", () => {
+    const cids = secoesIniciais(persistidas).map((s) => s.cid);
+    for (const c of cids) expect(c).toMatch(/^[A-Za-z0-9-]+$/);
+    expect(new Set(cids).size).toBe(2);
+    // Ids que só diferem em pontuação não colidem a ponto de confundir duas seções do mesmo formulário.
+    expect(cidDaSecaoPersistida("obra/secao-1")).not.toBe(cidDaSecaoPersistida("obra/secao-2"));
+  });
+
+  it("as linhas iniciais trazem id e versão do que o servidor leu", () => {
+    const [a, b] = secoesIniciais(persistidas);
+    expect(a).toMatchObject({ id: "obra/secao-1", versao: V1, titulo: "A", resumo_pt: "" });
+    expect(b).toMatchObject({ titulo: "", palavras_chave_pt: "x, y", resumo_pt: "R" });
   });
 });

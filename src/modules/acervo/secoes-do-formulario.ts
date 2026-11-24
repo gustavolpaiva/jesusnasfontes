@@ -1,32 +1,66 @@
 // Linhas de seção do formulário de Fonte do painel e o casamento da resposta do servidor com elas (ACER-08).
 //
-// CLASSE do defeito achado na revisão cruzada: casar a resposta com as linhas do cliente PELA POSIÇÃO. Se a lista muda
-// enquanto o pedido está no ar, a posição de ontem já não é a mesma linha. Aqui cada linha tem um `cid` (id do cliente,
-// estável, nunca reaproveitado), o pedido o leva e o servidor o devolve junto com o endereço e a revisão que ele deu; o
-// casamento é só por `cid`. Resposta de linha que já não existe é descartada, e linha que não veio na resposta não muda.
+// Duas regras, nascidas de três rodadas de revisão cruzada sobre a mesma superfície:
+//
+// 1. A resposta do servidor é casada com as linhas do cliente por `cid` (id do cliente), NUNCA pela posição: se a lista muda
+//    com o pedido no ar, a posição de ontem já não é a mesma linha.
+// 2. Uma seção que já existe é identificada por DUAS coisas que o servidor deu: o `id` (a chave dela) e o `versao` (um uuid que
+//    o banco regera a cada escrita). A edição escreve só na linha com aquele `id` e só se o `versao` é o atual; o endereço
+//    (`slug`) é só exibição.
+//
+// O `cid` de uma seção que já existe é DERIVADO do `id` dela: o servidor e o navegador chegam ao mesmo valor e os atributos
+// `id`, `htmlFor` e `aria-describedby` não divergem na hidratação. Só a linha criada no navegador ganha `cid` novo.
 
 export type SecaoEmEdicao = {
   /** Id do cliente, estável durante a vida do formulário. Nunca é gravado no banco. */
   cid: string;
-  /** Endereço dado pelo banco; ausente enquanto a seção é nova. */
-  slug?: string;
-  /** Revisão da seção que o formulário viu pela última vez; ausente enquanto a seção é nova. */
-  revisao?: number;
+  /** A chave da seção no banco, dada pelo servidor; ausente enquanto a seção é nova. */
+  id?: string;
+  /** Versão da seção que o formulário viu pela última vez (uuid regerado a cada escrita); ausente enquanto nova. */
+  versao?: string;
   titulo: string;
   texto: string;
   resumo_pt: string;
   palavras_chave_pt: string;
 };
 
-/** O que o servidor devolve por seção enviada: o `cid` que recebeu, o endereço e a revisão depois de salvar. */
-export type SecaoSalva = { cid: string; slug: string; revisao: number };
+/** O que o servidor devolve por seção enviada: o `cid` que recebeu, o id dado e a versão depois de salvar. */
+export type SecaoSalva = { cid: string; id: string; versao: string };
+
+/** Seção como a página a leu do banco. */
+export type SecaoPersistida = {
+  id: string;
+  versao: string;
+  titulo: string | null;
+  texto: string;
+  resumoPt: string | null;
+  palavrasChavePt: string[];
+};
 
 let contador = 0;
 
-/** Um id de cliente novo. Contador, não aleatório: o mesmo no servidor e no navegador não é necessário, só que não repita. */
+/** Um `cid` novo, só para linha criada no navegador (nunca na renderização inicial: seria diferente no servidor). */
 export function novoCid(): string {
   contador += 1;
-  return `c${Date.now().toString(36)}-${contador}`;
+  return `n${Date.now().toString(36)}-${contador}`;
+}
+
+/** O `cid` de uma seção que já existe: derivado do id dela, igual no servidor e no navegador. */
+export function cidDaSecaoPersistida(id: string): string {
+  return `p-${id.replace(/[^A-Za-z0-9]+/g, "-")}`;
+}
+
+/** As linhas iniciais do formulário, determinísticas: a mesma entrada dá os mesmos `cid` em qualquer lugar. */
+export function secoesIniciais(persistidas: readonly SecaoPersistida[]): SecaoEmEdicao[] {
+  return persistidas.map((s) => ({
+    cid: cidDaSecaoPersistida(s.id),
+    id: s.id,
+    versao: s.versao,
+    titulo: s.titulo ?? "",
+    texto: s.texto,
+    resumo_pt: s.resumoPt ?? "",
+    palavras_chave_pt: s.palavrasChavePt.join(", "),
+  }));
 }
 
 /** Aplica a resposta às linhas ATUAIS, casando por `cid`. Linhas removidas durante o pedido são ignoradas. */
@@ -37,6 +71,6 @@ export function aplicarSalvamento(
   const porCid = new Map(salvas.map((s) => [s.cid, s]));
   return atuais.map((linha) => {
     const salva = porCid.get(linha.cid);
-    return salva ? { ...linha, slug: salva.slug, revisao: salva.revisao } : linha;
+    return salva ? { ...linha, id: salva.id, versao: salva.versao } : linha;
   });
 }

@@ -21,6 +21,8 @@ import {
 // computador rodam o mesmo arquivo ao mesmo tempo no mesmo banco) e saem no fim.
 
 test.describe.configure({ mode: "default" });
+// Ações de servidor e gravação no banco sob a carga de três processos: o limite padrão de 5 s dá falso vermelho.
+expect.configure({ timeout: 15_000 });
 
 let sufixo = "";
 const criadas: string[] = [];
@@ -450,14 +452,17 @@ test("formulário com a Fonte já alterada por outra aba é recusado com aviso e
   // A primeira aba salva uma mudança.
   await page.getByLabel("Autor", { exact: true }).fill("Autor da primeira aba");
   await page.getByRole("button", { name: "Salvar Fonte" }).click();
-  await expect(page.getByText("Fonte salva.")).toBeVisible();
+  // A faixa "Fonte salva." da criação já está na página: o que prova o salvamento é o banco.
+  await expect
+    .poll(() => lerTexto("select autor as t from acervo.fonte where slug = $1", [slug]))
+    .toBe("Autor da primeira aba");
 
   // A segunda ainda tem a revisão velha: recusada, sem sobrescrever, e o que ela digitou continua.
   await aba2.getByLabel("Autor", { exact: true }).fill("Autor da segunda aba");
   await aba2.getByRole("button", { name: "Salvar Fonte" }).click();
   await expect(
     aba2.getByText(/Esta Fonte foi alterada por outra pessoa, ou por uma carga do arquivo/),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
   await expect(aba2.getByLabel("Autor", { exact: true })).toHaveValue("Autor da segunda aba");
   await expect
     .poll(() => lerTexto("select autor as t from acervo.fonte where slug = $1", [slug]))
@@ -516,7 +521,9 @@ test("com o salvamento no ar a lista de seções não muda: nem entra, nem sai s
     .first()
     .click({ force: true, trial: false })
     .catch(() => {});
-  await expect(page.getByText("Fonte salva.")).toBeVisible({ timeout: 15_000 });
+  // O pedido terminou quando o botão volta de "Salvando…" (a faixa "Fonte salva." da criação já estava na página).
+  await expect(page.getByRole("button", { name: "Salvando…" })).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Salvar Fonte" })).toBeEnabled();
   await expect(page.locator("legend", { hasText: "Seção 1" })).toBeVisible();
   await expect(page.locator("legend", { hasText: "Seção 2" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Remover esta seção" })).toHaveCount(0);
@@ -548,4 +555,38 @@ test("com o salvamento no ar a lista de seções não muda: nem entra, nem sai s
       ),
     )
     .toBe("Primeiro de A.|Segundo de A.|Terceiro de A.");
+});
+
+test("abrir a edição de uma Fonte com seções, em carga completa da página, não gera aviso de hidratação e os rótulos apontam para os campos", async ({
+  page,
+}) => {
+  await entrarComoAdmin(page, `painel-hidrata-${sufixo}`);
+  await abrirFormularioNovo(page);
+  const slug = `hidrata-${sufixo}`;
+  criadas.push(slug);
+  await page.getByLabel("Título", { exact: true }).fill(`Hidrata ${sufixo}`);
+  await page.getByLabel("Origem do texto (endereço https)").fill("https://exemplo.invalid/obra");
+  await page.getByLabel("Licença (código)").fill("dp-declarado-pela-origem");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await page.getByLabel("Título", { exact: true }).nth(1).fill("Seção única");
+  await page
+    .getByLabel("Texto (parágrafos separados por uma linha em branco)")
+    .fill("Um parágrafo.");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page).toHaveURL(/\?salvo=1/);
+
+  // Carga COMPLETA da página (renderização no servidor e hidratação), com o console vigiado desde o início.
+  const avisos = vigiarHidratacao(page);
+  await page.goto(`/admin/acervo/fontes/${slug}`);
+  await esperarHidratado(page.getByRole("button", { name: "Salvar Fonte" }));
+  await expect(page.getByLabel("Texto (parágrafos separados por uma linha em branco)")).toHaveValue(
+    "Um parágrafo.",
+  );
+  const rotulosSemCampo = await page.evaluate(() =>
+    [...document.querySelectorAll("label[for]")]
+      .map((l) => l.getAttribute("for") as string)
+      .filter((id) => !document.getElementById(id)),
+  );
+  expect(rotulosSemCampo).toEqual([]);
+  expect(avisos, "aviso de hidratação").toEqual([]);
 });
