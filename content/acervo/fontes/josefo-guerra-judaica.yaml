@@ -33,8 +33,9 @@ secoes:
   - slug: "1"
     titulo: Livro 1
     resumo_pt: >-
-      Cobre as causas remotas da guerra: as violências de Antíoco Epifânio, a revolta dos Macabeus, as disputas
-      da dinastia asmoneia, a intervenção de Pompeu e a conquista romana, a ascensão de Antípatro e de Herodes e
+      Abre com o prefácio, em que o autor acusa os relatos inexatos da guerra escritos antes dele. Cobre as
+      causas remotas da guerra: as violências de Antíoco Epifânio, a revolta dos Macabeus, as disputas da
+      dinastia asmoneia, a intervenção de Pompeu e a conquista romana, a ascensão de Antípatro e de Herodes e
       o reinado de Herodes, até a sua morte e o seu funeral em Heródio.
     palavras_chave_pt: [Antíoco Epifânio, Macabeus, Pompeu, Herodes, reinado de Herodes, morte de Herodes]
   - slug: "2"
@@ -42,25 +43,30 @@ secoes:
     resumo_pt: >-
       Cobre a sucessão de Herodes, a deposição de Arquelau e o governo dos procuradores — entre eles Pôncio
       Pilatos —, a crise sob Calígula, os começos da revolta da Judeia e a derrota de Céstio Galo, até os
-      preparativos para a guerra na Galileia sob o comando do autor.
-    palavras_chave_pt: [Arquelau, Pilatos, procuradores, revolta da Judeia, Céstio Galo, Galileia]
+      preparativos para a guerra na Galileia sob o comando do autor e em Jerusalém sob o sumo sacerdote Anano,
+      terminando com Simão, filho de Gioras, refugiado com os salteadores de Masada.
+    palavras_chave_pt: [Arquelau, Pilatos, procuradores, revolta da Judeia, Céstio Galo, Galileia, Simão, filho de Gioras, Masada]
   - slug: "3"
     titulo: Livro 3
     resumo_pt: >-
       Cobre a resposta romana à revolta: a campanha de Vespasiano na Galileia, o cerco e a queda de Jotapata com
-      a captura do próprio autor, e a submissão da região.
-    palavras_chave_pt: [Vespasiano, Galileia, Jotapata, cerco, captura do autor]
+      a captura do próprio autor, e a submissão da região, até a tomada de Tariqueia e a sorte dos seus
+      prisioneiros, decidida por Vespasiano.
+    palavras_chave_pt: [Vespasiano, Galileia, Jotapata, cerco, captura do autor, Tariqueia]
   - slug: "4"
     titulo: Livro 4
     resumo_pt: >-
       Cobre a continuação da campanha de Vespasiano: a rendição das cidades da Galileia, a tomada de Gamala e de
-      Giscala e a ida dos revoltosos para Jerusalém, onde a luta entre facções se agrava.
-    palavras_chave_pt: [Gamala, Giscala, Galileia, Vespasiano, facções de Jerusalém]
+      Giscala e a ida dos revoltosos para Jerusalém, onde a luta entre facções se agrava; enquanto Roma passa
+      pela crise de sucessão depois da morte de Nero, Vespasiano é aclamado imperador pelo exército e,
+      confirmado no império, envia Tito para destruir Jerusalém.
+    palavras_chave_pt: [Gamala, Giscala, Galileia, Vespasiano, facções de Jerusalém, Tito]
   - slug: "5"
     titulo: Livro 5
     resumo_pt: >-
-      Cobre a chegada de Tito e o começo do cerco de Jerusalém: as três facções dentro da cidade, a fome, a
-      tomada das muralhas externas e os preparativos contra o Templo.
+      Cobre a chegada de Tito e o começo do cerco de Jerusalém: as três facções dentro da cidade, a tomada das
+      muralhas externas e os preparativos contra o Templo, até o auge da fome, com o sacrilégio de João nos
+      utensílios sagrados e a contagem dos mortos carregados para fora dos muros.
     palavras_chave_pt: [Tito, cerco de Jerusalém, fome, facções, muralhas]
   - slug: "6"
     titulo: Livro 6
@@ -72,5 +78,6 @@ secoes:
     titulo: Livro 7
     resumo_pt: >-
       Cobre o fim da guerra: a demolição de Jerusalém, os triunfos em Roma, os últimos redutos da revolta e a
-      queda de Masada.
+      queda de Masada, até a sedição de Jônatas, o tecelão, na Cirenaica e a morte miserável de Cátulo, lida
+      como castigo divino; o autor encerra a obra.
     palavras_chave_pt: [Masada, demolição de Jerusalém, triunfo romano, fim da guerra]

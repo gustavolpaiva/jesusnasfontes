@@ -61,8 +61,9 @@ secoes:
     titulo: Livro 5
     resumo_pt: >-
       Cobre a conquista de Canaã sob Josué, a divisão da terra entre as tribos e o período dos juízes, até o
-      sacerdócio de Eli e o nascimento de Samuel.
-    palavras_chave_pt: [Josué, conquista de Canaã, Jericó, juízes, Eli, Samuel]
+      sacerdócio de Eli, o nascimento e o chamado de Samuel, a tomada da arca da aliança pelos filisteus e a
+      morte de Eli e de seus filhos.
+    palavras_chave_pt: [Josué, conquista de Canaã, Jericó, juízes, Eli, Samuel, arca da aliança]
   - slug: "6"
     titulo: Livro 6
     resumo_pt: >-
@@ -94,8 +95,9 @@ secoes:
     titulo: Livro 10
     resumo_pt: >-
       Cobre o reinado de Ezequias e a invasão assíria de Senaqueribe, a reforma de Josias, a destruição de
-      Jerusalém por Nabucodonosor e o cativeiro na Babilônia, até o profeta Daniel e o tempo de Ciro.
-    palavras_chave_pt: [Ezequias, Senaqueribe, Josias, Nabucodonosor, cativeiro babilônico, Daniel]
+      Jerusalém por Nabucodonosor e o cativeiro na Babilônia, até a tomada da Babilônia por Ciro e o profeta
+      Daniel na corte de Dario, o Medo.
+    palavras_chave_pt: [Ezequias, Senaqueribe, Josias, Nabucodonosor, cativeiro babilônico, Daniel, Ciro]
   - slug: "11"
     titulo: Livro 11
     resumo_pt: >-
@@ -150,17 +152,20 @@ secoes:
     resumo_pt: >-
       Cobre o governo romano da Judeia depois de Arquelau: o censo de Quirino, os procuradores, entre eles
       Pôncio Pilatos, os sumos sacerdotes entre eles Caifás, a morte de João Batista por ordem de Antipas e a
-      morte do imperador Tibério; traz ainda a passagem sobre Jesus conhecida como Testimonium Flavianum.
-    palavras_chave_pt: [Pilatos, Caifás, João Batista, Jesus, censo de Quirino, procuradores romanos, Tibério]
+      morte do imperador Tibério, terminando com a calamidade dos judeus da Babilônia sob Anileu e Asineu e a
+      matança dos judeus de Selêucia; traz ainda a passagem sobre Jesus conhecida como Testimonium Flavianum.
+    palavras_chave_pt: [Pilatos, Caifás, João Batista, Jesus, censo de Quirino, procuradores romanos, Tibério, Babilônia]
   - slug: "19"
     titulo: Livro 19
     resumo_pt: >-
       Cobre os excessos de Calígula contra judeus e romanos e o seu assassinato, a ascensão de Cláudio e o
-      reinado de Agripa na Judeia, até a morte deste rei.
+      reinado de Agripa na Judeia, até a morte deste rei, depois da qual a Judeia volta a ser governada por
+      procuradores romanos.
     palavras_chave_pt: [Calígula, assassinato de Calígula, Cláudio, Agripa, Judeia]
   - slug: "20"
     titulo: Livro 20
     resumo_pt: >-
       Cobre os procuradores da Judeia de Fado a Floro — entre eles Félix, Festo e Albino —, o sumo sacerdote
-      Anano e a morte de Tiago, irmão de Jesus, o governo de Agripa II e os começos da guerra contra Roma.
+      Anano e a morte de Tiago, irmão de Jesus, o governo de Agripa II e os começos da guerra contra Roma; o
+      autor encerra a obra anunciando novos escritos.
     palavras_chave_pt: [Tiago, irmão de Jesus, Anano, Festo, Floro, Agripa II]
