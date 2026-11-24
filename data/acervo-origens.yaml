@@ -388,6 +388,14 @@ ccel-anf08:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
+    # A carta de Mara bar Serapião (plano 02-11): a divisão ix.xvii, a mesma do tracer do plano 02-08.
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: mara-bar-serapiao
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["ix.xvii"]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -436,6 +444,46 @@ ccel-anf01:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
+    # Cinco Fontes saem deste volume (plano 02-11), cada uma com as suas divisões div2. Atenção: os fragmentos
+    # de Papias DESTE volume não trazem a passagem sobre Marcos e Mateus — ela está em Eusébio, HE 3.39
+    # (ccel-npnf201, esperado iii.viii.xxxix-p2).
+    - id: anf01.xml
+      url: https://ccel.org/ccel/schaff/anf01.xml
+      slug: papias-fragmentos
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.ii"]
+    - id: anf01.xml
+      url: https://ccel.org/ccel/schaff/anf01.xml
+      slug: justino-1-apologia
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["viii.ii"]
+    - id: anf01.xml
+      url: https://ccel.org/ccel/schaff/anf01.xml
+      slug: justino-2-apologia
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["viii.iii"]
+    - id: anf01.xml
+      url: https://ccel.org/ccel/schaff/anf01.xml
+      slug: justino-dialogo-trifao
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["viii.iv"]
+    # Contra as Heresias: os cinco livros na ordem do volume (a introdução ix.i, a Elucidation ix.v e os
+    # fragmentos avulsos ix.viii ficam de fora).
+    - id: anf01.xml
+      url: https://ccel.org/ccel/schaff/anf01.xml
+      slug: ireneu-contra-heresias
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["ix.ii", "ix.iii", "ix.iv", "ix.vi", "ix.vii"]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -450,6 +498,10 @@ ccel-anf01:
       # Fragmentos de Papias (introdução de Eusébio, citando Ireneu)
       - ref: "vii.ii.i-p2"
         contem: ["The writings of Papias in common circulation are five in number"]
+      # Fragmentos de Papias, seção i: o prefácio do próprio Papias — de quem ele diz ter recebido o que
+      # registrou (plano 02-11; a passagem sobre Marcos e Mateus está em Eusébio, HE 3.39, não neste volume)
+      - ref: "vii.ii.i-p4"
+        contem: ["what Andrew or Peter said", "Aristion and the presbyter John"]
       # Ireneu, Contra as Heresias III.1: o Evangelho como fundamento e coluna da fé
       - ref: "ix.iv.ii-p1"
         contem: ["the ground and pillar of our faith"]
@@ -484,6 +536,14 @@ ccel-anf03:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
+    # O Apologético de Tertuliano (plano 02-11): a divisão iv.3 ("Apology"), onde está a abertura do esperado.
+    - id: anf03.xml
+      url: https://ccel.org/ccel/schaff/anf03.xml
+      slug: tertuliano-apologetico
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["iv.iii"]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -527,6 +587,28 @@ ccel-anf04:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
+    # Contra Celso de Orígenes (plano 02-11): os oito livros são div3 dentro da ÚNICA div2 vi.ix. Esta entrada
+    # usa o campo por arquivo `divisao_secao: div3` (o mesmo mecanismo do recorte por divisões do plano 02-10)
+    # e traz o seu PRÓPRIO esperado, medido no nível div3 (260 divisões com parágrafo no volume inteiro); o
+    # derivado sai só com as oito divisões dos livros, na ordem do volume. A entrada acima (anf04) continua
+    # conferindo o volume inteiro no nível div2, com o esperado da origem.
+    - id: anf04.xml
+      url: https://ccel.org/ccel/schaff/anf04.xml
+      slug: origenes-contra-celso
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div3
+      divisoes: ["vi.ix.i", "vi.ix.ii", "vi.ix.iii", "vi.ix.iv", "vi.ix.v", "vi.ix.vi", "vi.ix.vii", "vi.ix.viii"]
+      esperado:
+        secoes: 260
+        paragrafos:
+          # Orígenes, Contra Celso (prefácio a Ambrósio): as testemunhas falsas contra Jesus e o silêncio dele
+          - ref: "vi.ix.i.i-p5"
+            contem:
+              [
+                "When false witnesses testified against our Lord and Saviour Jesus Christ, He remained silent",
+              ]
+        notas_fora_do_texto: true
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -571,6 +653,15 @@ ccel-anf06:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
+    # Os fragmentos da Cronografia de Júlio Africano (plano 02-11): a divisão v.v, onde está o fragmento que
+    # menciona Thalo e o escurecimento do sol na crucificação (v.v.xviii-p4, já conferido no esperado da origem).
+    - id: anf06.xml
+      url: https://ccel.org/ccel/schaff/anf06.xml
+      slug: julio-africano-fragmentos
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["v.v"]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -614,6 +705,24 @@ ccel-anf09:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
+    # O Diatessaron de Taciano (plano 02-11): o texto (iv.iii) e as subscrições com que fecham os dois
+    # manuscritos árabes (iv.iv).
+    - id: anf09.xml
+      url: https://ccel.org/ccel/schaff/anf09.xml
+      slug: taciano-diatessaron
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["iv.iii", "iv.iv"]
+    # A Apologia de Aristides (plano 02-11): as duas traduções que o volume traz — o grego pela história de
+    # Barlaam e Josafé (xiii.iii) e o siríaco (xiii.iv, com a passagem sobre Jesus o Messias do esperado).
+    - id: anf09.xml
+      url: https://ccel.org/ccel/schaff/anf09.xml
+      slug: aristides-apologia
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["xiii.iii", "xiii.iv"]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -660,6 +769,28 @@ ccel-npnf201:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
+    # A História Eclesiástica de Eusébio (plano 02-11): os dez livros na ordem do volume. A divisão iii.xiv
+    # (Martyrs of Palestine) é obra distinta e fica de fora, como as notas preliminares iii.i–iii.v e o
+    # suplemento iii.xvii.
+    - id: npnf201.xml
+      url: https://ccel.org/ccel/schaff/npnf201.xml
+      slug: eusebio-historia-eclesiastica
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes:
+        [
+          "iii.vi",
+          "iii.vii",
+          "iii.viii",
+          "iii.ix",
+          "iii.x",
+          "iii.xi",
+          "iii.xii",
+          "iii.xiii",
+          "iii.xv",
+          "iii.xvi",
+        ]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -673,6 +804,20 @@ ccel-npnf201:
       # Eusébio, História Eclesiástica III.39: os cinco livros de Papias
       - ref: "iii.viii.xxxix-p2"
         contem: ["five books of Papias", "Expositions of Oracles of the Lord"]
+      # Eusébio, História Eclesiástica I.11: Josefo sobre João Batista (plano 02-11)
+      - ref: "iii.vi.xi-p10"
+        contem:
+          [
+            "The same Josephus confesses in this account that John the Baptist",
+            "agrees with the things written of him in the Gospels",
+          ]
+      # Eusébio, História Eclesiástica I.11: Josefo citado sobre Jesus (plano 02-11)
+      - ref: "iii.vi.xi-p18"
+        contem:
+          [
+            "makes mention of our Saviour in the same work",
+            "he was a doer of wonderful works",
+          ]
     notas_fora_do_texto: true
 
 ccel-lightfoot-fathers:
