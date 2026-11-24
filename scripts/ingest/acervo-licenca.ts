@@ -175,23 +175,12 @@ export function exigirLicencaThml(xml: string, exigencia: ExigenciaTei): Cabecal
   return cabecalho;
 }
 
-const FIM_DO_CABECALHO = "</teiHeader>";
-
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
 /** Para conferir uma frase: espaços e quebras de linha fechados, sem distinguir maiúsculas. */
 const normalizar = (s: string) => compactar(s).toLowerCase();
 
 /** Lê tradutor(es), licença e ano de edição do cabeçalho TEI. Não valida: só lê. */
 export function lerCabecalhoTei(xml: string): CabecalhoTei {
-  const fim = xml.indexOf(FIM_DO_CABECALHO);
-  if (fim < 0) throw new ErroLicenca("arquivo sem cabeçalho TEI (teiHeader)");
-  // O cabeçalho do documento precede o texto. Um teiHeader que só aparece depois de abrir `<text>` é de uma
-  // obra interna: não prova a licença do arquivo.
-  const abreTexto = xml.search(/<text[\s>]/);
-  if (abreTexto >= 0 && abreTexto < fim)
-    throw new ErroLicenca("arquivo sem cabeçalho TEI (teiHeader) antes do texto");
-  const cabecalho = xml.slice(0, fim + FIM_DO_CABECALHO.length);
-
   const tradutores = new Set<string>();
   const anos: string[] = [];
   let licenca = "";
@@ -202,10 +191,24 @@ export function lerCabecalhoTei(xml: string): CabecalhoTei {
   let editorial = 0;
   let paragrafoEditorial = "";
   const avisos: string[] = [];
+  // A estrutura vem dos eventos do parser (comentário, CDATA e instrução de processamento nunca abrem elemento).
+  // 0 = ainda não abriu o teiHeader; 1 = dentro do primeiro; 2 = fechado. `textoAntes`: o `<text>` abriu antes
+  // de existir cabeçalho, então qualquer teiHeader posterior é de obra interna e não conta.
+  let cabecalhoEstado: 0 | 1 | 2 = 0;
+  let textoAntes = false;
 
-  const parser = new Parser(
+  const parser: Parser = new Parser(
     {
       onopentag(nome, atributos) {
+        if (cabecalhoEstado === 0) {
+          if (nome === "teiHeader") cabecalhoEstado = 1;
+          else if (nome === "text") {
+            textoAntes = true;
+            parser.pause();
+          }
+          return;
+        }
+        if (cabecalhoEstado !== 1) return;
         if (nome === "editor" && atributos.role === "translator") {
           capturando = "tradutor";
           texto = "";
@@ -225,10 +228,17 @@ export function lerCabecalhoTei(xml: string): CabecalhoTei {
         }
       },
       ontext(dados) {
+        if (cabecalhoEstado !== 1) return;
         if (capturando) texto += dados;
         if (editorial > 0) paragrafoEditorial += dados;
       },
       onclosetag(nome) {
+        if (cabecalhoEstado !== 1) return;
+        if (nome === "teiHeader") {
+          cabecalhoEstado = 2;
+          parser.pause();
+          return;
+        }
         if (nome === "imprint") imprint = Math.max(0, imprint - 1);
         if (nome === "p" && editorial > 0) {
           const t = compactar(paragrafoEditorial);
@@ -252,8 +262,12 @@ export function lerCabecalhoTei(xml: string): CabecalhoTei {
     },
     { xmlMode: true, decodeEntities: true },
   );
-  parser.write(cabecalho);
-  parser.end();
+  parser.write(xml); // pára (pause) ao fechar o cabeçalho ou ao abrir o texto: o corpo nunca é lido
+
+  if (textoAntes) throw new ErroLicenca("arquivo sem cabeçalho TEI (teiHeader) antes do texto");
+  // (o TS não vê as atribuições feitas dentro dos callbacks do parser: o cast evita o estreitamento a `0`)
+  if ((cabecalhoEstado as number) !== 2)
+    throw new ErroLicenca("arquivo sem cabeçalho TEI (teiHeader)");
 
   return {
     tradutores: [...tradutores].sort(),

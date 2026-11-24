@@ -416,3 +416,40 @@ describe("licença nunca vem de metadado de obra interna (classe)", () => {
     expect(() => exigirLicencaGutenberg(ok, MELMOTH)).not.toThrow();
   });
 });
+
+describe("estrutura vem dos eventos do parser, não de regex sobre o XML cru", () => {
+  const SEM_LICENCA = mara.replace("<DC.Rights>Public Domain</DC.Rights>", "<DC.Rights />");
+
+  it("TEI: comentário com <text> e </teiHeader> antes do cabeçalho não confunde a leitura", () => {
+    const c = xml.replace(
+      "<teiHeader",
+      "<!-- O corpo começa em <text> depois do cabeçalho; fecha em </teiHeader>. --><teiHeader",
+    );
+    expect(c).not.toBe(xml);
+    expect(() => exigirTraducaoTei(c, WHISTON)).not.toThrow();
+    expect(lerCabecalhoTei(c)).toEqual(lerCabecalhoTei(xml));
+  });
+
+  it("TEI: CDATA com um cabeçalho falso depois do corpo é ignorado", () => {
+    const falso =
+      '<![CDATA[<teiHeader><editor role="translator">Falso</editor><licence>CC BY-SA</licence></teiHeader>]]>';
+    const c = `<TEI><text><body><p>${falso}</p></body></text></TEI>`;
+    expect(() => exigirTraducaoTei(c, { tradutores: ["Falso"], licenca: "CC BY-SA" })).toThrow(
+      ErroLicenca,
+    );
+  });
+
+  it("ThML: comentário com <ThML.body> antes do cabeçalho não encerra a captura", () => {
+    const c = mara.replace("<ThML.head>", "<!-- <ThML.body> vem depois --><ThML.head>");
+    expect(c).not.toBe(mara);
+    expect(() => exigirLicencaThml(c, SCHAFF)).not.toThrow();
+  });
+
+  it("ThML: CDATA com um cabeçalho falso depois do corpo é ignorado", () => {
+    const falso =
+      "<![CDATA[<ThML.head><DC><DC.Creator>Schaff, Philip (1819-1893)</DC.Creator><DC.Rights>Public Domain</DC.Rights></DC></ThML.head>]]>";
+    const c = SEM_LICENCA.replace("</ThML.head>", `</ThML.head><ThML.body><p>${falso}</p>`);
+    expect(c).not.toBe(SEM_LICENCA);
+    expect(() => exigirLicencaThml(c, SCHAFF)).toThrow(ErroLicenca);
+  });
+});
