@@ -122,6 +122,12 @@ export const fonte = acervo.table("fonte", {
   publicada: boolean("publicada").notNull().default(false),
   origemRegistro: text("origem_registro").notNull().default("arquivo"),
   conjuntoId: text("conjunto_id").references(() => conjuntoDados.id),
+  // 0022: o painel de Fontes e o conflito com a carga do arquivo (ACER-08).
+  hashUltimaCarga: text("hash_ultima_carga"),
+  valoresArquivo: jsonb("valores_arquivo"),
+  conflitoCarga: text("conflito_carga").array().notNull().default([]),
+  publicadaArquivo: boolean("publicada_arquivo"),
+  tradicao: text("tradicao"),
 });
 
 export const fonteSecao = acervo.table(
@@ -138,6 +144,8 @@ export const fonteSecao = acervo.table(
     refFim: integer("ref_fim"),
     resumoPt: text("resumo_pt"),
     palavrasChavePt: text("palavras_chave_pt").array().notNull().default([]),
+    hashUltimaCarga: text("hash_ultima_carga"),
+    valoresArquivo: jsonb("valores_arquivo"),
   },
   (tabela) => [unique().on(tabela.fonteId, tabela.ordem)],
 );

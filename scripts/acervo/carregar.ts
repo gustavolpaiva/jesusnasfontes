@@ -2,6 +2,7 @@
 // versionado no produto). Uma transação só (qualquer erro desfaz tudo), trava consultiva própria, idempotente por
 // slug da Fonte, id da seção e id do parágrafo. Nenhuma rede: este módulo só lê o que já está no disco.
 
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -31,11 +32,18 @@ export type Contagem = {
   inalterados: number;
   removidos: number;
 };
+/** Uma Fonte do arquivo que a carga RECUSOU porque o painel a editou: os campos em conflito, e nada foi escrito nela. */
+export type ConflitoDeCarga = { slug: string; campos: string[] };
 export type ResultadoFontes = Contagem & {
   fontes: Contagem;
   secoes: Contagem;
   paragrafos: Contagem;
+  /** Fontes recusadas por edição no painel (ACER-08). Não vazio = o comando sai com código 3. */
+  conflitos: ConflitoDeCarga[];
 };
+
+/** Código de saída do comando quando ao menos uma Fonte foi recusada por edição no painel (distinto de 1 = erro). */
+export const CODIGO_DE_CONFLITO = 3;
 
 /** Um item da carga: o YAML da Fonte já validado e o derivado dela já validado. */
 export type FonteParaCarga = { fonte: FonteYaml; derivado: Derivado };
@@ -67,14 +75,28 @@ type LinhaFonte = {
   limites_pt: string | null;
   publicada: boolean;
   origem_registro: string;
+  hash_ultima_carga: string | null;
+  valores_arquivo: Partial<ValoresDaFonte> | null;
+  publicada_arquivo: boolean | null;
+  conflito_carga: string[];
 };
 
 type LinhaSecao = {
   id: string;
+  slug: string;
   ordem: number;
   titulo: string | null;
   resumo_pt: string | null;
   palavras_chave_pt: string[];
+  hash_ultima_carga: string | null;
+  valores_arquivo: Partial<ValoresDaSecao> | null;
+};
+
+type Acumulado = {
+  fontes: Contagem;
+  secoes: Contagem;
+  paragrafos: Contagem;
+  conflitos: ConflitoDeCarga[];
 };
 
 type LinhaParagrafo = {
@@ -89,6 +111,72 @@ type LinhaParagrafo = {
 };
 
 const n = <T>(v: T | null | undefined): T | null => v ?? null;
+
+// ───────────────────────── o que o arquivo possui (ACER-08) ─────────────────────────
+// A carga grava, a cada Fonte e seção, o hash e os valores do que o ARQUIVO disse na última carga. Se o valor atual do
+// banco difere do que a última carga gravou (e também do que o arquivo diz agora), alguém o editou no painel: a carga
+// recusa a Fonte em vez de sobrescrever. `publicada` não entra aqui: tem mescla de três vias própria.
+
+const CAMPOS_DA_FONTE = [
+  "titulo",
+  "autor",
+  "nivel",
+  "tipo_texto",
+  "idioma",
+  "epoca",
+  "licenca",
+  "licenca_url",
+  "origem_nome",
+  "origem_url",
+  "tradutor",
+  "traducao_ano",
+  "edicao",
+  "traduzida_por_nos",
+  "limites_pt",
+] as const;
+type CampoDaFonte = (typeof CAMPOS_DA_FONTE)[number];
+type ValoresDaFonte = Record<CampoDaFonte, string | number | boolean | null>;
+
+/** O único campo da Fonte do arquivo que o painel edita (os demais são do arquivo). */
+const CAMPOS_DA_FONTE_NO_PAINEL: readonly CampoDaFonte[] = ["limites_pt"];
+/** Por seção, o que o painel edita: o resumo e as palavras-chave (D-18). */
+const CAMPOS_DA_SECAO_NO_PAINEL = ["resumo_pt", "palavras_chave_pt"] as const;
+type ValoresDaSecao = {
+  titulo: string | null;
+  resumo_pt: string | null;
+  palavras_chave_pt: string[];
+};
+
+const hashDe = (valor: unknown): string =>
+  createHash("sha256").update(JSON.stringify(valor)).digest("hex");
+const iguais = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+function valoresDoYaml(fonte: FonteYaml): ValoresDaFonte {
+  return {
+    titulo: fonte.titulo,
+    autor: n(fonte.autor),
+    nivel: fonte.nivel,
+    tipo_texto: fonte.tipo_texto,
+    idioma: fonte.idioma,
+    epoca: n(fonte.epoca),
+    licenca: n(fonte.licenca),
+    licenca_url: n(fonte.licenca_url),
+    origem_nome: n(fonte.origem_nome),
+    origem_url: n(fonte.origem_url),
+    tradutor: n(fonte.tradutor),
+    traducao_ano: n(fonte.traducao_ano),
+    edicao: n(fonte.edicao),
+    traduzida_por_nos: fonte.traduzida_por_nos,
+    limites_pt: n(fonte.limites_pt),
+  };
+}
+
+function valoresDaLinha(l: LinhaFonte): ValoresDaFonte {
+  return Object.fromEntries(CAMPOS_DA_FONTE.map((c) => [c, l[c]])) as ValoresDaFonte;
+}
+const hashDaFonte = (v: ValoresDaFonte): string => hashDe(CAMPOS_DA_FONTE.map((c) => v[c]));
+const hashDaSecao = (v: ValoresDaSecao): string =>
+  hashDe([v.titulo, v.resumo_pt, v.palavras_chave_pt]);
 
 function conferirItem({ fonte, derivado }: FonteParaCarga): void {
   if (fonte.slug !== derivado.slug)
@@ -127,7 +215,12 @@ export async function carregarFontes(
     conferirItem(item);
     conferirTetoDeSecao(item);
   }
-  const total = { fontes: zero(), secoes: zero(), paragrafos: zero() };
+  const total: Acumulado = {
+    fontes: zero(),
+    secoes: zero(),
+    paragrafos: zero(),
+    conflitos: [],
+  };
   await c.query("begin");
   try {
     // A espera pela trava tem prazo: outra carga presa vira erro em 2 minutos, não espera sem fim.
@@ -155,85 +248,71 @@ export async function carregarFontes(
   };
 }
 
+/**
+ * Os campos que o painel editou desde a última carga E que o arquivo não diz igual agora. Vazio = sem conflito.
+ * Fonte carregada antes da migração 0022 (sem registro da última carga) nunca tem conflito. O resto do que o arquivo
+ * possui (título, autor, origem, licença, texto) o painel não edita: se mudou por outro caminho, o arquivo vale.
+ */
+function camposEditadosNoPainel(
+  existente: LinhaFonte,
+  secoes: ReadonlyMap<string, LinhaSecao>,
+  novos: ValoresDaFonte,
+  querSecoes: readonly { id: string; titulo: string; resumo: string | null; palavras: string[] }[],
+): string[] {
+  const campos: string[] = [];
+  const ultima = existente.valores_arquivo;
+  if (existente.hash_ultima_carga !== null && ultima) {
+    const atuais = valoresDaLinha(existente);
+    if (hashDaFonte(atuais) !== existente.hash_ultima_carga) {
+      for (const c of CAMPOS_DA_FONTE_NO_PAINEL)
+        if (!iguais(atuais[c], ultima[c] ?? null) && !iguais(atuais[c], novos[c])) campos.push(c);
+    }
+  }
+  const novasPorId = new Map(querSecoes.map((s) => [s.id, s]));
+  for (const [id, a] of secoes) {
+    if (a.hash_ultima_carga === null || !a.valores_arquivo) continue;
+    const atuais: ValoresDaSecao = {
+      titulo: a.titulo,
+      resumo_pt: a.resumo_pt,
+      palavras_chave_pt: a.palavras_chave_pt,
+    };
+    if (hashDaSecao(atuais) === a.hash_ultima_carga) continue;
+    const q = novasPorId.get(id);
+    const novosS: Partial<ValoresDaSecao> = q
+      ? { resumo_pt: q.resumo, palavras_chave_pt: q.palavras }
+      : {};
+    for (const c of CAMPOS_DA_SECAO_NO_PAINEL) {
+      const ultimaS = a.valores_arquivo[c] ?? (c === "palavras_chave_pt" ? [] : null);
+      if (!iguais(atuais[c], ultimaS) && !(c in novosS && iguais(atuais[c], novosS[c])))
+        campos.push(`${a.slug}:${c}`);
+    }
+  }
+  return campos;
+}
+
 async function carregarUma(
   c: pg.Client,
   { fonte, derivado }: FonteParaCarga,
-  total: { fontes: Contagem; secoes: Contagem; paragrafos: Contagem },
+  total: Acumulado,
 ): Promise<void> {
   // ───── Fonte
+  // `for update`: a linha fica travada até o fim da transação. Uma edição do painel em curso (que também trava a
+  // linha) faz esta leitura esperar e enxergar a edição; sem isto a carga poderia ler, o painel gravar e a carga
+  // escrever por cima do que não viu.
   const existente = (
     await c.query<LinhaFonte>(
       `select id, titulo, autor, nivel, tipo_texto, idioma, epoca, licenca, licenca_url, origem_nome,
               origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, publicada,
-              origem_registro
-         from acervo.fonte where slug = $1`,
+              origem_registro, hash_ultima_carga, valores_arquivo, publicada_arquivo, conflito_carga
+         from acervo.fonte where slug = $1 for update`,
       [fonte.slug],
     )
   ).rows[0];
   if (existente?.origem_registro === "painel")
     throw new ErroCarga(`Fonte ${fonte.slug}: foi criada pelo painel e a carga nunca a toca`);
 
-  const valores = [
-    fonte.titulo,
-    n(fonte.autor),
-    fonte.nivel,
-    fonte.tipo_texto,
-    fonte.idioma,
-    n(fonte.epoca),
-    n(fonte.licenca),
-    n(fonte.licenca_url),
-    n(fonte.origem_nome),
-    n(fonte.origem_url),
-    n(fonte.tradutor),
-    n(fonte.traducao_ano),
-    n(fonte.edicao),
-    fonte.traduzida_por_nos,
-    n(fonte.limites_pt),
-    fonte.publicada,
-  ];
-  let fonteId: string;
-  if (!existente) {
-    const novo = await c.query<{ id: string }>(
-      `insert into acervo.fonte (slug, titulo, autor, nivel, tipo_texto, idioma, epoca, licenca, licenca_url,
-         origem_nome, origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, publicada)
-       values ($17, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) returning id`,
-      [...valores, fonte.slug],
-    );
-    fonteId = (novo.rows[0] as { id: string }).id;
-    total.fontes.inseridos++;
-  } else {
-    fonteId = existente.id;
-    const atuais = [
-      existente.titulo,
-      existente.autor,
-      existente.nivel,
-      existente.tipo_texto,
-      existente.idioma,
-      existente.epoca,
-      existente.licenca,
-      existente.licenca_url,
-      existente.origem_nome,
-      existente.origem_url,
-      existente.tradutor,
-      existente.traducao_ano,
-      existente.edicao,
-      existente.traduzida_por_nos,
-      existente.limites_pt,
-      existente.publicada,
-    ];
-    if (atuais.every((v, i) => v === valores[i])) {
-      total.fontes.inalterados++;
-    } else {
-      await c.query(
-        `update acervo.fonte set titulo = $1, autor = $2, nivel = $3, tipo_texto = $4, idioma = $5, epoca = $6,
-           licenca = $7, licenca_url = $8, origem_nome = $9, origem_url = $10, tradutor = $11,
-           traducao_ano = $12, edicao = $13, traduzida_por_nos = $14, limites_pt = $15, publicada = $16
-         where id = $17`,
-        [...valores, fonteId],
-      );
-      total.fontes.atualizados++;
-    }
-  }
+  const novosValores = valoresDoYaml(fonte);
+  const hashNovo = hashDaFonte(novosValores);
 
   // ───── o que se quer, pela numeração da obra (nunca pela posição no arquivo)
   const yamlPorSecao = new Map(fonte.secoes.map((s) => [s.slug, s]));
@@ -248,6 +327,76 @@ async function carregarUma(
       palavras: y?.palavras_chave_pt ?? [],
     };
   });
+  const secoesAtuais = new Map(
+    (
+      await c.query<LinhaSecao>(
+        `select id, slug, ordem, titulo, resumo_pt, palavras_chave_pt, hash_ultima_carga, valores_arquivo
+           from acervo.fonte_secao where fonte_id = $1`,
+        [existente?.id ?? null],
+      )
+    ).rows.map((r) => [r.id, r]),
+  );
+
+  // ───── conflito com o painel (ACER-08): o valor atual difere do que a última carga gravou E do que o arquivo diz agora
+  if (existente) {
+    const campos = camposEditadosNoPainel(existente, secoesAtuais, novosValores, querSecoes);
+    if (campos.length > 0) {
+      await c.query("update acervo.fonte set conflito_carga = $1::text[] where id = $2", [
+        campos,
+        existente.id,
+      ]);
+      total.conflitos.push({ slug: fonte.slug, campos });
+      return;
+    }
+  }
+
+  // `publicada`: mescla de três vias (arquivo, última carga, painel). O valor do arquivo só vale se o painel não
+  // mexeu desde a última carga; se mexeu, o do painel fica. Sem registro da última carga, vale o do arquivo.
+  const publicadaFinal = !existente
+    ? fonte.publicada
+    : existente.publicada_arquivo === null || existente.publicada === existente.publicada_arquivo
+      ? fonte.publicada
+      : existente.publicada;
+
+  const valores = [...CAMPOS_DA_FONTE.map((k) => novosValores[k]), publicadaFinal];
+  let fonteId: string;
+  if (!existente) {
+    const novo = await c.query<{ id: string }>(
+      `insert into acervo.fonte (slug, titulo, autor, nivel, tipo_texto, idioma, epoca, licenca, licenca_url,
+         origem_nome, origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, publicada,
+         hash_ultima_carga, valores_arquivo, publicada_arquivo)
+       values ($17, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $18, $19::jsonb, $20)
+       returning id`,
+      [...valores, fonte.slug, hashNovo, JSON.stringify(novosValores), fonte.publicada],
+    );
+    fonteId = (novo.rows[0] as { id: string }).id;
+    total.fontes.inseridos++;
+  } else {
+    fonteId = existente.id;
+    const atuais = [...CAMPOS_DA_FONTE.map((k) => existente[k]), existente.publicada];
+    if (atuais.every((v, i) => v === valores[i])) {
+      total.fontes.inalterados++;
+    } else {
+      await c.query(
+        `update acervo.fonte set titulo = $1, autor = $2, nivel = $3, tipo_texto = $4, idioma = $5, epoca = $6,
+           licenca = $7, licenca_url = $8, origem_nome = $9, origem_url = $10, tradutor = $11,
+           traducao_ano = $12, edicao = $13, traduzida_por_nos = $14, limites_pt = $15, publicada = $16
+         where id = $17`,
+        [...valores, fonteId],
+      );
+      total.fontes.atualizados++;
+    }
+    // O registro da última carga não é conteúdo: gravá-lo (inclusive em Fonte de antes da migração 0022) não
+    // conta como atualização, para a segunda carga seguir com atualizados=0.
+    await c.query(
+      `update acervo.fonte set hash_ultima_carga = $1, valores_arquivo = $2::jsonb, publicada_arquivo = $3,
+         conflito_carga = '{}'
+       where id = $4 and (hash_ultima_carga is distinct from $1 or valores_arquivo is distinct from $2::jsonb
+         or publicada_arquivo is distinct from $3 or conflito_carga <> '{}')`,
+      [hashNovo, JSON.stringify(novosValores), fonte.publicada, fonteId],
+    );
+  }
+
   const querParagrafos = derivado.secoes.flatMap((s) =>
     s.paragrafos.map((p, i) => ({
       id: `${fonte.slug}/${p.ref}`,
@@ -261,14 +410,6 @@ async function carregarUma(
     })),
   );
 
-  const secoesAtuais = new Map(
-    (
-      await c.query<LinhaSecao>(
-        "select id, ordem, titulo, resumo_pt, palavras_chave_pt from acervo.fonte_secao where fonte_id = $1",
-        [fonteId],
-      )
-    ).rows.map((r) => [r.id, r]),
-  );
   const paragrafosAtuais = new Map(
     (
       await c.query<LinhaParagrafo>(
@@ -318,6 +459,12 @@ async function carregarUma(
     ]);
   for (const s of querSecoes) {
     const a = secoesAtuais.get(s.id);
+    const valoresS: ValoresDaSecao = {
+      titulo: s.titulo,
+      resumo_pt: s.resumo,
+      palavras_chave_pt: s.palavras,
+    };
+    const hashS = hashDaSecao(valoresS);
     if (!a) total.secoes.inseridos++;
     else if (
       a.ordem === s.ordem &&
@@ -327,14 +474,32 @@ async function carregarUma(
       a.palavras_chave_pt.every((v, i) => v === s.palavras[i])
     ) {
       total.secoes.inalterados++;
+      // Registro da última carga (também para seção de antes da 0022); não conta como atualização.
+      await c.query(
+        `update acervo.fonte_secao set hash_ultima_carga = $1, valores_arquivo = $2::jsonb
+          where id = $3 and (hash_ultima_carga is distinct from $1 or valores_arquivo is distinct from $2::jsonb)`,
+        [hashS, JSON.stringify(valoresS), s.id],
+      );
       continue;
     } else total.secoes.atualizados++;
     await c.query(
-      `insert into acervo.fonte_secao (id, fonte_id, slug, ordem, titulo, resumo_pt, palavras_chave_pt)
-       values ($1, $2, $3, $4, $5, $6, $7)
+      `insert into acervo.fonte_secao (id, fonte_id, slug, ordem, titulo, resumo_pt, palavras_chave_pt,
+         hash_ultima_carga, valores_arquivo)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
        on conflict (id) do update set ordem = excluded.ordem, titulo = excluded.titulo,
-         resumo_pt = excluded.resumo_pt, palavras_chave_pt = excluded.palavras_chave_pt`,
-      [s.id, fonteId, s.slug, s.ordem, s.titulo, s.resumo, s.palavras],
+         resumo_pt = excluded.resumo_pt, palavras_chave_pt = excluded.palavras_chave_pt,
+         hash_ultima_carga = excluded.hash_ultima_carga, valores_arquivo = excluded.valores_arquivo`,
+      [
+        s.id,
+        fonteId,
+        s.slug,
+        s.ordem,
+        s.titulo,
+        s.resumo,
+        s.palavras,
+        hashS,
+        JSON.stringify(valoresS),
+      ],
     );
   }
 
@@ -474,6 +639,10 @@ export async function executarCarga(
     escrever(
       `inseridos=${resultado.inseridos} atualizados=${resultado.atualizados} inalterados=${resultado.inalterados} removidos=${resultado.removidos}`,
     );
+    for (const c of resultado.conflitos)
+      escrever(
+        `conflito: ${c.slug} foi editada no painel (${c.campos.join(", ")}); a carga não a tocou e nada foi sobrescrito. No painel: "Reverter ao arquivo", ou atualize o arquivo e rode a carga de novo.`,
+      );
     escrever(
       `fontes=${itens.length} secoes=${resultado.secoes.inseridos + resultado.secoes.atualizados + resultado.secoes.inalterados} paragrafos=${resultado.paragrafos.inseridos + resultado.paragrafos.atualizados + resultado.paragrafos.inalterados}`,
     );
@@ -481,6 +650,11 @@ export async function executarCarga(
   } finally {
     await cliente.end().catch(() => {});
   }
+}
+
+/** 0 limpo; 3 quando ao menos uma Fonte foi recusada por edição no painel (a carga do resto aconteceu). */
+export function codigoDeSaida(r: ResultadoDoComando): number {
+  return r.resultado && r.resultado.conflitos.length > 0 ? CODIGO_DE_CONFLITO : 0;
 }
 
 function lerOpcoes(argumentos: string[]): OpcoesDoComando {
@@ -503,7 +677,7 @@ function lerOpcoes(argumentos: string[]): OpcoesDoComando {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   executarCarga(lerOpcoes(process.argv.slice(2))).then(
-    () => process.exit(0),
+    (r) => process.exit(codigoDeSaida(r)),
     (erro) => {
       // Só erro nosso mostra texto; o resto vai só com código e classe (a URL do banco é segredo).
       if (erro instanceof ErroDerivado || erro instanceof ErroContrato || erro instanceof ErroCarga)

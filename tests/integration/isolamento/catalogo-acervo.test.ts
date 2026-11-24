@@ -48,6 +48,14 @@ const FUNCOES_DE_EVIDENCIA = [
   "acervo.verificar_ficha(uuid, uuid, text)",
 ] as const;
 
+// As quatro funções de escrita do painel de Fontes (plano 17, migração 0022): só o aplicativo executa.
+const FUNCOES_DO_PAINEL = [
+  "acervo.salvar_fonte(uuid, jsonb)",
+  "acervo.salvar_secao_painel(uuid, text, jsonb)",
+  "acervo.salvar_resumo_secao(uuid, text, text, text[])",
+  "acervo.reverter_fonte(uuid, text, text[])",
+] as const;
+
 type Consulta = (sql: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
 
 /** Nomes das tabelas do esquema `acervo`, lidos do catálogo. */
@@ -203,6 +211,34 @@ describe("catálogo: toda tabela do Acervo está classificada", () => {
          from pg_class c where c.oid = 'admin.registro_verificacao'::regclass`,
     );
     expect(registro.rows[0]).toEqual({ ativa: true, politica: true });
+  });
+
+  it("as funções de escrita do painel existem com execute só para jnf_app (nunca carga, assistente nem o público)", async () => {
+    for (const assinatura of FUNCOES_DO_PAINEL) {
+      const r = await consultarNoPool(
+        `select p as papel, has_function_privilege(p, $1::regprocedure, 'execute') as pode
+           from unnest($2::text[]) as p`,
+        [assinatura, [...PAPEIS]],
+      );
+      expect(Object.fromEntries(r.rows.map((l) => [String(l.papel), l.pode])), assinatura).toEqual({
+        jnf_carga: false,
+        jnf_app: true,
+        jnf_assistente: false,
+      });
+      const publico = await consultarNoPool(
+        `select exists (
+           select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+            where p.oid = $1::regprocedure and a.grantee = 0 and a.privilege_type = 'EXECUTE') as pode`,
+        [assinatura],
+      );
+      expect(publico.rows[0]?.pode, `${assinatura}: público`).toBe(false);
+      const definidora = await consultarNoPool(
+        `select prosecdef as definidora, pg_get_userbyid(proowner) as dono
+           from pg_proc where oid = $1::regprocedure`,
+        [assinatura],
+      );
+      expect(definidora.rows[0], assinatura).toEqual({ definidora: true, dono: "jnf_migra" });
+    }
   });
 
   it("nenhum papel da aplicação tem truncate em tabela alguma do Acervo", async () => {
