@@ -385,6 +385,31 @@ export const TELAS: Tela[] = [
       ).toBeVisible();
     },
   },
+  // Acervo: busca (plano 02-07)
+  {
+    id: "acervo-busca",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/acervo/busca");
+      await h1(page, "Buscar no Acervo");
+      await expect(page.getByRole("radiogroup", { name: "Nível de fonte" })).toBeVisible();
+    },
+  },
+  {
+    id: "acervo-busca-populada",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/acervo/busca");
+      await h1(page, "Buscar no Acervo");
+      const buscar = page.getByRole("button", { name: "Buscar", exact: true });
+      await esperarHidratado(buscar);
+      await page.getByRole("searchbox", { name: "Buscar no Acervo" }).fill("pilatos");
+      await buscar.click();
+      await expect(page.locator('[data-slot="resultado-busca"]').first()).toBeVisible();
+    },
+  },
   // Acervo: Fonte e seção (plano 02-06)
   {
     id: "acervo-fonte",

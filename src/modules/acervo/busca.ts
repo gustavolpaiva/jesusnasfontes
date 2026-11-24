@@ -58,7 +58,9 @@ export type PedidoDeBusca = {
 };
 
 const VAZIA: PaginaDeBusca = { resultados: [], total: 0, restante: 0, proximo: null };
-const OPCOES_DO_TRECHO = `StartSel=${MARCA_INICIO}, StopSel=${MARCA_FIM}, MaxWords=35, MinWords=15, MaxFragments=1`;
+// O trecho tem no máximo 30 palavras (cerca de 3 linhas na coluna de leitura): o teto é do banco, não do CSS. Um
+// `line-clamp` cortaria texto em 320 px no passo 5 do tamanho do texto, que a regra de reflow da fase (UI-03) proíbe.
+const OPCOES_DO_TRECHO = `StartSel=${MARCA_INICIO}, StopSel=${MARCA_FIM}, MaxWords=30, MinWords=12, MaxFragments=1`;
 const MARCAS = `${MARCA_INICIO}${MARCA_FIM}`;
 
 type Linha = {

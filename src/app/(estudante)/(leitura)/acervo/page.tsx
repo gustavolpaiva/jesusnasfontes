@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CampoBuscaAcervo } from "@/components/acervo/campo-busca-acervo";
 import { ErroDoAcervo } from "@/components/acervo/erro-do-acervo";
 import { FiltroNivel } from "@/components/acervo/filtro-nivel";
 import { LinhaFonte } from "@/components/acervo/linha-fonte";
@@ -71,6 +72,7 @@ export default async function PaginaDoAcervo({
     <div className="coluna-leitura flex flex-col gap-6">
       <h1 className="text-display">Acervo</h1>
       <p className="text-leitura">{LEDE}</p>
+      <CampoBuscaAcervo />
       {aviso ? (
         <StatusMessage tipo="informacao">
           Não há Fontes neste Nível ainda. Mostramos todas.
