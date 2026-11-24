@@ -15,22 +15,25 @@ export type Modo = "cadastro" | "verificacao" | "verificado";
 export function FluxoSegundoFator({
   modo,
   material,
+  retorno = null,
 }: {
   modo: Modo;
   material: { uri: string; chave: string } | null;
+  /** Caminho já validado no servidor (lista fechada); `null` = a administração. */
+  retorno?: string | null;
 }) {
   const [ativacao, ativar, ativando] = useActionState(ativarSegundoFator, INICIAL);
   if (ativacao.codigos) return <CodigosRecuperacao codigos={ativacao.codigos} />;
   if (modo === "cadastro") {
     return <Cadastro material={material} estado={ativacao} acao={ativar} pendente={ativando} />;
   }
-  if (modo === "verificacao") return <Verificacao />;
+  if (modo === "verificacao") return <Verificacao retorno={retorno} />;
   return (
     <div className="coluna-leitura flex flex-col gap-4">
       <h1 className="text-display">Segundo fator</h1>
       <p className="text-leitura">Você já confirmou o segundo fator nesta sessão.</p>
-      <a href="/admin" className="text-ui min-h-11 self-start underline">
-        Ir para a administração
+      <a href={retorno ?? "/admin"} className="text-ui min-h-11 self-start underline">
+        {retorno ? "Voltar à ficha" : "Ir para a administração"}
       </a>
     </div>
   );

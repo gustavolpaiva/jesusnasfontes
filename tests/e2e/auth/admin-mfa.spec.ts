@@ -373,6 +373,8 @@ const EXEMPLOS: Record<string, string> = {
   // Painel de Fontes do Admin (plano 02-17): a Fonte do arquivo e a seção do recorte do Josefo.
   "/admin/acervo/fontes/[slug]": "/admin/acervo/fontes/josefo-antiguidades",
   "/admin/acervo/fontes/[slug]/secoes/[id]": "/admin/acervo/fontes/josefo-antiguidades/secoes/18",
+  // Painel de fichas do Admin (plano 02-18): o detalhe de uma ficha (a página redireciona antes de ler o banco).
+  "/admin/acervo/fichas/[slug]": "/admin/acervo/fichas/ficha-de-exemplo",
 };
 
 function rotasDoApp(): string[] {

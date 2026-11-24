@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
-import { listarFontesDoPainel } from "@/modules/acervo/consultas-admin";
+import {
+  filaDeFichas,
+  listarFontesDoPainel,
+  pendentesDaFila,
+} from "@/modules/acervo/consultas-admin";
 import { listarConvites } from "@/modules/convites/consultas";
 import { exigirAdmin } from "@/modules/identidade/sessao";
 
@@ -23,8 +27,8 @@ async function contar<T>(
 }
 
 export default async function PaginaAdministracao() {
-  await exigirAdmin();
-  const [convites, fontes] = await Promise.all([
+  const sessao = await exigirAdmin();
+  const [convites, fontes, fichas] = await Promise.all([
     contar(listarConvites, (l) => {
       const n = l.filter((c) => c.estado === "pendente").length;
       return n === 0 ? "Nenhuma pendência" : plural(n, "convite pendente", "convites pendentes");
@@ -35,16 +39,24 @@ export default async function PaginaAdministracao() {
         ? "Nenhuma pendência"
         : plural(n, "Fonte em conflito com a carga", "Fontes em conflito com a carga");
     }),
+    contar(
+      () => filaDeFichas(sessao.sessao.id),
+      (fila) => {
+        const n = pendentesDaFila(fila);
+        return n === 0 ? "Nenhuma pendência" : plural(n, "ficha a verificar", "fichas a verificar");
+      },
+    ),
   ]);
   const areas = [
     { href: "/admin/convites", rotulo: "Convites", meta: convites },
     { href: "/admin/acervo/fontes", rotulo: "Fontes", meta: fontes },
+    { href: "/admin/acervo/fichas", rotulo: "Fichas a verificar", meta: fichas },
   ];
   return (
     <div className="coluna-leitura flex flex-col gap-6">
       <h1 className="text-display">Administração</h1>
       <p className="text-leitura">
-        Convide e acompanhe as pessoas do grupo e cuide das Fontes do Acervo.
+        Convide e acompanhe as pessoas do grupo, cuide das Fontes do Acervo e verifique as fichas.
       </p>
       <ul className="flex flex-col border-y border-rule" data-slot="areas-de-administracao">
         {areas.map((a) => (

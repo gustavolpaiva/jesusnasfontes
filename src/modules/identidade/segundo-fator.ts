@@ -8,6 +8,7 @@ import { sessao } from "@/db/schema/entrada";
 import { obterAuth } from "@/lib/auth";
 import { registrarErro } from "@/lib/registro";
 import { conferirCodigo } from "./conferencia";
+import { destinoDepoisDoSegundoFator } from "./retorno-segundo-fator";
 import { exigirPrimeiroFatorDeAdmin } from "./sessao";
 import {
   estadoDoCadastro,
@@ -70,7 +71,10 @@ async function conferir(
   formData: FormData,
 ): Promise<ResultadoSegundoFator> {
   const atual = await exigirPrimeiroFatorDeAdmin();
-  if (atual.segundoFatorVerificado) redirect("/admin");
+  // Para onde voltar: o campo `retorno` só vale se for um caminho interno da lista fechada (T-02-47); senão, a
+  // administração. É entrada não confiável, validada aqui no servidor e nunca repassada como veio.
+  const destino = destinoDepoisDoSegundoFator(formData.get("retorno"));
+  if (atual.segundoFatorVerificado) redirect(destino);
   const bruto = String(formData.get("codigo") ?? "");
   const codigo = alvo === "aplicativo" ? bruto.replace(/\s/g, "") : bruto.trim();
   const formatoOk =
@@ -115,7 +119,7 @@ async function conferir(
     registrarErro("segundo-fator-conferir", erro);
     return { resultado: "falha" };
   }
-  redirect("/admin");
+  redirect(destino);
 }
 
 // Ativação (primeiro acesso): confere o código do aplicativo recém-cadastrado e devolve os códigos

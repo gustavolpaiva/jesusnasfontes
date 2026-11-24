@@ -15,7 +15,7 @@ import { mensagemDoResultado } from "./mensagem";
 
 const INICIAL: ResultadoSegundoFator = {};
 
-export function Verificacao() {
+export function Verificacao({ retorno = null }: { retorno?: string | null }) {
   const [recuperacao, setRecuperacao] = useState(false);
   const [codigo, setCodigo] = useState("");
   const [estadoApp, acaoApp, pendenteApp] = useActionState(verificarSegundoFator, INICIAL);
@@ -46,6 +46,7 @@ export function Verificacao() {
       </p>
       {recuperacao ? (
         <form action={acaoRec} className="flex flex-col gap-4">
+          {retorno ? <input type="hidden" name="retorno" value={retorno} /> : null}
           <Field>
             <FieldLabel htmlFor="codigo-recuperacao">Código de recuperação</FieldLabel>
             <Input
@@ -70,6 +71,7 @@ export function Verificacao() {
         </form>
       ) : (
         <form action={acaoApp} className="flex flex-col gap-4">
+          {retorno ? <input type="hidden" name="retorno" value={retorno} /> : null}
           <Field>
             <FieldLabel htmlFor="codigo-verificar">Código de 6 dígitos</FieldLabel>
             <InputOTP

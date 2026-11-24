@@ -1,6 +1,7 @@
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { comAdmin } from "@/db/com-admin";
 import { ErroDeBanco } from "@/db/erro-banco";
+import { conferenciaItem, ficha, fichaItem, verificacaoFicha } from "@/db/schema/acervo-ficha";
 import { ConteudoMudou, EdicaoNaoConfirmada, FaltamPaginas, SegundoFatorVencido } from "./erros";
 
 // As duas únicas portas que gravam evidência de verificação (ACER-07, D-02, D-03). Cada uma chama uma função do banco
@@ -57,6 +58,78 @@ export async function verificarFicha(
       await tx.execute(
         sql`select acervo.verificar_ficha(${sessaoId}::uuid, ${fichaId}::uuid, ${hash})`,
       );
+    });
+  } catch (erro) {
+    throw traduzirErroDeVerificacao(erro);
+  }
+}
+
+/**
+ * O que o painel (plano 02-18) usa: confere o item SÓ se a conferência do hash que o Admin viu ainda não existe. Uma
+ * segunda aba que confere o mesmo item não regrava nada (a data da primeira conferência continua valendo). Devolve
+ * `true` se gravou, `false` se já estava conferido para este hash. A recusa de hash velho (40001) continua sendo do
+ * banco, que trava o item.
+ */
+export async function conferirItemUmaVez(
+  sessaoId: string,
+  itemId: string,
+  hash: string,
+): Promise<boolean> {
+  try {
+    return await comAdmin(sessaoId, async (tx) => {
+      // Só "já conferido" se a conferência é do hash que o Admin viu E esse ainda é o hash do item: hash velho vai ao
+      // banco, que o recusa (40001).
+      const ja = await tx
+        .select({ itemHash: conferenciaItem.itemHash, atual: fichaItem.conteudoHash })
+        .from(conferenciaItem)
+        .innerJoin(fichaItem, eq(fichaItem.id, conferenciaItem.itemId))
+        .where(eq(conferenciaItem.itemId, itemId));
+      if (ja[0]?.itemHash === hash && ja[0].atual === hash) return false;
+      await tx.execute(sql`select acervo.conferir_item(${sessaoId}::uuid, ${itemId}, ${hash})`);
+      return true;
+    });
+  } catch (erro) {
+    throw traduzirErroDeVerificacao(erro);
+  }
+}
+
+export type ResultadoDeVerificarUmaVez =
+  | { gravou: true; verificadaEm: Date }
+  | { gravou: false; verificadaEm: Date };
+
+/**
+ * Verifica a ficha SÓ se ela ainda não está verificada para o hash que o Admin viu. Uma segunda aba que verifica a mesma
+ * ficha recebe `gravou: false` com a data da primeira, e nada é regravado. O hash velho (40001), as páginas faltantes
+ * (P0001), a edição "A confirmar" (P0002) e o segundo fator vencido (42501) continuam sendo decisão do banco.
+ */
+export async function verificarFichaUmaVez(
+  sessaoId: string,
+  fichaId: string,
+  hash: string,
+): Promise<ResultadoDeVerificarUmaVez> {
+  try {
+    return await comAdmin(sessaoId, async (tx) => {
+      // "Já verificada" só vale se a verificação é do hash que o Admin viu E esse ainda é o hash da ficha: hash velho
+      // vai ao banco, que o recusa (40001).
+      const ja = await tx
+        .select({
+          fichaHash: verificacaoFicha.fichaHash,
+          verificadaEm: verificacaoFicha.verificadaEm,
+          atual: ficha.conteudoHash,
+        })
+        .from(verificacaoFicha)
+        .innerJoin(ficha, eq(ficha.fonteId, verificacaoFicha.fichaId))
+        .where(eq(verificacaoFicha.fichaId, fichaId));
+      if (ja[0]?.fichaHash === hash && ja[0].atual === hash)
+        return { gravou: false, verificadaEm: ja[0].verificadaEm };
+      await tx.execute(
+        sql`select acervo.verificar_ficha(${sessaoId}::uuid, ${fichaId}::uuid, ${hash})`,
+      );
+      const agora = await tx
+        .select({ verificadaEm: verificacaoFicha.verificadaEm })
+        .from(verificacaoFicha)
+        .where(eq(verificacaoFicha.fichaId, fichaId));
+      return { gravou: true, verificadaEm: agora[0]?.verificadaEm ?? new Date() };
     });
   } catch (erro) {
     throw traduzirErroDeVerificacao(erro);

@@ -1,0 +1,53 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { conferirItemAction } from "@/modules/acervo/acoes-ficha";
+import { MENSAGENS_FICHA, type ResultadoDeConferir } from "@/modules/acervo/painel-fichas";
+import { useConferencia } from "./estado-da-conferencia";
+
+// "Conferi no livro" (UI-SPEC tela 12): clique único, sem diálogo e sem desfazer. O ato é da pessoa que abriu o livro; o
+// texto do botão já é a declaração, e a decisão que vale só vem depois, em "Marcar como verificada". O que vai ao
+// servidor é a identidade do item e o hash que esta tela LEU: se o item mudou, o banco recusa e a tela pede para recarregar.
+
+export function ConferirBotao({
+  slug,
+  itemId,
+  hash,
+  paginaFalada,
+}: {
+  slug: string;
+  itemId: string;
+  hash: string;
+  /** "página 39 a 53": o nome acessível é "Conferi a página 39 a 53 no livro". */
+  paginaFalada: string;
+}) {
+  const { ocupado, executar, mostrarRecusa, pedirFocoNoProximo } = useConferencia();
+  async function aoClicar() {
+    if (ocupado) return;
+    mostrarRecusa(null);
+    const r = await executar(async (): Promise<ResultadoDeConferir> => {
+      try {
+        return await conferirItemAction({ slug, itemId, hash });
+      } catch (erro) {
+        // Redirecionamento e "não encontrado" do Next passam adiante; o resto é falha de rede.
+        if (erro instanceof Error && "digest" in erro) throw erro;
+        return { ok: false, motivo: "servidor", mensagem: MENSAGENS_FICHA.servidorConferir };
+      }
+    });
+    if (!r) return;
+    if (r.ok) pedirFocoNoProximo();
+    else mostrarRecusa(r);
+  }
+  return (
+    <Button
+      type="button"
+      variant="secondary"
+      data-slot="conferir-botao"
+      aria-label={`Conferi a ${paginaFalada} no livro`}
+      aria-disabled={ocupado || undefined}
+      onClick={aoClicar}
+    >
+      Conferi no livro
+    </Button>
+  );
+}

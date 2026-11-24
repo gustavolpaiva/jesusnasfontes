@@ -165,3 +165,66 @@ export async function removerFichas(sufixo: string): Promise<void> {
     await escrever("delete from acervo.fonte where slug = $1", [slug]);
   }
 }
+
+// ───────────────────────── fichas SEM verificar, para o painel do Admin (plano 02-18) ─────────────────────────
+//
+// O painel é onde o Admin confere e verifica; então aqui a ficha entra como RASCUNHO e NINGUÉM a verifica: quem confere e
+// verifica é o teste, pela tela, com um Admin de teste que tem segundo fator. Obra inventada (a mesma estrutura da
+// "completa": 4 itens com página), uma com a edição "A confirmar" e uma de uma página só (para o singular do motivo).
+
+export const FICHAS_PARA_CONFERIR = ["conferir", "confirmar", "umapagina"] as const;
+export type FichaParaConferir = (typeof FICHAS_PARA_CONFERIR)[number];
+export type SlugsParaConferir = Record<FichaParaConferir, string>;
+
+export const slugsParaConferir = (sufixo: string): SlugsParaConferir => ({
+  conferir: `ficha-conferir-${sufixo}`,
+  confirmar: `ficha-confirmar-${sufixo}`,
+  umapagina: `ficha-umapagina-${sufixo}`,
+});
+
+export const TITULOS_PARA_CONFERIR = (sufixo: string): Record<FichaParaConferir, string> => ({
+  conferir: `Obra a conferir ${sufixo}`,
+  confirmar: `Obra com edição a confirmar ${sufixo}`,
+  umapagina: `Obra de uma página ${sufixo}`,
+});
+
+function fichaParaConferir(slug: string, qual: FichaParaConferir, sufixo: string) {
+  const titulo = TITULOS_PARA_CONFERIR(sufixo)[qual];
+  if (qual === "umapagina") return { ...fichaPronta(slug, "enxuta"), titulo };
+  const completa = fichaPronta(slug, "completa");
+  return {
+    ...completa,
+    titulo,
+    ...(qual === "confirmar" ? { edicao_consultada: "A confirmar: edição de teste, 2001" } : {}),
+  };
+}
+
+export async function semearFichasParaConferir(sufixo: string): Promise<SlugsParaConferir> {
+  const slugs = slugsParaConferir(sufixo);
+  const fichas = FICHAS_PARA_CONFERIR.map((qual) =>
+    interpretarFichaYaml(
+      JSON.stringify(fichaParaConferir(slugs[qual], qual, sufixo)),
+      `${qual}.yaml`,
+    ),
+  );
+  const cliente = new pg.Client({
+    connectionString: urlDoPapel("carga", { agrupada: false }, process.env),
+  });
+  await cliente.connect();
+  try {
+    await carregarRascunhos(fichas, { cliente });
+  } finally {
+    await cliente.end().catch(() => {});
+  }
+  return slugs;
+}
+
+export async function removerFichasParaConferir(sufixo: string): Promise<void> {
+  for (const slug of Object.values(slugsParaConferir(sufixo))) {
+    await escrever(
+      "delete from acervo.ficha where fonte_id = (select id from acervo.fonte where slug = $1)",
+      [slug],
+    );
+    await escrever("delete from acervo.fonte where slug = $1", [slug]);
+  }
+}
