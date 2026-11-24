@@ -1,0 +1,37 @@
+# Fonte do Acervo: Carta de Barnabé, na tradução inglesa de Lightfoot (edição CCEL). Circula sob o nome de
+# Barnabé, o companheiro de Paulo; a pesquisa corrente não aceita a atribuição e trata a carta como anônima.
+# O texto vem do derivado `data/acervo-derivados/barnabe.json`, gerado por `pnpm acervo:derivar` a partir da
+# origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): do volume único de Lightfoot, a divisão ii.xiii.
+# O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: barnabe
+titulo: Carta de Barnabé
+autor: null
+epoca: fim do século I ou começo do II (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Carta em grego transmitida sob o nome de Barnabé, o companheiro de Paulo, e dirigida a destinatários
+  cristãos; a data é debatida, e a maior parte dos estudiosos a situa entre o fim do século I e o começo do
+  II. A atribuição não é aceita pela pesquisa corrente, que a trata como anônima. O texto grego completo
+  consta do Códice Sinaítico, e uma tradução latina antiga conserva os primeiros capítulos.
+secoes:
+  - slug: ii-xiii
+    titulo: Texto
+    resumo_pt: >-
+      Carta que saúda filhos e filhas em nome do Senhor e anuncia a proximidade da última ofensa, citando
+      Enoque. Interpreta as instituições, os sacrifícios e os alimentos da lei de Moisés como figuras
+      espirituais destinadas aos cristãos, em leitura alegórica das escrituras hebraicas, e discute o
+      descanso do sétimo dia e o oitavo dia do Senhor. Fecha com o ensino das duas vias, a da luz e a das
+      trevas, e com a despedida em paz aos filhos do amor.
+    palavras_chave_pt: [Barnabé, alegoria, lei de Moisés, Enoque, oitavo dia, duas vias, via da luz]

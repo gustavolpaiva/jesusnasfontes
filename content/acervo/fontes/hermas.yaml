@@ -1,0 +1,47 @@
+# Fonte do Acervo: O Pastor de Hermas, na tradução inglesa de Lightfoot (edição CCEL). A obra é uma sequência
+# de visões narradas por Hermas; o ThML da origem a traz numa divisão única, sem separar visões, mandamentos
+# e parábolas (plano 02-10). O texto vem do derivado `data/acervo-derivados/hermas.json`, gerado por
+# `pnpm acervo:derivar` a partir da origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): do volume
+# único de Lightfoot, a divisão ii.xiv. O resumo auxiliar é escrita automática de busca (D-18) e nunca
+# substitui o texto.
+slug: hermas
+titulo: O Pastor de Hermas
+autor: Hermas
+epoca: primeira metade do século II (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+# Teto próprio de seção (Pitfall 9): a seção é a OBRA inteira — uma divisão só no volume de Lightfoot, que não
+# separa visões, mandamentos e parábolas. O maior texto medido tem 202.780 caracteres; o teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 210000
+  motivo: >-
+    a seção é a obra inteira do Pastor, uma divisão única do volume de Lightfoot (o ThML da origem não separa
+    visões, mandamentos e parábolas); o texto medido tem 202.780 caracteres (medido no derivado, plano 02-10)
+limites_pt: >-
+  Obra escrita em grego, em Roma, que narra em primeira pessoa as visões de Hermas, um antigo escravo, com as
+  explicações que uma senhora e depois um pastor lhe dão; a maior parte dos estudiosos a data na primeira
+  metade do século II. É um escrito de exortação e chamado ao arrependimento, em linguagem simbólica, não um
+  relato de fatos. Foi muito copiado na antiguidade, e chegou por manuscritos gregos incompletos, por versões
+  latinas antigas e por uma versão etíope.
+secoes:
+  - slug: ii-xiv
+    titulo: Texto
+    resumo_pt: >-
+      Narração em primeira pessoa das visões de Hermas, desde o encontro com Roda, em Roma, e a leitura de um
+      livrinho que ele copia e reparte. Uma senhora lhe mostra a torre em construção, que o pastor explica ser
+      a igreja, com as pedras que entram e as que são postas de lado, e um anjo de penitência entrega a Hermas
+      mandamentos e parábolas — as varas, as montanhas e as virgens — com a exortação a arrependimento enquanto
+      a torre ainda se edifica. A obra pede repetidamente obras boas e perseverança aos que já foram batizados,
+      e fecha com a partida do pastor e das virgens.
+    palavras_chave_pt: [Hermas, visões, pastor, torre, igreja, arrependimento, mandamentos, parábolas, Roda]

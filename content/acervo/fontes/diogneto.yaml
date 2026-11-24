@@ -1,0 +1,38 @@
+# Fonte do Acervo: Carta a Diogneto, na tradução inglesa de Lightfoot (edição CCEL). Apologia anônima
+# endereçada a um destinatário pagão de nome grego; o autor não se identifica.
+# O texto vem do derivado `data/acervo-derivados/diogneto.json`, gerado por `pnpm acervo:derivar` a partir da
+# origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): do volume único de Lightfoot, a divisão ii.xv.
+# O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: diogneto
+titulo: Carta a Diogneto
+autor: null
+epoca: século II (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Apologia anônima em grego, endereçada ao excelentíssimo Diogneto, que pergunta em que Deus crêem os
+  cristãos e como os adoram; a data é incerta e situada no século II. Contrasta o culto cristão com os deuses
+  dos gregos e com a observância judaica, e apresenta a vida dos cristãos no mundo pela imagem da alma no
+  corpo. Foi preservada por um único manuscrito, destruído em 1870, e sobrevive pelas cópias feitas antes.
+secoes:
+  - slug: ii-xv
+    titulo: Texto
+    resumo_pt: >-
+      Resposta ao questionário de Diogneto sobre a religião dos cristãos: rejeita os deuses dos gregos,
+      feitos de matéria e guardados por homens, e a observância judaica das luas e dos sábados, entendida como
+      superstição. Descreve os cristãos como estrangeiros em cada terra, espalhados pelas cidades como a alma
+      pelos membros do corpo, perseguidos e condenados às feras sem negar o Senhor, e expõe o envio do Filho
+      por parte de Deus, quando a iniquidade se cumpria. Encerra com a exortação ao conhecimento verdadeiro e
+      à prática dos mandamentos que levam à vida.
+    palavras_chave_pt: [Diogneto, apologia, cristãos, alma no corpo, deuses gregos, superstição judaica, Filho de Deus]
