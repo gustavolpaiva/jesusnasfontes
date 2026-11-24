@@ -173,7 +173,7 @@ describe("interpretarOrigem: formato registrado e ainda sem parser", () => {
 
 // ---- formato do plano 02-08: ThML (CCEL) ----
 const maraThml = ler("ccel-anf08-mara.xml");
-const SCHAFF_THML = { tradutores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" };
+const SCHAFF_THML = { editores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" };
 
 describe("interpretarOrigem: thml (CCEL)", () => {
   it("confere o DC.Rights e devolve seções, parágrafos com id da edição, notas à parte e a editora lida", () => {

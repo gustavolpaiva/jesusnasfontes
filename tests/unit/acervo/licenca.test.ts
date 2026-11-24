@@ -297,7 +297,7 @@ describe("exigirDedicacaoDominioPublico: a dedicação do tradutor, lida na pág
 // ───────────────────────── ThML (CCEL): DC.Rights no cabeçalho do próprio arquivo ─────────────────────────
 const mara = readFileSync(path.join(FIXTURES, "ccel-anf08-mara.xml"), "utf8");
 const lightfoot = readFileSync(path.join(FIXTURES, "ccel-lightfoot-trecho.xml"), "utf8");
-const SCHAFF = { tradutores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" };
+const SCHAFF = { editores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" };
 
 describe("exigirLicencaThml: DC.Rights lido no cabeçalho do próprio arquivo (D-06)", () => {
   it("lê DC.Rights, DC.Publisher, os nomes do DC e as datas do cabeçalho real do ANF 8", () => {
@@ -374,19 +374,45 @@ describe("exigirLicencaThml: DC.Rights lido no cabeçalho do próprio arquivo (D
       "<ThML.head><DC><DC.Creator>Outro, Autor</DC.Creator><DC.Rights>Public Domain</DC.Rights></DC></ThML.head>";
     const c = mara.replace("</ThML.head>", `</ThML.head><ThML.body><div1>${interno}</div1>`);
     expect(() =>
-      exigirLicencaThml(c, { tradutores: ["Outro, Autor"], licenca: "Public Domain" }),
+      exigirLicencaThml(c, { editores: ["Outro, Autor"], licenca: "Public Domain" }),
     ).toThrow(/Outro, Autor/);
   });
 
   it("nome esperado ausente do DC reprova, citando quem faltou", () => {
     expect(() =>
-      exigirLicencaThml(mara, { tradutores: ["Harmon, Austin Morris"], licenca: "Public Domain" }),
+      exigirLicencaThml(mara, { editores: ["Harmon, Austin Morris"], licenca: "Public Domain" }),
     ).toThrow(/Harmon, Austin Morris/);
+  });
+
+  it("lê o papel de cada nome do DC.Creator: Schaff é Editor, e os ids do CCEL não viram nome", () => {
+    const c = lerCabecalhoThml(mara);
+    expect(c.papeis).toContainEqual({ nome: "Schaff, Philip (1819-1893)", papel: "Editor" });
+    expect(c.papeis.some((p) => p.nome === "schaff")).toBe(false);
+  });
+
+  it("editor registrado que o cabeçalho marca como Translator reprova; tradutor registrado exige o papel Translator", () => {
+    const comTradutor = mara.replace(
+      '<DC.Creator scheme="file-as" sub="Editor">Schaff, Philip (1819-1893)</DC.Creator>',
+      '<DC.Creator scheme="file-as" sub="Editor">Schaff, Philip (1819-1893)</DC.Creator><DC.Creator scheme="file-as" sub="Translator">Thelwall, S.</DC.Creator>',
+    );
+    expect(comTradutor).not.toBe(mara);
+    expect(() => exigirLicencaThml(comTradutor, SCHAFF)).not.toThrow();
+    // tradutor com o papel certo passa; o editor nunca vale como tradutor registrado
+    expect(() =>
+      exigirLicencaThml(comTradutor, { ...SCHAFF, tradutores: ["Thelwall, S."] }),
+    ).not.toThrow();
+    expect(() =>
+      exigirLicencaThml(comTradutor, { ...SCHAFF, tradutores: ["Schaff, Philip (1819-1893)"] }),
+    ).toThrow(/sem o papel Translator/);
+    // o contrário: o nome registrado como editor consta como Translator no cabeçalho
+    expect(() =>
+      exigirLicencaThml(comTradutor, { licenca: "Public Domain", editores: ["Thelwall, S."] }),
+    ).toThrow(/marca como Translator/);
   });
 
   it("o cabeçalho real de Lightfoot (com DOCTYPE) passa com o nome lido no arquivo", () => {
     const c = exigirLicencaThml(lightfoot, {
-      tradutores: ["Lightfoot, Joseph Barber (1828-1889)"],
+      editores: ["Lightfoot, Joseph Barber (1828-1889)"],
       licenca: "Public Domain",
     });
     expect(c.editora).toBe("Grand Rapids, MI: Christian Classics Ethereal Library");

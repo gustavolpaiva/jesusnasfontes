@@ -13,6 +13,7 @@ import {
   conferirFontes,
   conferirYaml,
   lerOpcoes,
+  nomeiaOEditor,
   tradutorConfere,
 } from "../../../scripts/acervo/conferir-fontes";
 import { extratoDaFonte } from "../../../scripts/acervo/extrato-fonte";
@@ -264,6 +265,166 @@ describe("regras do conferidor", () => {
     ]);
     const falhas = conferirFonte(fonte, { ...CONTEXTO, derivado });
     expect(falhas.some((f) => f.includes("teto-de-secao"))).toBe(false);
+  });
+});
+
+// Volume editado (CCEL): o cabeçalho só nomeia o EDITOR; quem traduziu cada obra está na introdução da edição.
+const SCHAFF = "Schaff, Philip (1819-1893)";
+const VOLUME = {
+  tradutores: [],
+  editores: [SCHAFF, "Menzies, Allan (1845-1916)"],
+  volume: "ccel-anf03",
+};
+
+describe("editor não é tradutor (ACER-04)", () => {
+  const conferirComTradutor = (
+    tradutor: string | null,
+    contexto: Parameters<typeof conferirFonte>[1],
+  ) => {
+    const fonte = fonteValida();
+    fonte.tradutor = tradutor;
+    fonte.licenca = "dp-declarado-pela-origem";
+    return conferirFonte(fonte, contexto).filter((f) => f.startsWith("tradutor"));
+  };
+
+  it("tradutor igual ao editor do volume reprova, nomeando a Fonte (pela linha) e o nome", () => {
+    const falhas = conferirComTradutor(SCHAFF, {
+      ...VOLUME,
+      evidenciaTradutor: "iii-p1",
+      derivado: derivadoValido(),
+    });
+    expect(falhas).toHaveLength(1);
+    expect(falhas[0]).toContain("tradutor-e-editor");
+    expect(falhas[0]).toContain(SCHAFF);
+    expect(falhas[0]).toContain("ccel-anf03");
+  });
+
+  it("o editor reprova mesmo com evidência para OUTRO nome, e em grafia por sobrenome", () => {
+    expect(
+      conferirComTradutor("Philip Schaff", {
+        ...VOLUME,
+        evidenciaTradutor: "iii-p1",
+        derivado: derivadoValido(),
+      })[0],
+    ).toContain("tradutor-e-editor");
+    expect(
+      conferirComTradutor("S. Thelwall com Allan Menzies", {
+        ...VOLUME,
+        evidenciaTradutor: "iii-p1",
+        derivado: derivadoValido(),
+      })[0],
+    ).toContain("Menzies");
+  });
+
+  it("tradutor com evidência (o da introdução, que não é editor) passa", () => {
+    expect(
+      conferirComTradutor("S. Thelwall", {
+        ...VOLUME,
+        evidenciaTradutor: "iv.iii-p1",
+        derivado: derivadoValido(),
+      }),
+    ).toEqual([]);
+  });
+
+  it("tradutor sem evidência reprova, mesmo não sendo editor", () => {
+    const falhas = conferirComTradutor("S. Thelwall", { ...VOLUME, derivado: derivadoValido() });
+    expect(falhas).toHaveLength(1);
+    expect(falhas[0]).toContain("tradutor-sem-evidencia");
+    expect(falhas[0]).toContain("S. Thelwall");
+  });
+
+  it("Fonte sem tradutor não reprova: o tradutor ausente é o estado honesto", () => {
+    expect(conferirComTradutor(null, { ...VOLUME, derivado: derivadoValido() })).toEqual([]);
+  });
+
+  it("editor que a evidência mostra ter traduzido a obra passa só quando listado em tradutor_tambem_editor", () => {
+    const base = { ...VOLUME, evidenciaTradutor: "iii-p1", derivado: derivadoValido() };
+    expect(conferirComTradutor(SCHAFF, { ...base, tradutorTambemEditor: [SCHAFF] })).toEqual([]);
+    expect(conferirComTradutor(SCHAFF, { ...base, tradutorTambemEditor: ["Outro"] })[0]).toContain(
+      "tradutor-e-editor",
+    );
+    // sem evidência a exceção não vale
+    expect(
+      conferirComTradutor(SCHAFF, {
+        ...VOLUME,
+        tradutorTambemEditor: [SCHAFF],
+        derivado: derivadoValido(),
+      }).some((f) => f.includes("tradutor-e-editor")),
+    ).toBe(true);
+  });
+
+  it("tradutor verificado no cabeçalho (origem TEI) dispensa a evidência de introdução", () => {
+    const fonte = fonteValida();
+    expect(
+      conferirFonte(fonte, { ...CONTEXTO, derivado: derivadoValido() }).filter((f) =>
+        f.startsWith("tradutor"),
+      ),
+    ).toEqual([]);
+  });
+
+  it("nomeiaOEditor casa pelo nome inteiro ou pelo sobrenome como palavra, sem acento nem caixa", () => {
+    expect(nomeiaOEditor("Schaff, Philip (1819-1893) e Menzies, Allan", SCHAFF)).toBe(true);
+    expect(nomeiaOEditor("P. SCHAFF", SCHAFF)).toBe(true);
+    expect(nomeiaOEditor("Alexander Roberts", "Roberts, Alexander (1826-1901)")).toBe(true);
+    expect(nomeiaOEditor("S. Thelwall", SCHAFF)).toBe(false);
+    expect(nomeiaOEditor("Schaffner", SCHAFF)).toBe(false);
+  });
+});
+
+describe("conferirFontes (arquivos): editor e evidência vêm do registro", () => {
+  const rodar = (mexer: (o: Record<string, unknown>) => void) => {
+    const raiz = pastaDeConferencia(true);
+    const caminho = path.join(raiz, "origens.yaml");
+    const origem = JSON.parse(JSON.stringify(ORIGEM_DE_TESTE)) as Record<string, unknown>;
+    mexer(origem);
+    writeFileSync(
+      caminho,
+      `origem-teste:\n${JSON.stringify(origem, null, 2)
+        .split("\n")
+        .map((l) => `  ${l}`)
+        .join("\n")}\n`,
+    );
+    return conferirFontes(["fonte-teste"], {
+      fontes: path.join(raiz, "fontes"),
+      derivados: path.join(raiz, "derivados"),
+      lock: path.join(raiz, "derivados.lock.json"),
+      origens: caminho,
+    });
+  };
+  const comoThml = (o: Record<string, unknown>) => {
+    o.formato = "thml";
+    o.verificador = { editores: ["Prado, Eva"], licenca: "Public Domain" };
+  };
+  const arquivo = (o: Record<string, unknown>) =>
+    (o.arquivos as Record<string, unknown>[])[0] ?? {};
+
+  it("volume ThML: tradutor sem evidencia_tradutor no registro reprova com código 1", () => {
+    const r = rodar(comoThml);
+    expect(r.codigo).toBe(1);
+    expect(
+      r.linhas.some((l) => l.startsWith("REPROVADO fonte-teste: tradutor-sem-evidencia")),
+    ).toBe(true);
+  });
+
+  it("volume ThML: com evidencia_tradutor, e o tradutor não sendo o editor, a Fonte passa", () => {
+    const r = rodar((o) => {
+      comoThml(o);
+      arquivo(o).evidencia_tradutor = "iv.iii-p1";
+    });
+    expect(r.linhas).toContain("OK fonte-teste");
+    expect(r.codigo).toBe(0);
+  });
+
+  it("volume ThML: o editor do registro no campo tradutor reprova mesmo com evidência", () => {
+    const r = rodar((o) => {
+      comoThml(o);
+      arquivo(o).evidencia_tradutor = "iv.iii-p1";
+      (o.verificador as Record<string, unknown>).editores = ["Souza, Bruno C."];
+    });
+    expect(r.codigo).toBe(1);
+    expect(
+      r.linhas.some((l) => l.includes("tradutor-e-editor") && l.includes("Souza, Bruno C.")),
+    ).toBe(true);
   });
 });
 

@@ -63,6 +63,21 @@ export type CabecalhoHtml = CabecalhoLido;
 export type CabecalhoThml = CabecalhoLido & {
   /** Editora lida no DC.Publisher. */
   editora: string;
+  /**
+   * Cada nome do DC.Creator com o papel que o cabeçalho lhe dá (`sub="Editor"`, `"Author"`, `"Translator"`…); papel
+   * ausente fica vazio. Ficam de fora os identificadores do próprio CCEL (`scheme="ccel"`, ex. "schaff"): não são nomes.
+   * Nos volumes ANF/NPNF o Schaff aparece como Editor: o cabeçalho do volume NÃO diz quem traduziu cada obra.
+   */
+  papeis: { nome: string; papel: string }[];
+};
+
+/** O que o registro espera do cabeçalho ThML: licença, editores do volume e (só se o cabeçalho os declara) tradutores. */
+export type ExigenciaThml = {
+  licenca: string;
+  /** Nomes que têm de estar entre os DC.Creator: o editor (ou responsável) do volume. */
+  editores: readonly string[];
+  /** Tradutores que o cabeçalho tem de marcar com o papel Translator (vazio na maioria dos volumes). */
+  tradutores?: readonly string[];
 };
 
 /** Janela onde o DC.Rights tem de estar: o cabeçalho principal do volume. */
@@ -74,15 +89,18 @@ export function lerCabecalhoThml(xml: string): CabecalhoThml {
   let direitos = "";
   let editora = "";
   const criadores = new Set<string>();
+  const papeis: { nome: string; papel: string }[] = [];
+  let papelAtual = "";
   const anos: string[] = [];
   let capturando: "direitos" | "editora" | "criador" | "ano" | null = null;
   let texto = "";
+  let esquemaAtual = "";
   // 0 = ainda não abriu o cabeçalho do documento; 1 = dentro dele; 2 = fechado (nada mais é lido).
   let cabecalho: 0 | 1 | 2 = 0;
 
   const parser = new Parser(
     {
-      onopentag(nome) {
+      onopentag(nome, atributos) {
         if (nome === "ThML.head") {
           if (cabecalho === 0) cabecalho = 1;
           return;
@@ -102,6 +120,8 @@ export function lerCabecalhoThml(xml: string): CabecalhoThml {
         } else if (nome === "DC.Creator") {
           capturando = "criador";
           texto = "";
+          papelAtual = compactar(atributos.sub ?? "");
+          esquemaAtual = atributos.scheme ?? "";
         } else if (nome === "DC.Date") {
           capturando = "ano";
           texto = "";
@@ -125,7 +145,14 @@ export function lerCabecalhoThml(xml: string): CabecalhoThml {
           if (!editora && t) editora = t;
           capturando = null;
         } else if (capturando === "criador" && nome === "DC.Creator") {
-          if (t) criadores.add(t);
+          if (t) {
+            criadores.add(t);
+            if (
+              esquemaAtual !== "ccel" &&
+              !papeis.some((p) => p.nome === t && p.papel === papelAtual)
+            )
+              papeis.push({ nome: t, papel: papelAtual });
+          }
           capturando = null;
         } else if (capturando === "ano" && nome === "DC.Date") {
           if (t) anos.push(t);
@@ -145,16 +172,18 @@ export function lerCabecalhoThml(xml: string): CabecalhoThml {
     anos,
     avisoEditorial: "",
     editora,
+    papeis,
   };
 }
 
 /**
  * Confere o cabeçalho ThML contra o que o registro espera: o DC.Rights tem de existir e ser EXATAMENTE o
- * esperado ("Public Domain"; outro valor reprova citando o lido), e cada nome esperado tem de estar entre
- * os DC.Creator (o editor Schaff nos volumes ANF/NPNF; Lightfoot na coleção dele). Sem DC.Rights, a licença
+ * esperado ("Public Domain"; outro valor reprova citando o lido), e cada EDITOR registrado tem de estar entre
+ * os DC.Creator (o editor Schaff nos volumes ANF/NPNF; Lightfoot na coleção dele). O editor NUNCA prova quem
+ * traduziu: tradutor só entra aqui se o cabeçalho o marca como Translator (NPNF2-01, McGiffert). Sem DC.Rights, a licença
  * não está provada na origem (`ErroLicenca` com o código `sem_declaracao`), nunca é "aviso".
  */
-export function exigirLicencaThml(xml: string, exigencia: ExigenciaTei): CabecalhoThml {
+export function exigirLicencaThml(xml: string, exigencia: ExigenciaThml): CabecalhoThml {
   const cabecalho = lerCabecalhoThml(xml);
   if (!cabecalho.licenca)
     throw new ErroLicenca(
@@ -165,12 +194,27 @@ export function exigirLicencaThml(xml: string, exigencia: ExigenciaTei): Cabecal
     throw new ErroLicenca(
       `DC.Rights do cabeçalho não é o esperado (esperado "${exigencia.licenca}", lido "${cabecalho.licenca}")`,
     );
-  const faltam = exigencia.tradutores.filter(
-    (t) => !cabecalho.tradutores.some((lido) => normalizar(lido) === normalizar(t)),
-  );
+  const lidos = cabecalho.tradutores.map(normalizar);
+  const faltam = exigencia.editores.filter((e) => !lidos.includes(normalizar(e)));
   if (faltam.length > 0)
     throw new ErroLicenca(
-      `nome esperado ausente no DC do cabeçalho (esperado ${JSON.stringify([...exigencia.tradutores].sort())}, não achado ${JSON.stringify(faltam)})`,
+      `nome esperado ausente no DC do cabeçalho (esperado ${JSON.stringify([...exigencia.editores].sort())}, não achado ${JSON.stringify(faltam)})`,
+    );
+  // O editor registrado não pode constar no cabeçalho como tradutor: seria o registro dizendo "editor" do que o
+  // arquivo diz "tradutor" (o caso de McGiffert no NPNF). Tradutor registrado tem de ter o papel Translator.
+  const comPapel = (nome: string, papel: string) =>
+    cabecalho.papeis.some(
+      (p) => normalizar(p.nome) === normalizar(nome) && normalizar(p.papel) === papel,
+    );
+  const editorQueTraduz = exigencia.editores.filter((e) => comPapel(e, "translator"));
+  if (editorQueTraduz.length > 0)
+    throw new ErroLicenca(
+      `registrado como editor, mas o cabeçalho o marca como Translator: ${JSON.stringify(editorQueTraduz)}`,
+    );
+  const semPapel = (exigencia.tradutores ?? []).filter((t) => !comPapel(t, "translator"));
+  if (semPapel.length > 0)
+    throw new ErroLicenca(
+      `tradutor registrado sem o papel Translator no DC do cabeçalho: ${JSON.stringify(semPapel)}`,
     );
   return cabecalho;
 }

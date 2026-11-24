@@ -54,7 +54,7 @@ const origem = (arquivos: ArquivoOrigem[], mudar: Partial<OrigemAcervo> = {}): O
   publicavel: true,
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho",
   arquivos,
-  verificador: { tradutores: ["Lightfoot, Joseph Barber (1828-1889)"], licenca: "Public Domain" },
+  verificador: { editores: ["Lightfoot, Joseph Barber (1828-1889)"], licenca: "Public Domain" },
   esperado: {
     secoes: 3,
     paragrafos: [

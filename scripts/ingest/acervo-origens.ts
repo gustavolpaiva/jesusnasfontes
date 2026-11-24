@@ -87,6 +87,16 @@ const esquemaArquivo = z
     // INTEIRO continua conferido (`esperado` da origem, sobre o arquivo completo); só as divisões listadas
     // saem no derivado. Divisão listada e ausente no bruto reprova: typo nunca vira derivado menor em silêncio.
     divisoes: z.array(z.string().min(1)).min(1).optional(),
+    // EVIDÊNCIA do tradutor desta obra (volume editado de vários tradutores, como os do CCEL): a referência do
+    // parágrafo da introdução da edição que NOMEIA quem a traduziu. O `tradutor` do YAML da Fonte só vale com ela
+    // (`acervo:conferir`); o editor do volume nunca é prova de tradução.
+    evidencia_tradutor: z
+      .string()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, "referência de parágrafo inválida")
+      .optional(),
+    // Editor do volume que a evidência mostra ter traduzido ESTA obra também (Lightfoot, por exemplo): só os nomes
+    // aqui listados escapam da regra "editor não é tradutor", e só com `evidencia_tradutor` presente.
+    tradutor_tambem_editor: z.array(z.string().min(1)).min(1).optional(),
   })
   .strict();
 
@@ -114,13 +124,42 @@ const esquemaOrigem = z
     arquivos: z.array(esquemaArquivo).min(1),
     verificador: z
       .object({
-        tradutores: z.array(z.string().min(1)).min(1),
+        // Tradutores que o cabeçalho do próprio arquivo declara (TEI, Gutenberg, HTML; no ThML, o DC.Creator com
+        // papel Translator). Obrigatório fora do ThML: ali o cabeçalho do volume só nomeia o EDITOR.
+        tradutores: z.array(z.string().min(1)).optional(),
+        // Editores do volume (ThML: DC.Creator com papel Editor, ou o responsável do volume). Lista EXPLÍCITA por
+        // volume: quem está aqui nunca é tradutor de uma obra do volume sem evidência (`acervo:conferir`).
+        editores: z.array(z.string().min(1)).optional(),
         licenca: z.string().min(1),
       })
       .strict(),
     esperado: esquemaEsperado,
   })
-  .strict();
+  .strict()
+  .superRefine((o, ctx) => {
+    const v = o.verificador;
+    if (o.formato === "thml") {
+      if (!v.editores || v.editores.length === 0)
+        ctx.addIssue({
+          code: "custom",
+          path: ["verificador", "editores"],
+          message: "volume ThML exige a lista de editores do cabeçalho",
+        });
+    } else if (!v.tradutores || v.tradutores.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["verificador", "tradutores"],
+        message: "a origem exige os tradutores que o cabeçalho declara",
+      });
+    }
+    for (const [i, a] of o.arquivos.entries())
+      if (a.tradutor_tambem_editor && !a.evidencia_tradutor)
+        ctx.addIssue({
+          code: "custom",
+          path: ["arquivos", i, "tradutor_tambem_editor"],
+          message: "editor que também traduziu exige `evidencia_tradutor`",
+        });
+  });
 
 export type OrigemAcervo = z.infer<typeof esquemaOrigem>;
 export type ArquivoOrigem = OrigemAcervo["arquivos"][number];

@@ -49,6 +49,14 @@ export type ResultadoInterpretado = {
   divisoesSemParagrafo?: string[];
 };
 
+/** O registro de formato não-ThML sempre traz os tradutores do cabeçalho (o contrato da origem exige). */
+function exigenciaDeTradutores(config: ConfigInterpretar): {
+  tradutores: readonly string[];
+  licenca: string;
+} {
+  return { tradutores: config.verificador.tradutores ?? [], licenca: config.verificador.licenca };
+}
+
 /** Interpreta o conteúdo bruto de um arquivo de origem conforme o formato registrado. */
 export function interpretarOrigem(
   formato: string,
@@ -57,7 +65,7 @@ export function interpretarOrigem(
 ): ResultadoInterpretado {
   switch (formato) {
     case "tei": {
-      const cabecalho = exigirTraducaoTei(conteudo, config.verificador);
+      const cabecalho = exigirTraducaoTei(conteudo, exigenciaDeTradutores(config));
       const { secoes, notas } = parsearTei(conteudo, {
         rotuloLivro: config.rotuloLivro,
         tituloObraUnica: config.tituloObraUnica,
@@ -66,7 +74,7 @@ export function interpretarOrigem(
     }
     case "gutenberg": {
       // A licença vem das bordas do arquivo; só depois o corpo é lido.
-      const cabecalho = exigirLicencaGutenberg(conteudo, config.verificador);
+      const cabecalho = exigirLicencaGutenberg(conteudo, exigenciaDeTradutores(config));
       if (!config.gutenberg)
         throw new ErroOrigem(
           "formato gutenberg exige a estrutura da obra no registro: `estrutura` e `secoes` de cada arquivo",
@@ -78,7 +86,7 @@ export function interpretarOrigem(
       return { secoes, notas, cabecalho, ausentes, foraDaTabela };
     }
     case "html": {
-      const cabecalho = exigirDedicacaoDominioPublico(conteudo, config.verificador);
+      const cabecalho = exigirDedicacaoDominioPublico(conteudo, exigenciaDeTradutores(config));
       if (!config.html)
         throw new ErroOrigem("formato html exige `rotulo_unidade` no registro de cada arquivo");
       const { secoes, notas } = parsearHtml(conteudo, config.html);
@@ -86,7 +94,11 @@ export function interpretarOrigem(
     }
     case "thml": {
       // A licença vem do DC.Rights do cabeçalho; só depois o corpo é lido.
-      const cabecalho = exigirLicencaThml(conteudo, config.verificador);
+      const cabecalho = exigirLicencaThml(conteudo, {
+        licenca: config.verificador.licenca,
+        editores: config.verificador.editores ?? [],
+        tradutores: config.verificador.tradutores,
+      });
       if (!config.thml)
         throw new ErroOrigem(
           "formato thml exige `divisao_secao` no registro de cada arquivo (o nível de divisão que vira seção)",

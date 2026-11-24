@@ -1,8 +1,9 @@
 // `pnpm acervo:conferir [<slug>…]` — o conferidor dos YAML de Fonte do Acervo (plano 09, D-06, D-07, D-18).
 // Lê SÓ o YAML, o derivado versionado e o lock (nunca o bruto, nunca rede) e reprova: seção do derivado sem
 // resumo em português, resumo repetido, palavras-chave fora de 3 a 10, resumo fora de 40 a 700 caracteres,
-// resumo com "<" ou "http", licença fora do vocabulário fechado, tradutor diferente do verificado na origem e
-// seção acima do teto sem exceção registrada. Uma linha por Fonte: `OK <slug>` ou `REPROVADO <slug>: <regra>`.
+// resumo com "<" ou "http", licença fora do vocabulário fechado, tradutor diferente do verificado na origem,
+// tradutor que é EDITOR do volume (lista `verificador.editores` do registro), tradutor sem evidência
+// (`evidencia_tradutor` do arquivo no registro) e seção acima do teto sem exceção registrada. Uma linha por Fonte: `OK <slug>` ou `REPROVADO <slug>: <regra>`.
 // Sai 1 se alguma reprovar; 2 se uma Fonte `publicada: true` está sem derivado no lock.
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -78,12 +79,74 @@ export function tradutorConfere(tradutor: string, esperados: readonly string[]):
   return palavras.every((p) => CONECTIVOS_DO_TRADUTOR.has(p.toLocaleLowerCase("pt-BR")));
 }
 
+/** O sobrenome de um nome do registro ("Schaff, Philip (1819-1893)" ou "Philip Schaff"), sem acento e em minúsculas. */
+function sobrenomeDe(nome: string): string {
+  const semAnos = nome.replace(/\([^)]*\)/g, " ");
+  const virgula = semAnos.indexOf(",");
+  const bruto =
+    virgula >= 0
+      ? semAnos.slice(0, virgula)
+      : (semAnos.trim().split(/\s+/).filter(Boolean).pop() ?? "");
+  return bruto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+}
+
+/** O `tradutor` do YAML nomeia este editor (pelo nome inteiro ou pelo sobrenome como palavra)? */
+export function nomeiaOEditor(tradutor: string, editor: string): boolean {
+  if (casarSemEspaco(tradutor, editor)) return true;
+  const sobrenome = sobrenomeDe(editor);
+  if (sobrenome.length < 3) return false;
+  const palavras = tradutor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .split(/[^a-z]+/)
+    .filter(Boolean);
+  return palavras.includes(sobrenome);
+}
+
 export type ContextoDaConferencia = {
   /** Nomes lidos e verificados na origem (`verificador.tradutores` do registro). */
   tradutores: readonly string[];
+  /** Editores do volume (`verificador.editores`): nunca são tradutor sem evidência. */
+  editores?: readonly string[];
+  /** O volume (id da origem), para dizer de onde vem o editor na mensagem. */
+  volume?: string;
+  /** Referência do parágrafo da introdução que nomeia o tradutor (`evidencia_tradutor` do arquivo). */
+  evidenciaTradutor?: string | null;
+  /** Editores que a evidência mostra terem traduzido ESTA obra também (`tradutor_tambem_editor`). */
+  tradutorTambemEditor?: readonly string[];
   /** O derivado versionado da Fonte; `null` quando não há (Fonte não publicada sem derivado). */
   derivado: Derivado | null;
 };
+
+/**
+ * Editor do volume não é tradutor (o erro sistêmico de 24/11/2026: Schaff, Menzies e companhia no `tradutor` de obras
+ * do CCEL). Reprova o `tradutor` que nomeia um editor do volume, salvo o editor que a evidência da própria obra mostra
+ * ter traduzido; e reprova o `tradutor` sem evidência quando a origem não o verifica no cabeçalho.
+ */
+function falhasDeTradutorEEditor(tradutor: string, contexto: ContextoDaConferencia): string[] {
+  const falhas: string[] = [];
+  const volume = contexto.volume ? ` ${contexto.volume}` : "";
+  for (const editor of contexto.editores ?? []) {
+    if (!nomeiaOEditor(tradutor, editor)) continue;
+    const excecao =
+      Boolean(contexto.evidenciaTradutor) &&
+      (contexto.tradutorTambemEditor ?? []).some((e) => e === editor);
+    if (!excecao)
+      falhas.push(
+        `tradutor-e-editor: "${tradutor}" nomeia "${editor}", editor do volume${volume}; o tradutor desta obra é quem a introdução da edição nomeia (registre-o com \`evidencia_tradutor\`) ou fica sem tradutor`,
+      );
+  }
+  if (contexto.tradutores.length === 0 && !contexto.evidenciaTradutor)
+    falhas.push(
+      `tradutor-sem-evidencia: "${tradutor}" não tem \`evidencia_tradutor\` no registro (a referência do parágrafo da introdução que nomeia o tradutor); o cabeçalho do volume${volume} não o verifica`,
+    );
+  return falhas;
+}
 
 /** As regras sobre uma Fonte já interpretada. Cada falha vem como `<regra>: <detalhe>`. */
 export function conferirFonte(fonte: FonteYaml, contexto: ContextoDaConferencia): string[] {
@@ -101,6 +164,7 @@ export function conferirFonte(fonte: FonteYaml, contexto: ContextoDaConferencia)
       );
     }
   }
+  if (fonte.tradutor) falhas.push(...falhasDeTradutorEEditor(fonte.tradutor, contexto));
   const { derivado } = contexto;
   if (!derivado) return falhas;
 
@@ -251,7 +315,11 @@ export function conferirFontes(
       continue;
     }
     const falhas = conferirFonte(fonte, {
-      tradutores: achado.origem.verificador.tradutores,
+      tradutores: achado.origem.verificador.tradutores ?? [],
+      editores: achado.origem.verificador.editores ?? [],
+      volume: achado.origemId,
+      evidenciaTradutor: achado.arquivo.evidencia_tradutor ?? null,
+      tradutorTambemEditor: achado.arquivo.tradutor_tambem_editor ?? [],
       derivado,
     });
     if (falhas.length > 0) {

@@ -54,7 +54,7 @@ const ORIGEM: OrigemAcervo = {
       divisao_secao: "div2",
     },
   ],
-  verificador: { tradutores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" },
+  verificador: { editores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" },
   esperado: {
     secoes: 1,
     paragrafos: [
