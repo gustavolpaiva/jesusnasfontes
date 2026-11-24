@@ -41,14 +41,16 @@ secoes:
     titulo: Livro 2
     resumo_pt: >-
       Cobre o período que segue a morte de Isaac: Esaú e Jacó, a história de José no Egito, a escravidão dos
-      hebreus e o nascimento e a juventude de Moisés.
-    palavras_chave_pt: [José, Egito, Jacó, Moisés, escravidão no Egito]
+      hebreus, o nascimento e a juventude de Moisés, as pragas e a saída do Egito, com a travessia do mar e a
+      marcha até o monte Sinai.
+    palavras_chave_pt: [José, Egito, Jacó, Moisés, escravidão no Egito, êxodo, travessia do mar, Sinai]
   - slug: "3"
     titulo: Livro 3
     resumo_pt: >-
-      Cobre a travessia do mar, a marcha pelo deserto do Sinai, a entrega da lei, a construção do tabernáculo e
-      os quarenta anos de peregrinação dos hebreus.
-    palavras_chave_pt: [êxodo, deserto, Sinai, lei, tabernáculo]
+      Cobre a marcha dos hebreus pelo deserto depois da saída do Egito: o maná, a batalha contra Amaleque, a
+      entrega da lei no monte Sinai, a construção do tabernáculo e as leis dos sacrifícios, até a partida do
+      Sinai, os doze espias e a sentença dos quarenta anos de peregrinação.
+    palavras_chave_pt: [deserto, Sinai, lei, tabernáculo, espias, quarenta anos]
   - slug: "4"
     titulo: Livro 4
     resumo_pt: >-
@@ -58,9 +60,9 @@ secoes:
   - slug: "5"
     titulo: Livro 5
     resumo_pt: >-
-      Cobre a conquista de Canaã sob Josué, a divisão da terra entre as tribos e o período dos juízes, até
-      Samuel e o pedido de um rei.
-    palavras_chave_pt: [Josué, conquista de Canaã, Jericó, juízes, Samuel]
+      Cobre a conquista de Canaã sob Josué, a divisão da terra entre as tribos e o período dos juízes, até o
+      sacerdócio de Eli e o nascimento de Samuel.
+    palavras_chave_pt: [Josué, conquista de Canaã, Jericó, juízes, Eli, Samuel]
   - slug: "6"
     titulo: Livro 6
     resumo_pt: >-
@@ -70,76 +72,86 @@ secoes:
   - slug: "7"
     titulo: Livro 7
     resumo_pt: >-
-      Cobre o reinado de Davi: a lamentação por Saul, a tomada de Jerusalém, as guerras contra os vizinhos e a
-      revolta de Absalão, com o censo do povo no fim do livro.
-    palavras_chave_pt: [Davi, Jerusalém, Absalão, guerras, censo]
+      Cobre o reinado de Davi: a lamentação por Saul, a tomada de Jerusalém, as guerras contra os vizinhos, a
+      revolta de Absalão e o censo do povo, até os preparativos para o Templo e a morte e o sepultamento do
+      rei.
+    palavras_chave_pt: [Davi, Jerusalém, Absalão, guerras, censo, morte de Davi]
   - slug: "8"
     titulo: Livro 8
     resumo_pt: >-
-      Cobre o fim do reinado de Davi e o reinado de Salomão, com a construção do Templo, a fama do rei e a
-      visita de uma rainha estrangeira, e a divisão do reino sob Roboão e Jeroboão após a sua morte.
-    palavras_chave_pt: [Salomão, Templo, Roboão, Jeroboão, divisão do reino]
+      Cobre o reinado de Salomão, com a construção do Templo, a fama do rei e a visita de uma rainha
+      estrangeira, e, após a sua morte, a divisão do reino sob Roboão e Jeroboão, seguindo os primeiros reis de
+      Judá e de Israel até a morte de Acabe.
+    palavras_chave_pt: [Salomão, Templo, Roboão, Jeroboão, divisão do reino, Acabe]
   - slug: "9"
     titulo: Livro 9
     resumo_pt: >-
-      Cobre os reis de Judá e de Israel depois da divisão: Josafá, Acabe e os profetas Elias e Eliseu, as
-      guerras contra a Síria, o extermínio da casa de Acabe por Jeú e a rainha Atalia em Jerusalém.
-    palavras_chave_pt: [Elias, Eliseu, Josafá, Acabe, Atalia]
+      Cobre os reis de Judá e de Israel depois da divisão: Josafá, os profetas Elias e Eliseu e as guerras
+      contra a Síria, o extermínio da casa de Acabe por Jeú, a rainha Atalia em Jerusalém e os reis seguintes,
+      até a tomada de Samaria pelos assírios, o cativeiro das dez tribos e a origem dos samaritanos.
+    palavras_chave_pt: [Elias, Eliseu, Josafá, Jeú, Atalia, Samaria, samaritanos]
   - slug: "10"
     titulo: Livro 10
     resumo_pt: >-
       Cobre o reinado de Ezequias e a invasão assíria de Senaqueribe, a reforma de Josias, a destruição de
-      Jerusalém por Nabucodonosor e o início do cativeiro na Babilônia.
-    palavras_chave_pt: [Ezequias, Senaqueribe, Josias, Nabucodonosor, cativeiro babilônico]
+      Jerusalém por Nabucodonosor e o cativeiro na Babilônia, até o profeta Daniel e o tempo de Ciro.
+    palavras_chave_pt: [Ezequias, Senaqueribe, Josias, Nabucodonosor, cativeiro babilônico, Daniel]
   - slug: "11"
     titulo: Livro 11
     resumo_pt: >-
       Cobre o decreto de Ciro e o fim do cativeiro babilônico, a reconstrução do Templo sob Zorobabel com a
-      oposição dos vizinhos, e a missão de Neemias em Jerusalém.
-    palavras_chave_pt: [Ciro, retorno do cativeiro, Zorobabel, Neemias, reconstrução do Templo]
+      oposição dos vizinhos, a história de Ester na corte persa, a missão de Neemias em Jerusalém e a vinda de
+      Alexandre, o Grande, até a morte do sumo sacerdote Jadua.
+    palavras_chave_pt: [Ciro, retorno do cativeiro, Zorobabel, Ester, Neemias, Alexandre, reconstrução do Templo]
   - slug: "12"
     titulo: Livro 12
     resumo_pt: >-
       Cobre o tempo dos sucessores de Alexandre: o domínio dos Ptolomeus e dos Selêucidas sobre a Judeia, a
-      tradução da lei judaica para o grego, os sumos sacerdotes e as guerras entre os reis, até Antíoco Epifânio.
-    palavras_chave_pt: [Ptolomeus, Selêucidas, tradução grega, sumos sacerdotes, Antíoco Epifânio]
+      tradução da lei judaica para o grego, os sumos sacerdotes e as guerras entre os reis, a perseguição de
+      Antíoco Epifânio e a revolta dos Macabeus, até a morte de Judas Macabeu.
+    palavras_chave_pt: [Ptolomeus, Selêucidas, tradução grega, sumos sacerdotes, Antíoco Epifânio, Macabeus, Judas Macabeu]
   - slug: "13"
     titulo: Livro 13
     resumo_pt: >-
-      Cobre a continuação da revolta dos Macabeus depois da morte de Judas: João Hircano e a dinastia asmoneia,
-      as lutas contra os reis selêucidas e os vizinhos, a aliança com Roma e o reinado de Alexandra.
-    palavras_chave_pt: [Macabeus, asmoneus, João Hircano, aliança com Roma, Alexandra]
+      Cobre a continuação da revolta dos Macabeus depois da morte de Judas: o comando de Jônatas e de Simão,
+      João Hircano e a dinastia asmoneia, as lutas contra os reis selêucidas e os vizinhos, a aliança com Roma
+      e o reinado de Alexandra.
+    palavras_chave_pt: [Macabeus, asmoneus, Jônatas, Simão, João Hircano, aliança com Roma, Alexandra]
   - slug: "14"
     titulo: Livro 14
     resumo_pt: >-
-      Cobre a disputa entre Hircano e Aristóbulo, a intervenção de Pompeu e a conquista romana de Jerusalém, e
-      a ascensão de Antípatro e de seu filho Herodes, até a nomeação de Herodes como rei pelos romanos.
-    palavras_chave_pt: [Pompeu, Hircano, Aristóbulo, Antípatro, Herodes]
+      Cobre a disputa entre Hircano e Aristóbulo, a intervenção de Pompeu e a conquista romana de Jerusalém, a
+      ascensão de Antípatro e de seu filho Herodes e a invasão dos partos, até a nomeação de Herodes como rei
+      pelos romanos, a tomada da cidade por Herodes e Sósio, a morte de Antígono e o fim da dinastia asmoneia.
+    palavras_chave_pt: [Pompeu, Hircano, Aristóbulo, Antípatro, Herodes, Antígono]
   - slug: "15"
     titulo: Livro 15
     resumo_pt: >-
       Cobre os primeiros anos do reinado de Herodes: a consolidação do poder depois da queda de Antígono, as
-      obras de Samaria e Cesareia, o começo da reconstrução do Templo e as crises em torno de Mariamne.
+      obras de Samaria e Cesareia, as crises em torno de Mariamne e a reconstrução do Templo, concluída no fim
+      do livro.
     palavras_chave_pt: [Herodes, Antígono, Cesareia, Templo, Mariamne]
   - slug: "16"
     titulo: Livro 16
     resumo_pt: >-
       Cobre o governo de Herodes: as leis e a administração do reino, as viagens e as honras do imperador, o
-      patrocínio de Agripa e as tensões com os judeus da diáspora e dentro da família real.
-    palavras_chave_pt: [Herodes, Agripa, administração do reino, diáspora judaica]
+      patrocínio de Agripa, as tensões com os judeus da diáspora e as acusações contra os filhos do rei, até a
+      execução de Alexandre e Aristóbulo.
+    palavras_chave_pt: [Herodes, Agripa, administração do reino, diáspora judaica, filhos de Herodes]
   - slug: "17"
     titulo: Livro 17
     resumo_pt: >-
-      Cobre os últimos anos de Herodes: a conspiração de Antípatro, a morte dos herdeiros, o testamento e a
-      morte do rei, e as disputas entre os seus filhos e a revolta reprimida por Varo.
-    palavras_chave_pt: [Herodes, Antípatro, Arquelau, testamento de Herodes, revolta]
+      Cobre os últimos anos de Herodes: a conspiração e a condenação de Antípatro, o testamento e a morte do
+      rei, as disputas entre os seus filhos, a revolta reprimida por Varo e a divisão do reino, até a deposição
+      de Arquelau, quando a Judeia passa a província romana.
+    palavras_chave_pt: [Herodes, Antípatro, Arquelau, testamento de Herodes, revolta, Varo]
   - slug: "18"
     titulo: Livro 18
     resumo_pt: >-
-      Cobre o governo romano da Judeia depois de Arquelau: o censo de Quirino, os procuradores até Pôncio
-      Pilatos, os sumos sacerdotes entre eles Caifás e a morte de João Batista por ordem de Antipas; traz ainda
-      a passagem sobre Jesus conhecida como Testimonium Flavianum.
-    palavras_chave_pt: [Pilatos, Caifás, João Batista, Jesus, censo de Quirino, procuradores romanos]
+      Cobre o governo romano da Judeia depois de Arquelau: o censo de Quirino, os procuradores, entre eles
+      Pôncio Pilatos, os sumos sacerdotes entre eles Caifás, a morte de João Batista por ordem de Antipas e a
+      morte do imperador Tibério; traz ainda a passagem sobre Jesus conhecida como Testimonium Flavianum.
+    palavras_chave_pt: [Pilatos, Caifás, João Batista, Jesus, censo de Quirino, procuradores romanos, Tibério]
   - slug: "19"
     titulo: Livro 19
     resumo_pt: >-

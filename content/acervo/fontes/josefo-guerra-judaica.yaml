@@ -34,15 +34,16 @@ secoes:
     titulo: Livro 1
     resumo_pt: >-
       Cobre as causas remotas da guerra: as violências de Antíoco Epifânio, a revolta dos Macabeus, as disputas
-      da dinastia asmoneia, a intervenção de Pompeu e a conquista romana, e a ascensão de Antípatro e de Herodes,
-      até a tomada de Jerusalém.
-    palavras_chave_pt: [Antíoco Epifânio, Macabeus, Pompeu, Herodes, tomada de Jerusalém]
+      da dinastia asmoneia, a intervenção de Pompeu e a conquista romana, a ascensão de Antípatro e de Herodes e
+      o reinado de Herodes, até a sua morte e o seu funeral em Heródio.
+    palavras_chave_pt: [Antíoco Epifânio, Macabeus, Pompeu, Herodes, reinado de Herodes, morte de Herodes]
   - slug: "2"
     titulo: Livro 2
     resumo_pt: >-
       Cobre a sucessão de Herodes, a deposição de Arquelau e o governo dos procuradores — entre eles Pôncio
-      Pilatos —, a crise sob Calígula e os começos da revolta da Judeia, até a derrota de Céstio Galo.
-    palavras_chave_pt: [Arquelau, Pilatos, procuradores, revolta da Judeia, Céstio Galo]
+      Pilatos —, a crise sob Calígula, os começos da revolta da Judeia e a derrota de Céstio Galo, até os
+      preparativos para a guerra na Galileia sob o comando do autor.
+    palavras_chave_pt: [Arquelau, Pilatos, procuradores, revolta da Judeia, Céstio Galo, Galileia]
   - slug: "3"
     titulo: Livro 3
     resumo_pt: >-
