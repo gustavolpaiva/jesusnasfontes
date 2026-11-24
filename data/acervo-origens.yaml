@@ -681,12 +681,73 @@ ccel-lightfoot-fathers:
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
   arquivos:
+    # Nove Fontes saem deste ÚNICO volume (plano 02-10): cada entrada lista em `divisoes` as divisões div2 que
+    # lhe pertencem (o id pontuado da divisão da edição). O volume inteiro continua conferido pelo `esperado`
+    # da origem; o derivado de cada Fonte sai só com as divisões dela, na ordem do volume.
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
-      slug: lightfoot
+      slug: 1-clemente
       idioma: en
       limite_bytes: 2097152
       divisao_secao: div2
+      divisoes: ["ii.i"]
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: 2-clemente
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.ii"]
+    # As sete cartas de Inácio, na ordem da coleção: uma Fonte, sete seções (uma por carta).
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: inacio-cartas
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.iii", "ii.iv", "ii.v", "ii.vi", "ii.vii", "ii.viii", "ii.ix"]
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: policarpo-filipenses
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.x"]
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: martirio-de-policarpo
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.xi"]
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: didaque
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.xii"]
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: barnabe
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.xiii"]
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: hermas
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.xiv"]
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: diogneto
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+      divisoes: ["ii.xv"]
   verificador:
     tradutores:
       - Lightfoot, Joseph Barber (1828-1889)
@@ -701,9 +762,30 @@ ccel-lightfoot-fathers:
           [
             "The Church of God which sojourneth in Rome to the Church of God which sojourneth in Corinth",
           ]
+      # Segunda Clemente: a origem a titula homilia antiga de autor desconhecido (h2 antes do texto)
+      - ref: "ii.ii-p1"
+        contem: ["as of the Judge of quick and dead"]
       # Inácio aos Efésios: "Inácio, também chamado Teóforo"
       - ref: "ii.iii-p1"
         contem: ["Ignatius, who is also Theophorus"]
+      # Policarpo aos Filipenses: a saudação de abertura
+      - ref: "ii.x-p1"
+        contem: ["Polycarp and the presbyters that are with him"]
+      # Martírio de Policarpo: a igreja de Esmirna escreve à de Filomélio
+      - ref: "ii.xi-p1"
+        contem: ["The church of God which sojourneth at Smyrna"]
+      # Didaqué: a abertura das duas vias
+      - ref: "ii.xii-p1"
+        contem: ["There are two ways, one of life and one of death"]
+      # Carta de Barnabé: a saudação de abertura
+      - ref: "ii.xiii-p1"
+        contem: ["sons and daughters, in the name of the Lord"]
+      # Pastor de Hermas: a narração abre com a venda a Roda, em Roma
+      - ref: "ii.xiv-p1"
+        contem: ["had sold me to one Rhoda in Rome"]
+      # Carta a Diogneto: o destinatário nomeado na abertura
+      - ref: "ii.xv-p1"
+        contem: ["most excellent Diognetus"]
     notas_fora_do_texto: true
 
 # ───────────────────────── Internet Archive: James 1924 (só registrado) ─────────────────────────
