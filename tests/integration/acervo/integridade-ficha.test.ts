@@ -432,3 +432,131 @@ describe.skipIf(emNeon())("a migração 0018 é idempotente", () => {
     expect(await visivelParaOAplicativo(f.fonteId)).toBe(1);
   });
 });
+
+// ───────────────────────── isolamento: o hash nunca fica velho ─────────────────────────
+// Todo mudança de conteúdo ESCREVE a linha da ficha (gatilhos), então duas transações que mexem na mesma ficha
+// conflitam por escrita: em REPEATABLE READ e SERIALIZABLE a segunda recebe erro de serialização (40001) em vez de
+// gravar um hash calculado sobre um retrato velho. Em READ COMMITTED a segunda espera e recalcula.
+
+const NIVEIS_DE_ISOLAMENTO = ["repeatable read", "serializable"] as const;
+
+/** Toda ficha tem o hash que o banco calcula agora (nenhum hash velho ficou gravado). */
+async function hashesConferem(): Promise<number> {
+  const r = await migra.query(
+    `select count(*)::int as n from acervo.ficha f
+      where f.conteudo_hash is distinct from
+        acervo.hash_da_ficha(f.fonte_id, f.ano, f.editora, f.edicao_consultada, f.tese_pt, f.idioma_trechos)`,
+  );
+  return (r.rows[0] as { n: number }).n;
+}
+
+describe.skipIf(emNeon())("o hash da ficha nunca fica velho, em nenhum nível de isolamento", () => {
+  let a: pg.Client;
+  let b: pg.Client;
+
+  beforeAll(async () => {
+    if (emNeon()) return;
+    a = await cliente("carga");
+    b = await cliente("carga");
+  });
+
+  afterAll(async () => {
+    for (const c of [a, b]) await c?.end().catch(() => {});
+  });
+
+  const tentar = async (c: pg.Client, sql: string, params: unknown[]): Promise<string> => {
+    try {
+      await c.query(sql, params);
+      await c.query("commit");
+      return "passou";
+    } catch (erro) {
+      await c.query("rollback").catch(() => {});
+      return (erro as { code?: string }).code ?? "sem-codigo";
+    }
+  };
+
+  it.each(NIVEIS_DE_ISOLAMENTO)(
+    "%s: A lê, B muda um item e confirma, A muda outro campo da ficha: A termina em erro e o hash confere",
+    async (nivel) => {
+      const f = await fichaVerificada();
+      await a.query(`begin isolation level ${nivel}`);
+      await a.query("select count(*) from acervo.ficha_item where ficha_id = $1", [f.fonteId]);
+      await b.query("update acervo.ficha_item set texto_pt = 'Mudado por B' where id = $1", [
+        `${f.slug}/argumento-1`,
+      ]);
+      const r = await tentar(
+        a,
+        "update acervo.ficha set tese_pt = 'Mudada por A' where fonte_id = $1",
+        [f.fonteId],
+      );
+      expect(r).toBe("40001");
+      expect(await hashesConferem()).toBe(0);
+      expect(await visivelParaOAplicativo(f.fonteId)).toBe(0);
+    },
+  );
+
+  it.each(NIVEIS_DE_ISOLAMENTO)(
+    "%s: A lê, B muda o título da Fonte e confirma, A insere um item: A termina em erro e o hash confere",
+    async (nivel) => {
+      const f = await fichaVerificada();
+      await a.query(`begin isolation level ${nivel}`);
+      await a.query("select count(*) from acervo.ficha_item where ficha_id = $1", [f.fonteId]);
+      await b.query("update acervo.fonte set titulo = 'Título mudado por B' where id = $1", [
+        f.fonteId,
+      ]);
+      const r = await tentar(
+        a,
+        `insert into acervo.ficha_item (id, ficha_id, tipo, ordem, texto_pt, pagina_inicio, pagina_fim, confianca, conteudo_hash)
+         values ($1, $2, 'argumento', 2, 'Item de A.', 5, 5, 'alta', $3)`,
+        [`${f.slug}/argumento-2`, f.fonteId, HASH_FALSO],
+      );
+      expect(r).toBe("40001");
+      expect(await hashesConferem()).toBe(0);
+    },
+  );
+
+  it.each(NIVEIS_DE_ISOLAMENTO)(
+    "%s: A lê, B insere um item e confirma, A apaga outro: A termina em erro e o hash confere",
+    async (nivel) => {
+      const f = await fichaVerificada();
+      await a.query(`begin isolation level ${nivel}`);
+      await a.query("select count(*) from acervo.ficha_item where ficha_id = $1", [f.fonteId]);
+      await b.query(
+        `insert into acervo.ficha_item (id, ficha_id, tipo, ordem, texto_pt, pagina_inicio, pagina_fim, confianca, conteudo_hash)
+         values ($1, $2, 'argumento', 2, 'Item de B.', 5, 5, 'alta', $3)`,
+        [`${f.slug}/argumento-2`, f.fonteId, HASH_FALSO],
+      );
+      const r = await tentar(a, "delete from acervo.ficha_item where id = $1", [
+        `${f.slug}/trecho-1`,
+      ]);
+      expect(r).toBe("40001");
+      expect(await hashesConferem()).toBe(0);
+    },
+  );
+
+  it("controle positivo, READ COMMITTED: A muda um item (sem commit) e B muda o título: B espera, e o hash final cobre as duas mudanças", async () => {
+    const f = await fichaVerificada();
+    await a.query("begin");
+    await a.query("update acervo.ficha_item set texto_pt = 'Mudado por A' where id = $1", [
+      `${f.slug}/argumento-1`,
+    ]);
+    const pidB = (await b.query("select pg_backend_pid() as pid")).rows[0].pid as number;
+    const mudarTitulo = b.query(
+      "update acervo.fonte set titulo = 'Título mudado por B' where id = $1",
+      [f.fonteId],
+    );
+    // B só termina depois de A confirmar (o gatilho dele escreve a mesma linha da ficha).
+    for (let i = 0; i < 100; i++) {
+      const r = await migra.query("select wait_event_type from pg_stat_activity where pid = $1", [
+        pidB,
+      ]);
+      if (r.rows[0]?.wait_event_type === "Lock") break;
+      await new Promise((resolver) => setTimeout(resolver, 50));
+    }
+    await a.query("commit");
+    await mudarTitulo;
+    expect(await hashesConferem()).toBe(0);
+    const doBanco = await migra.query("select titulo from acervo.fonte where id = $1", [f.fonteId]);
+    expect(doBanco.rows[0].titulo).toBe("Título mudado por B");
+  });
+});

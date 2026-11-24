@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { obterPool } from "@/db/cliente";
@@ -343,5 +346,225 @@ describe.skipIf(emNeon())("ACER-09: corrida entre duas transações não abre br
       ),
     ).resolves.toBeDefined();
     await a.query("commit");
+  });
+});
+
+const NIVEIS = ["repeatable read", "serializable"] as const;
+
+describe.skipIf(emNeon())(
+  "ACER-09: a escrita só vale em READ COMMITTED (a checagem de outra linha não enxerga o que ainda não era visível ao snapshot)",
+  () => {
+    let a: pg.Client;
+    let b: pg.Client;
+
+    beforeAll(async () => {
+      if (emNeon()) return;
+      a = await cliente("carga");
+      b = await cliente("carga");
+    });
+
+    afterAll(async () => {
+      for (const c of [a, b]) await c?.end().catch(() => {});
+    });
+
+    const MOVER =
+      "update acervo.fonte_secao set fonte_id = $1, ordem = 2, slug = 'movida' where id = $2";
+    const VIRAR =
+      "update acervo.fonte set obra_protegida = true, tipo_texto = 'ficha' where id = $1";
+
+    /** Roda a tentativa de A (snapshot já fixado) e devolve o código do erro, ou "passou". Sempre desfaz A. */
+    const tentar = async (c: pg.Client, sql: string, params: unknown[]): Promise<string> => {
+      try {
+        await c.query(sql, params);
+        await c.query("commit");
+        return "passou";
+      } catch (erro) {
+        await c.query("rollback").catch(() => {});
+        return (erro as { code?: string }).code ?? "sem-codigo";
+      }
+    };
+
+    it.each(NIVEIS)(
+      "%s: A lê a seção vazia, B insere parágrafo e confirma, A move a seção para Fonte protegida: termina em erro",
+      async (nivel) => {
+        const livre = await criarFonte("carga", "integral", false);
+        const protegida = await criarFonte("carga", "ficha", true);
+        await a.query(`begin isolation level ${nivel}`);
+        await a.query("select count(*) from acervo.fonte_paragrafo where secao_id = $1", [
+          livre.secaoId,
+        ]);
+        await paragrafo(b, livre.secaoId);
+        const r = await tentar(a, MOVER, [protegida.fonteId, livre.secaoId]);
+        expect(r).not.toBe("passou");
+        expect(await paragrafosProibidos()).toBe(0);
+      },
+    );
+
+    it.each(NIVEIS)(
+      "%s: A lê a Fonte sem parágrafo, B insere parágrafo e confirma, A vira a Fonte protegida: termina em erro",
+      async (nivel) => {
+        const f = await criarFonte("carga", "integral", false);
+        await a.query(`begin isolation level ${nivel}`);
+        await a.query(
+          "select count(*) from acervo.fonte_paragrafo p join acervo.fonte_secao s on s.id = p.secao_id where s.fonte_id = $1",
+          [f.fonteId],
+        );
+        await paragrafo(b, f.secaoId);
+        const r = await tentar(a, VIRAR, [f.fonteId]);
+        expect(r).not.toBe("passou");
+        expect(await paragrafosProibidos()).toBe(0);
+      },
+    );
+
+    it.each(NIVEIS)(
+      "%s: A lê a Fonte integral, B a vira protegida e confirma, A insere parágrafo: termina em erro",
+      async (nivel) => {
+        const f = await criarFonte("carga", "integral", false);
+        await a.query(`begin isolation level ${nivel}`);
+        await a.query("select obra_protegida from acervo.fonte where id = $1", [f.fonteId]);
+        await b.query(VIRAR, [f.fonteId]);
+        const r = await tentar(
+          a,
+          "insert into acervo.fonte_paragrafo (id, secao_id, ordem, texto, ref) values ($1, $2, 1, 'Texto.', '1')",
+          [`${f.secaoId}#1`, f.secaoId],
+        );
+        expect(r).not.toBe("passou");
+        expect(await paragrafosProibidos()).toBe(0);
+      },
+    );
+
+    it.each(NIVEIS)(
+      "%s: A lê a seção, B a move para Fonte protegida e confirma, A insere parágrafo na seção: termina em erro",
+      async (nivel) => {
+        const livre = await criarFonte("carga", "integral", false);
+        const protegida = await criarFonte("carga", "ficha", true);
+        await a.query(`begin isolation level ${nivel}`);
+        await a.query("select fonte_id from acervo.fonte_secao where id = $1", [livre.secaoId]);
+        await b.query(MOVER, [protegida.fonteId, livre.secaoId]);
+        const r = await tentar(
+          a,
+          "insert into acervo.fonte_paragrafo (id, secao_id, ordem, texto, ref) values ($1, $2, 1, 'Texto.', '1')",
+          [`${livre.secaoId}#1`, livre.secaoId],
+        );
+        expect(r).not.toBe("passou");
+        expect(await paragrafosProibidos()).toBe(0);
+      },
+    );
+
+    it.each(NIVEIS)(
+      "%s: A lê a Fonte de destino integral, B a vira protegida e confirma, A move uma seção com parágrafo para ela: termina em erro",
+      async (nivel) => {
+        const origem = await criarFonte("carga", "integral", false);
+        await paragrafo(b, origem.secaoId);
+        const destino = await criarFonte("carga", "integral", false);
+        await a.query(`begin isolation level ${nivel}`);
+        await a.query("select obra_protegida from acervo.fonte where id = $1", [destino.fonteId]);
+        await b.query(VIRAR, [destino.fonteId]);
+        const r = await tentar(a, MOVER, [destino.fonteId, origem.secaoId]);
+        expect(r).not.toBe("passou");
+        expect(await paragrafosProibidos()).toBe(0);
+      },
+    );
+
+    it("a recusa por isolamento diz o porquê (0A000)", async () => {
+      const f = await criarFonte("carga", "integral", false);
+      await a.query("begin isolation level repeatable read");
+      const erro = await a
+        .query(
+          "insert into acervo.fonte_paragrafo (id, secao_id, ordem, texto, ref) values ($1, $2, 1, 'Texto.', '1')",
+          [`${f.secaoId}#1`, f.secaoId],
+        )
+        .then(
+          () => null,
+          (e: { code?: string; message?: string }) => e,
+        );
+      await a.query("rollback");
+      expect(erro?.code).toBe("0A000");
+      expect(erro?.message).toMatch(/READ COMMITTED/);
+    });
+
+    it("controle positivo: READ COMMITTED explícito aceita o parágrafo, a mudança de Fonte entre integrais e a corrida resolvida por espera", async () => {
+      const f = await criarFonte("carga", "integral", false);
+      const g = await criarFonte("carga", "integral", false);
+      await a.query("begin isolation level read committed");
+      await paragrafo(a, f.secaoId);
+      await a.query(
+        "update acervo.fonte_secao set fonte_id = $1, ordem = 2, slug = 'movida' where id = $2",
+        [g.fonteId, f.secaoId],
+      );
+      await a.query("commit");
+      const r = await superusuario.query("select fonte_id from acervo.fonte_secao where id = $1", [
+        f.secaoId,
+      ]);
+      expect(r.rows).toEqual([{ fonte_id: g.fonteId }]);
+      expect(await paragrafosProibidos()).toBe(0);
+    });
+
+    it("controle positivo: transação em REPEATABLE READ que não escreve texto continua funcionando (leitura e mudança de título)", async () => {
+      const f = await criarFonte("carga", "integral", false);
+      await a.query("begin isolation level repeatable read");
+      await a.query("select count(*) from acervo.fonte_paragrafo");
+      await a.query("update acervo.fonte set titulo = 'Novo título' where id = $1", [f.fonteId]);
+      await a.query("commit");
+    });
+
+    it("corrida em READ COMMITTED: virar protegida (sem commit) e mover seção com parágrafo para ela em paralelo: o movimento espera e falha", async () => {
+      const origem = await criarFonte("carga", "integral", false);
+      await paragrafo(b, origem.secaoId);
+      const destino = await criarFonte("carga", "integral", false);
+      await a.query("begin");
+      await a.query(VIRAR, [destino.fonteId]);
+      const pidB = await pidDe(b);
+      const mover = b.query(MOVER, [destino.fonteId, origem.secaoId]).then(
+        () => "passou",
+        (erro: { code?: string }) => erro.code,
+      );
+      await esperarBloqueio(pidB);
+      await a.query("commit");
+      expect(await mover).toBe("23514");
+      expect(await paragrafosProibidos()).toBe(0);
+    });
+
+    it("corrida em READ COMMITTED: mover seção com parágrafo para a Fonte (sem commit) e virar a Fonte protegida em paralelo: a mudança espera e falha", async () => {
+      const origem = await criarFonte("carga", "integral", false);
+      await paragrafo(b, origem.secaoId);
+      const destino = await criarFonte("carga", "integral", false);
+      await a.query("begin");
+      await a.query(MOVER, [destino.fonteId, origem.secaoId]);
+      const pidB = await pidDe(b);
+      const virar = b.query(VIRAR, [destino.fonteId]).then(
+        () => "passou",
+        (erro: { code?: string }) => erro.code,
+      );
+      await esperarBloqueio(pidB);
+      await a.query("commit");
+      expect(await virar).toBe("23514");
+      expect(await paragrafosProibidos()).toBe(0);
+    });
+  },
+);
+
+describe.skipIf(emNeon())("a migração 0019 é idempotente", () => {
+  it("aplicada de novo, sem erro, e a recusa por isolamento continua valendo", async () => {
+    const arquivo = path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "..",
+      "..",
+      "..",
+      "db",
+      "migrations",
+      "0019_acervo_integridade_concorrencia.sql",
+    );
+    const texto = readFileSync(arquivo, "utf8");
+    for (let i = 0; i < 2; i++) {
+      await migra.query("begin");
+      await migra.query(texto);
+      await migra.query("commit");
+    }
+    const f = await criarFonte("migra", "integral", false);
+    await migra.query("begin isolation level repeatable read");
+    await expect(paragrafo(migra, f.secaoId)).rejects.toMatchObject({ code: "0A000" });
+    await migra.query("rollback");
+    await expect(paragrafo(migra, f.secaoId)).resolves.toBeDefined();
   });
 });
