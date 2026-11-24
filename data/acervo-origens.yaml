@@ -906,10 +906,12 @@ ccel-anf09:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["iv.iii", "iv.iv"]
-      # A introdução (iv.i-p5) nomeia só a tradução ANTERIOR ("translated into English by the Rev. J. Hamlyn
-      # Hill, B.D.", 1894) e (iv.i-p6) declara que "The translation offered here is quite independent of
-      # either of these two" — a tradução do volume é anônima: a Fonte fica SEM `tradutor` (a página mostra
-      # "tradutor não identificado na edição").
+      # Página de título da obra (iv-p3): "Rev. Hope W. Hogg, B.D." — a introdução (iv.i-p5) nomeia só a
+      # tradução ANTERIOR ("translated into English by the Rev. J. Hamlyn Hill, B.D.", 1894) e (iv.i-p6)
+      # declara que "The translation offered here is quite independent of either of these two".
+      evidencia_tradutor: iv-p3
+      tradutor_esperado: ["Rev. Hope W. Hogg"]
+      evidencia_trecho: "Rev. Hope W. Hogg, B.D."
     # A Apologia de Aristides (plano 02-11): as duas traduções que o volume traz — o grego pela história de
     # Barlaam e Josafé (xiii.iii) e o siríaco (xiii.iv, com a passagem sobre Jesus o Messias do esperado).
     - id: anf09.xml

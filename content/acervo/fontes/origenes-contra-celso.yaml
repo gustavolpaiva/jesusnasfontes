@@ -35,9 +35,9 @@ secao_max_caracteres:
 limites_pt: >-
   Resposta em oito livros ao Discurso Verdadeiro, como o próprio Celso o intitulou, escrito por um filósofo
   pagão contra os cristãos; Orígenes a compôs a pedido de Ambrósio, a quem os livros são endereçados.
-  Conserva, citadas, muitas falas do adversário. O texto lido é a tradução inglesa do volume 4 da coleção
-  Ante-Nicene Fathers, que não declara o tradutor; o livro 4 fecha com uma elucidação do editor americano
-  apensa à tradução.
+  Conserva, citadas, muitas falas do adversário. O texto lido é a tradução inglesa do reverendo Frederick
+  Crombie, declarada na página de título da parte de Orígenes do volume 4 da coleção Ante-Nicene Fathers;
+  o livro 4 fecha com uma elucidação do editor americano apensa à tradução.
 secoes:
   - slug: vi-ix-i
     titulo: Livro 1

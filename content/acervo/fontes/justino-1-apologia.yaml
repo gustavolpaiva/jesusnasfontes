@@ -33,7 +33,7 @@ secao_max_caracteres:
     02-08)
 limites_pt: >-
   Defesa escrita em grego por um filósofo cristão nascido em Flavia Neápolis, na Palestina, endereçada ao
-  imperador Antonino Pio, aos seus filhos e ao senado. A edição apensa à defesa dois documentos imperiais.
+  imperador Antonino Pio, aos seus filhos e ao senado. A edição apensa à defesa três documentos imperiais.
   O texto lido é a tradução inglesa do volume 1 da coleção Ante-Nicene Fathers.
 secoes:
   - slug: viii-ii
@@ -43,5 +43,6 @@ secoes:
       ao senado: Justino se apresenta em nome dos cristãos de todas as nações e pede que sejam julgados por
       atos, não pelo nome. Expõe os ensinos e os ritos cristãos, lê os mitos dos poetas como obra de demônios
       que imitam as profecias, mostra nos profetas o anúncio de Cristo e sustenta a ressurreição da carne e o
-      juízo; encerra com dois documentos imperiais apensos sobre o tratamento dos acusados.
+      juízo; encerra com três documentos imperiais apensos sobre o tratamento dos acusados — de Adriano a
+      Minúcio Fundano, de Antonino à assembleia comum da Ásia e de Marco Aurélio ao senado.
     palavras_chave_pt: [Antonino Pio, senado, apologia, demônios, profecias, Cristo, batismo, eucaristia, editos imperiais]

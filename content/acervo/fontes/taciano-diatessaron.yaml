@@ -15,12 +15,14 @@ licenca: dp-declarado-pela-origem
 licenca_url: https://ccel.org/ccel/schaff/anf09.xml
 origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf09
-# A introdução da edição (iv.i-p5) nomeia só a tradução ANTERIOR ("translated into English by the Rev. J.
-# Hamlyn Hill, B.D.", 1894) e (iv.i-p6) declara que "The translation offered here is quite independent of
-# either of these two": a tradução do volume é anônima — o campo fica ausente e a página mostra "tradutor
-# não identificado na edição". Editor do volume: Philip Schaff na edição digital (DC.Creator).
+# Página de título da obra no volume (iv-p3): "Rev. Hope W. Hogg, B.D." — evidência registrada em
+# data/acervo-origens.yaml. A introdução da edição (iv.i-p5) nomeia só a tradução ANTERIOR ("translated
+# into English by the Rev. J. Hamlyn Hill, B.D.", 1894) e (iv.i-p6) declara que "The translation offered
+# here is quite independent of either of these two". Editor do volume: Philip Schaff na edição digital
+# (DC.Creator).
+tradutor: Rev. Hope W. Hogg, B.D.
 editor: Philip Schaff
-edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); a introdução declara que a tradução do volume é independente da do rev. J. Hamlyn Hill (1894) e não nomeia o tradutor; o cabeçalho não declara o ano da tradução"
+edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); tradução pelo rev. Hope W. Hogg, nomeado na página de título da obra (iv-p3), independente da tradução anterior do rev. J. Hamlyn Hill (1894), como a introdução declara; o cabeçalho não declara o ano da tradução"
 traduzida_por_nos: false
 # Teto próprio de seção (Pitfall 9): a harmonia é UMA divisão do volume (iv.iii, as 55 seções da edição nas
 # referências dos parágrafos); texto medido de 348.636 caracteres. O teto geral é 80.000.
@@ -48,8 +50,10 @@ secoes:
   - slug: iv-iv
     titulo: Subscrições
     resumo_pt: >-
-      As subscrições com que a harmonia fecha nos dois manuscritos árabes: o manuscrito Borgiano e o do
-      Vaticano declaram que o evangelho foi compilado por Taciano a partir dos quatro evangelistas e que a
-      tradução do siríaco para o árabe é do sacerdote Abu'l Faraj 'Abdulla ibn-at-Tayyib, de um exemplar
-      copiado por 'Isa ibn-'Ali.
+      As subscrições com que a harmonia fecha nos dois manuscritos árabes: o manuscrito Borgiano declara
+      que o evangelho foi compilado por Taciano a partir dos quatro evangelistas e que a tradução do
+      siríaco para o árabe é do sacerdote Abu'l Faraj 'Abdulla ibn-at-Tayyib, de um exemplar copiado por
+      'Isa ibn-'Ali; o manuscrito do Vaticano declara apenas que o santo evangelho conhecido como
+      Diatessaron foi compilado por Taciano a partir dos quatro evangelhos, sem nomear tradutor nem
+      copista.
     palavras_chave_pt: [subscrições, manuscrito Borgiano, Vaticano, Abu'l Faraj, tradução árabe, colofão]
