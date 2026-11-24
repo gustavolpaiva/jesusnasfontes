@@ -29,7 +29,7 @@ export const TETO_BRUTO_BYTES = 32 * 1024 * 1024;
  * seu. `texto-ocr` é só REGISTRADO (James 1924 no Internet Archive): ainda não tem verificador de licença nem
  * parser, então nenhum derivado sai dele — o despachante recusa.
  */
-export const FORMATOS_ORIGEM = ["tei", "gutenberg", "html", "texto-ocr"] as const;
+export const FORMATOS_ORIGEM = ["tei", "gutenberg", "html", "thml", "texto-ocr"] as const;
 export type FormatoOrigem = (typeof FORMATOS_ORIGEM)[number];
 
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "deve ser kebab-case");
@@ -79,6 +79,9 @@ const esquemaArquivo = z
     secoes: z.array(slug).min(1).optional(),
     // Formato `html`: a palavra que abre o cabeçalho de cada unidade ("Saying 1: …").
     rotulo_unidade: z.string().min(1).optional(),
+    // Formato `thml` (CCEL): qual nível de divisão do arquivo vira seção; o id da divisão é o slug da seção
+    // e o id de cada `<p>` (que carrega o da divisão) é a referência do parágrafo.
+    divisao_secao: z.enum(["div1", "div2", "div3", "div4"]).optional(),
   })
   .strict();
 

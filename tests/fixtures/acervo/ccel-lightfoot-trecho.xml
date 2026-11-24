@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ThML PUBLIC "-//CCEL/DTD Theological Markup Language//EN" "http://www.ccel.org/dtd/ThML10.dtd">
+<?xml-stylesheet type="text/xml"
+    href="http://www.ccel.org/ss/thml.html.xsl" ?>
+  <?xml-stylesheet type="text/xsl"
+    href="http://www.ccel.org/ss/thml.html.xsl" ?>
+<ThML>
+  <ThML.head>
+
+    <!-- Copyright Christian Classics Ethereal Library -->
+
+    <generalInfo>
+      <description>J.B. Lightfoot’s collection and translation of many of the works of the Apostolic fathers is a must-read for anyone wanting to expand his or her knowledge of early Christian thought and the theological roots of our faith. This book is largely comprehensive in its inclusion of the earliest Church documents. From the stirring writings of the martyr Polycarp to the questions raised by Ignatius as to where congregations were heading, this text is both an informative window to the past and a relevant challenge to the Church today. It soon becomes evident that the theological and ministry-related questions being raised today are questions Christians have been wrestling with for centuries. These early church fathers present some well-thought-out and gracious answers, making this an important read for the pastor, scholar, and lay-Christian alike.<br /><br />Laura de Jong<br />CCEL Staff Writer</description>
+      <pubHistory />
+      <comments />
+    </generalInfo>
+
+    <printSourceInfo>
+      <published>Baker Book House, 1956</published>
+    </printSourceInfo>
+
+    <electronicEdInfo>
+      <publisherID>ccel</publisherID>
+      <authorID>lightfoot</authorID>
+      <bookID>fathers</bookID>
+      <workID>fathers</workID>
+      <bkgID>apostolic_fathers_(lightfoot)</bkgID>
+      <version>1.0</version>
+      <editorialComments />
+      <revisionHistory />
+      <status />
+
+      <DC>
+        <DC.Title>The Apostolic Fathers</DC.Title>
+        <DC.Creator sub="Author" scheme="short-form">Joseph Barber Lightfoot</DC.Creator>
+        <DC.Creator sub="Author" scheme="file-as">Lightfoot, Joseph Barber (1828-1889)</DC.Creator>
+ 
+        <DC.Publisher>Grand Rapids, MI: Christian Classics Ethereal Library</DC.Publisher>
+        <DC.Subject scheme="LCCN">BR60.L5</DC.Subject>
+        <DC.Subject scheme="lcsh1">Christianity</DC.Subject>
+    <DC.Subject scheme="lcsh2">Early Christian Literature. Fathers of the Church, etc.</DC.Subject>
+    <DC.Subject scheme="ccel">All;</DC.Subject>
+        <DC.Contributor sub="Digitizer" />
+        <DC.Date sub="Created">2012-05-14</DC.Date>
+        <DC.Type>Text.Monograph</DC.Type>
+        <DC.Format scheme="IMT">text/html</DC.Format>
+        <DC.Identifier scheme="URL">/ccel/lightfoot/fathers.html</DC.Identifier>
+        <DC.Identifier scheme="ISBN" />
+        <DC.Source />
+        <DC.Source scheme="URL" />
+        <DC.Language scheme="ISO639-3">eng</DC.Language>
+        <DC.Rights>Public Domain</DC.Rights>
+      </DC>
+
+    </electronicEdInfo>
+</ThML.head>
+<ThML.body>
+    <div1 title="The Apostolic Fathers" id="ii" prev="i" next="ii.i">
+      <div2 title="The Epistle of Ignatius to the Ephesians" id="ii.iii" prev="ii.ii" next="ii.iv">
+				<h2 id="ii.iii-p0.1">
+THE EPISTLE OF IGNATIUS TO THE EPHESIANS
+</h2>
+				
+				
+<h2 id="ii.iii-p0.2">IgnEph. Prologue</h2>
+					
+					
+<p id="ii.iii-p1">
+Ignatius, who is also Theophorus, unto her which hath been blessed
+in greatness through the plentitude of God the Father; which hath
+been foreordained before the ages to be forever and unto abiding and
+unchangeable glory, united and elect in a true passion, by the will
+of the Father and of Jesus Christ our God; even unto the church which
+is at Ephesus [of Asia], worthy of all felicitation; abundant
+greeting in Christ Jesus and in blameless joy.
+
+<br /><br />
+</p>
+				
+				
+				
+<h2 id="ii.iii-p1.3">IgnEph. 1</h2>
+					
+					
+<p id="ii.iii-p2">
+   While I welcomed in God [your] well beloved name which ye bear by
+natural right, [in an upright and virtuous mind], by faith and love
+in Christ Jesus our Savior--being imitators of God, and having your
+hearts kindled in the blood of God, ye have perfectly fulfilled your
+congenial work--
+
+<br /><br />
+</p>
+					
+					
+<p id="ii.iii-p3">
+for when ye heard that I was on my way from Syria, in bonds for the
+sake of the common Name and hope, and was hoping through your prayers
+to succeed in fighting the wild beasts in Rome, that by so succeeding
+I might have power to be a disciple, ye were eager to visit me--
+
+<br /><br />
+</p>
+      </div2>
+    </div1>
+  </ThML.body>
+</ThML>

@@ -136,6 +136,7 @@ export function conferirBruto(entrada: EntradaDerivar): {
     rotuloLivro: entrada.rotuloLivro,
     gutenberg: configuracaoGutenberg(origem, arquivo),
     html: arquivo.rotulo_unidade ? { rotuloUnidade: arquivo.rotulo_unidade } : undefined,
+    thml: arquivo.divisao_secao ? { divisaoSecao: arquivo.divisao_secao } : undefined,
   });
   const falhas = conferirEsperado(interpretado, esperadoDoArquivo(origem, arquivo));
   if (falhas.length > 0)

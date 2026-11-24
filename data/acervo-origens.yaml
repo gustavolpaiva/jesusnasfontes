@@ -347,6 +347,60 @@ gospels-net-tome-mattison:
         nao_contem: ["Notes on Translation", "Peter and Mary"]
     notas_fora_do_texto: true
 
+# ───────────────────────── CCEL: volumes ThML (plano 02-08) ─────────────────────────
+# O CCEL não versiona os arquivos: `commit` guarda o sha256 do arquivo bruto (o mesmo que o lock do bruto) e
+# `data_versao` é o dia da leitura; mudança de hash é revisão humana, nunca atualização automática. A licença
+# é lida no cabeçalho do PRÓPRIO arquivo (`<DC.Rights>Public Domain</DC.Rights>`, dentro dos primeiros 20.000
+# caracteres) e o editor/editora no DC. Campo específico do formato: `divisao_secao` (o nível de divisão que
+# vira seção; o id da divisão é o slug da seção e o id de cada `<p>` é a referência do parágrafo).
+
+ccel-anf08:
+  nome: Christian Classics Ethereal Library, Ante-Nicene Fathers, vol. 8 (The Twelve Patriarchs, Excerpts and Epistles, The Clementia, Apocrypha, Decretals, Memoirs of Edessa and Syriac Documents, Remains of the First Age)
+  autores:
+    - 'Philip Schaff (editor, como o arquivo o nomeia: "Schaff, Philip (1819-1893)")'
+    - Christian Classics Ethereal Library (edição digital)
+  # Lido no cabeçalho do próprio arquivo: <DC.Rights>Public Domain</DC.Rights> e
+  # <DC.Publisher>Grand Rapids, MI: Christian Classics Ethereal Library</DC.Publisher>.
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/schaff/anf08.xml
+  fonte: https://ccel.org/ccel/schaff/anf08
+  commit: 2e18deb94f36104f63186b4247f01bc2610f76452b02d885341360664aba57fe
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
+    mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
+    id do `<p>`, que carrega o id da divisão). Os parágrafos sem id das divisões de índice do volume não
+    entram no texto e são contados. As linhas de cada parágrafo foram unidas; o texto das palavras não foi
+    reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: anf08
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Schaff, Philip (1819-1893)
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 118 divisões div2 com parágrafo (124 no arquivo; 6 sem
+    # parágrafo: xi.i a xi.vi, os índices)
+    secoes: 118
+    paragrafos:
+      # a carta de Mara bar Serapião (div2 ix.xvii)
+      - ref: "ix.xvii-p5"
+        contem: ["Mara", "Serapion"]
+        nao_contem: ["Dr. Payne Smith"]
+      # Pitfall 5: o "Gospel of Thomas" do ANF 8 (div2 vii.viii) é o Evangelho da INFÂNCIA, nunca o dos 114 ditos
+      - ref: "vii.viii-p6"
+        contem: ["This child Jesus, when five years old", "twelve sparrows"]
+    notas_fora_do_texto: true
+
 # ───────────────────────── Internet Archive: James 1924 (só registrado) ─────────────────────────
 # Formato `texto-ocr`: está no registro, mas ainda não tem verificador de licença nem parser neste pipeline.
 # Nenhum derivado sai dele e o baixador não aceita o host.

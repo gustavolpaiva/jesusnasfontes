@@ -53,6 +53,109 @@ export type CabecalhoTei = CabecalhoLido;
 export type CabecalhoGutenberg = CabecalhoLido & { borda: "inicio" | "fim" };
 export type CabecalhoHtml = CabecalhoLido;
 
+// ───────────────────────── ThML (CCEL) ─────────────────────────
+// A licença mora no cabeçalho do próprio arquivo: `<DC.Rights>Public Domain</DC.Rights>`, lido dentro dos
+// primeiros 20.000 caracteres (a janela cobre o cabeçalho principal dos oito volumes). Os blocos
+// `ThML.head` de cada obra, no meio do corpo, NÃO são lidos aqui. O CCEL não versiona o arquivo: o que o
+// fixa é o sha256 do lock do bruto, e mudança de hash é revisão humana.
+
+export type CabecalhoThml = CabecalhoLido & {
+  /** Editora lida no DC.Publisher. */
+  editora: string;
+};
+
+/** Janela onde o DC.Rights tem de estar: o cabeçalho principal do volume. */
+export const JANELA_CABECALHO_THML = 20_000;
+
+/** Lê DC.Rights, DC.Publisher, os DC.Creator e os DC.Date do cabeçalho ThML. Não valida: só lê. */
+export function lerCabecalhoThml(xml: string): CabecalhoThml {
+  const janela = xml.slice(0, JANELA_CABECALHO_THML);
+  let direitos = "";
+  let editora = "";
+  const criadores = new Set<string>();
+  const anos: string[] = [];
+  let capturando: "direitos" | "editora" | "criador" | "ano" | null = null;
+  let texto = "";
+
+  const parser = new Parser(
+    {
+      onopentag(nome) {
+        if (nome === "DC.Rights") {
+          capturando = "direitos";
+          texto = "";
+        } else if (nome === "DC.Publisher") {
+          capturando = "editora";
+          texto = "";
+        } else if (nome === "DC.Creator") {
+          capturando = "criador";
+          texto = "";
+        } else if (nome === "DC.Date") {
+          capturando = "ano";
+          texto = "";
+        }
+      },
+      ontext(dados) {
+        if (capturando) texto += dados;
+      },
+      onclosetag(nome) {
+        const t = compactar(texto);
+        if (capturando === "direitos" && nome === "DC.Rights") {
+          if (!direitos && t) direitos = t;
+          capturando = null;
+        } else if (capturando === "editora" && nome === "DC.Publisher") {
+          if (!editora && t) editora = t;
+          capturando = null;
+        } else if (capturando === "criador" && nome === "DC.Creator") {
+          if (t) criadores.add(t);
+          capturando = null;
+        } else if (capturando === "ano" && nome === "DC.Date") {
+          if (t) anos.push(t);
+          capturando = null;
+        }
+      },
+    },
+    { xmlMode: true, decodeEntities: true },
+  );
+  parser.write(janela);
+  parser.end();
+
+  return {
+    tradutores: [...criadores].sort(),
+    licenca: direitos,
+    licencaUrl: null,
+    anos,
+    avisoEditorial: "",
+    editora,
+  };
+}
+
+/**
+ * Confere o cabeçalho ThML contra o que o registro espera: o DC.Rights tem de existir e ser EXATAMENTE o
+ * esperado ("Public Domain"; outro valor reprova citando o lido), e cada nome esperado tem de estar entre
+ * os DC.Creator (o editor Schaff nos volumes ANF/NPNF; Lightfoot na coleção dele). Sem DC.Rights, a licença
+ * não está provada na origem (`ErroLicenca` com o código `sem_declaracao`), nunca é "aviso".
+ */
+export function exigirLicencaThml(xml: string, exigencia: ExigenciaTei): CabecalhoThml {
+  const cabecalho = lerCabecalhoThml(xml);
+  if (!cabecalho.licenca)
+    throw new ErroLicenca(
+      `licença não provada na origem: cabeçalho ThML sem DC.Rights nos primeiros ${JANELA_CABECALHO_THML} caracteres`,
+      "sem_declaracao",
+    );
+  if (normalizar(cabecalho.licenca) !== normalizar(exigencia.licenca))
+    throw new ErroLicenca(
+      `DC.Rights do cabeçalho não é o esperado (esperado "${exigencia.licenca}", lido "${cabecalho.licenca}")`,
+    );
+  const faltam = exigencia.tradutores.filter(
+    (t) => !cabecalho.tradutores.some((lido) => normalizar(lido) === normalizar(t)),
+  );
+  if (faltam.length > 0)
+    throw new ErroLicenca(
+      `nome esperado ausente no DC do cabeçalho (esperado ${JSON.stringify([...exigencia.tradutores].sort())}, não achado ${JSON.stringify(faltam)})`,
+    );
+  return cabecalho;
+}
+
 const FIM_DO_CABECALHO = "</teiHeader>";
 
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * added ThML.head elements for contained works
+ * deleted <DC.Relation scheme="partOF"> (that relationship is implicit)
+ * added workID, versionID
+ * added <DC.Relation scheme="volumeOf">
+ * added <bkgID>
+ * deleted <DC.Creeator> elemens in main THML>head section for authors of parts`
+-->
+<ThML>
+<ThML.head>
+
+<generalInfo>
+  <description>Originally printed in 1885, the ten-volume set, 
+<i>Ante-Nicene Fathers</i>, brings together the work of early Christian 
+thinkers. In particular, it brings together the writings of the early 
+Church fathers prior to the fourth century Nicene Creed. These volumes 
+are noteworthy for their inclusion of entire texts, and not simply 
+fragments or excerpts from these great writings. The translations are 
+fairly literal, providing both readers and scholars with a good 
+approximation of the originals. This particular volume contains works by 
+St. Clement, Mathetes, St. Polycarp, St. Ignatius, Barnabas, St. Papias, 
+St. Justin Martyr, and St. Irenaeus. These writings were heavily 
+influential on the early Church, and for good reason, as they are 
+inspirational and encouraging. These volumes also come with many useful 
+notes, providing the reader with new levels of understanding. Overall, 
+<i>Ante-Nicene Fathers</i>, or any part of it, is a welcome addition to 
+one's 
+reading list.<br /><br />Tim Perrine<br />CCEL Staff Writer</description>
+  <firstPublished>1886</firstPublished>
+  <pubHistory>
+    Text edited by Rev. Alexander Roberts and James Donaldson and first
+    published in Edinburgh, 1867. Additional introductionary material and
+    notes provided for the American edition by A. Cleveland Coxe 1886.
+  </pubHistory>
+  <comments>Hebrew and Greek were checked against page scans of the 1995 
+  Hendrickson reprint by SLK; errors in the hard copy have <b>not</b> been
+  corrected in this digitized text.</comments>
+</generalInfo>
+
+<electronicEdInfo>
+  <authorID>schaff</authorID>
+  <bookID>anf01</bookID>
+  <workID>anf01</workID>
+<versionID>anf01</versionID>
+<bkgID>apostolic-fathers-with-justin-martyr-and-irenaeus-(schaff)</bkgID>
+
+<DC>
+<DC.Title>ANF01. The Apostolic Fathers with Justin Martyr and Irenaeus</DC.Title>
+<DC.Creator scheme="short-form" sub="Editor">Philip Schaff</DC.Creator>
+<DC.Creator scheme="file-as" sub="Editor">Schaff, Philip (1819-1893)</DC.Creator>
+<DC.Creator scheme="ccel" sub="Editor">schaff</DC.Creator>
+<DC.Creator scheme="ccel" sub="Author">irenaeus</DC.Creator>	
+
+<DC.Publisher>Grand Rapids, MI: Christian Classics Ethereal Library</DC.Publisher>
+<DC.Relation scheme="containedIn" sub="1">/ccel/schaff/anf-series</DC.Relation>
+<DC.Subject scheme="LCCN">BR60</DC.Subject>
+<DC.Subject scheme="lcsh1">Christianity</DC.Subject>
+<DC.Subject scheme="lcsh2">Early Christian Literature. Fathers of the Church, etc.</DC.Subject>
+<DC.Subject scheme="ccel">All; Early Church; Classic; Proofed;</DC.Subject>
+<DC.Contributor sub="Markup">Timothy Lanfear</DC.Contributor>
+<DC.Date sub="Created">2002-10</DC.Date>
+<DC.Type>Text.Monograph</DC.Type>
+<DC.Format scheme="IMT">text/xml</DC.Format>
+<DC.Identifier scheme="URL">/ccel/schaff/anf01.html</DC.Identifier>
+<DC.Source>Logos Research Systems, Inc.</DC.Source>
+<DC.Language scheme="ISO639-3">eng</DC.Language>
+<DC.Rights>Public Domain</DC.Rights>
+</DC>
+
+<comments />
+</electronicEdInfo>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+Center	{ text-align:center }
+endnote	{ font-size:85% }
+.HR30	{ text-align:center; width:30% }
+</style>
+
+<style type="text/xcss">
+<selector element="Center">
+<property name="text-align" value="center" />
+</selector>
+<selector element="endnote">
+<property name="font-size" value="85%" />
+</selector>
+<selector class="HR30">
+<property name="text-align" value="center" />
+<property name="width" value="30%" />
+</selector>
+</style>
+
+
+</ThML.head>
+
+<ThML.body xml:space="preserve">
+
+<div1 id="viii" n="viii" next="viii.i" prev="vii.ii.x" shorttitle="JUSTIN MARTYR" title="JUSTIN MARTYR">
+<div2 id="viii.ii" n="ii" next="viii.ii.i" prev="viii.i" shorttitle="The First Apology" title="The First Apology">
+<div3 id="viii.ii.xlvi" n="xlvi" next="viii.ii.xlvii" prev="viii.ii.xlv" shorttitle="Chapter XLVI.—The Word in the world..." title="Chapter XLVI.—The Word in the world before Christ.">
+
+<h3 id="viii.ii.xlvi-p0.1">Chapter XLVI.—The Word in the world
+before Christ.</h3>
+
+<p id="viii.ii.xlvi-p1" shownumber="no">But lest some should, without reason, and for the
+perversion of what we teach, maintain that we say that Christ was born
+one hundred and fifty years ago under Cyrenius, and subsequently, in the
+time of Pontius Pilate, taught what we say He taught; and should cry out
+against us as though all men who were born before Him were 
+irresponsible--let let us anticipate and solve the difficulty. <index id="viii.ii.xlvi-p1.1" subject1="Christ Jesus" subject2="the Son of God" title="178" type="subject" /><index id="viii.ii.xlvi-p1.2" subject1="Word, the, is Christ" title="178" type="subject" />We have been taught that Christ is the
+first-born of God, and we have declared above that He is the Word of whom
+every race of men were partakers; and those who lived reasonably<note anchored="yes" id="viii.ii.xlvi-p1.3" n="1863" place="end"><p class="endnote" id="viii.ii.xlvi-p2" shownumber="no"> <span class="Greek" id="viii.ii.xlvi-p2.1" lang="EL">μετὰ
+λόγου</span>, “with
+reason,” or “the Word.” [This remarkable passage on the
+salvability and accountability of the heathen is noteworthy. See, on St.
+<scripRef id="viii.ii.xlvi-p2.2" osisRef="Bible:Matt.25.32" parsed="|Matt|25|32|0|0" passage="Matt. xxv. 32">Matt. xxv. 32</scripRef>, <i>Morsels of Criticism</i> by the
+eccentric but thoughtful Ed. King, p. 341. London, 1788].</p> </note> are
+Christians, even though they have been thought atheists; as, among the
+Greeks, Socrates and Heraclitus, and men like them; and among the
+barbarians, Abraham, and Ananias, and Azarias, and Mishael, and Elias, and
+many others whose actions and names we now decline to recount, because we
+know it would be tedious. So that even they who lived before Christ, and
+lived without reason, were wicked and hostile to Christ, and slew those
+who lived reasonably. But who, through the power of the Word, according
+to the will of God the Father and Lord of all, He was born of a virgin as
+a man, and was named Jesus, and was crucified, and died, and rose again,
+and ascended into heaven, an intelligent man will be able to comprehend
+from what has been already so largely said. And we, since the proof of
+this subject is less needful now, will pass for the present to the proof
+of those things which are urgent.</p>
+
+</div3>
+
+</div2>
+</div1>
+
+</ThML.body>
+</ThML>

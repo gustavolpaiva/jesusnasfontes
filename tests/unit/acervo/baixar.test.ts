@@ -103,6 +103,13 @@ describe("validarUrl: origens que não versionam por commit (Gutenberg pelo espe
     expect(() => validarUrl("https://www.gospels.net/thomas", SEM_COMMIT)).not.toThrow();
   });
 
+  it("aceita o ccel.org (não versiona: o que fixa o arquivo é o sha256 do lock)", () => {
+    expect(() => validarUrl("https://ccel.org/ccel/schaff/anf08.xml", SEM_COMMIT)).not.toThrow();
+    expect(() =>
+      validarUrl("https://ccel.org/ccel/lightfoot/fathers.xml", SEM_COMMIT),
+    ).not.toThrow();
+  });
+
   it("o endereço principal do Gutenberg, que bloqueia automação, segue fora da lista permitida", () => {
     expect(() =>
       validarUrl("https://www.gutenberg.org/cache/epub/2811/pg2811.txt", SEM_COMMIT),

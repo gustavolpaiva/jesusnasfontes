@@ -163,10 +163,50 @@ describe("interpretarOrigem: formato registrado e ainda sem parser", () => {
     ).toThrow(/sem parser/);
   });
 
-  it("o registro real aceita os quatro formatos e recusa qualquer outro", () => {
-    expect(FORMATOS_ORIGEM).toEqual(["tei", "gutenberg", "html", "texto-ocr"]);
+  it("o registro real aceita os cinco formatos e recusa qualquer outro", () => {
+    expect(FORMATOS_ORIGEM).toEqual(["tei", "gutenberg", "html", "thml", "texto-ocr"]);
     expect(() =>
       interpretarOrigem("pdf", "x", { verificador: { tradutores: ["x"], licenca: "x" } }),
     ).toThrow(/formato de origem desconhecido/);
+  });
+});
+
+// ---- formato do plano 02-08: ThML (CCEL) ----
+const maraThml = ler("ccel-anf08-mara.xml");
+const SCHAFF_THML = { tradutores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" };
+
+describe("interpretarOrigem: thml (CCEL)", () => {
+  it("confere o DC.Rights e devolve seções, parágrafos com id da edição, notas à parte e a editora lida", () => {
+    const r = interpretarOrigem("thml", maraThml, {
+      verificador: SCHAFF_THML,
+      thml: { divisaoSecao: "div2" },
+    });
+    expect(r.secoes).toHaveLength(1);
+    expect(r.secoes[0]?.slug).toBe("ix-xvii");
+    expect(r.secoes[0]?.paragrafos.some((p) => p.ref === "ix.xvii-p5")).toBe(true);
+    expect(r.notas.length).toBeGreaterThan(0);
+    expect(r.cabecalho.licenca).toBe("Public Domain");
+    expect("editora" in r.cabecalho && r.cabecalho.editora).toBe(
+      "Grand Rapids, MI: Christian Classics Ethereal Library",
+    );
+  });
+
+  it("o DC.Rights é conferido ANTES de o corpo ser lido: valor trocado reprova", () => {
+    const trocado = maraThml.replace(
+      "<DC.Rights>Public Domain</DC.Rights>",
+      "<DC.Rights>All rights reserved</DC.Rights>",
+    );
+    expect(() =>
+      interpretarOrigem("thml", trocado, {
+        verificador: SCHAFF_THML,
+        thml: { divisaoSecao: "div2" },
+      }),
+    ).toThrow(ErroLicenca);
+  });
+
+  it("thml sem `divisao_secao` no registro reprova, dizendo o que falta", () => {
+    expect(() => interpretarOrigem("thml", maraThml, { verificador: SCHAFF_THML })).toThrow(
+      /divisao_secao/,
+    );
   });
 });

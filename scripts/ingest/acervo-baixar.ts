@@ -29,12 +29,17 @@ export { ErroChecksum };
  * passada por dado.
  *   - fixado por commit: o endereço tem de trazer o `commit` do registro (repositório no GitHub).
  *   - fixado por sha256: a origem não versiona; o endereço é só https + host, e o que fixa o arquivo é o sha256
- *     gravado no lock do bruto por `--fixar` (sem hash no lock, `baixarOrigem` recusa).
+ *     gravado no lock do bruto por `--fixar` (sem hash no lock, `baixarOrigem` recusa). O CCEL entra aqui: o
+ *     arquivo não é versionado pela origem e mudança de hash é revisão humana, nunca atualização automática.
  * O endereço principal do Gutenberg (`gutenberg.org`), que bloqueia cliente automatizado, fica FORA da lista de
  * propósito: do Gutenberg só se baixa pelo espelho.
  */
 const HOSTS_FIXADOS_POR_COMMIT: readonly string[] = ["raw.githubusercontent.com"];
-const HOSTS_FIXADOS_POR_SHA256: readonly string[] = ["gutenberg.pglaf.org", "www.gospels.net"];
+const HOSTS_FIXADOS_POR_SHA256: readonly string[] = [
+  "gutenberg.pglaf.org",
+  "www.gospels.net",
+  "ccel.org",
+];
 export const HOSTS_PERMITIDOS = [...HOSTS_FIXADOS_POR_COMMIT, ...HOSTS_FIXADOS_POR_SHA256] as const;
 
 export function validarUrl(url: string, origem: Pick<OrigemAcervo, "commit">): void {

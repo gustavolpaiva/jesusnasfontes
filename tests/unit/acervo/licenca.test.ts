@@ -6,8 +6,10 @@ import {
   ErroLicenca,
   exigirDedicacaoDominioPublico,
   exigirLicencaGutenberg,
+  exigirLicencaThml,
   exigirTraducaoTei,
   lerCabecalhoTei,
+  lerCabecalhoThml,
 } from "../../../scripts/ingest/acervo-licenca";
 
 const FIXTURES = path.join(
@@ -289,5 +291,69 @@ describe("exigirDedicacaoDominioPublico: a dedicação do tradutor, lida na pág
       erro = e;
     }
     expect((erro as ErroLicenca).codigo).toBe("sem_declaracao");
+  });
+});
+
+// ───────────────────────── ThML (CCEL): DC.Rights no cabeçalho do próprio arquivo ─────────────────────────
+const mara = readFileSync(path.join(FIXTURES, "ccel-anf08-mara.xml"), "utf8");
+const lightfoot = readFileSync(path.join(FIXTURES, "ccel-lightfoot-trecho.xml"), "utf8");
+const SCHAFF = { tradutores: ["Schaff, Philip (1819-1893)"], licenca: "Public Domain" };
+
+describe("exigirLicencaThml: DC.Rights lido no cabeçalho do próprio arquivo (D-06)", () => {
+  it("lê DC.Rights, DC.Publisher, os nomes do DC e as datas do cabeçalho real do ANF 8", () => {
+    const c = lerCabecalhoThml(mara);
+    expect(c.licenca).toBe("Public Domain");
+    expect(c.editora).toBe("Grand Rapids, MI: Christian Classics Ethereal Library");
+    expect(c.tradutores).toContain("Schaff, Philip (1819-1893)");
+    expect(c.anos).toContain("2005-03-27");
+  });
+
+  it("controle positivo: 'Public Domain' e o editor esperado passam", () => {
+    expect(() => exigirLicencaThml(mara, SCHAFF)).not.toThrow();
+  });
+
+  it("controle negativo: outro valor em DC.Rights reprova, citando o valor lido", () => {
+    const trocado = mara.replace(
+      "<DC.Rights>Public Domain</DC.Rights>",
+      "<DC.Rights>All rights reserved</DC.Rights>",
+    );
+    expect(trocado).not.toBe(mara);
+    expect(() => exigirLicencaThml(trocado, SCHAFF)).toThrow(ErroLicenca);
+    expect(() => exigirLicencaThml(trocado, SCHAFF)).toThrow(/All rights reserved/);
+  });
+
+  it("controle negativo: sem DC.Rights, a licença não está provada na origem", () => {
+    const sem = mara.replace("<DC.Rights>Public Domain</DC.Rights>", "<DC.Rights />");
+    expect(sem).not.toBe(mara);
+    let erro: unknown;
+    try {
+      exigirLicencaThml(sem, SCHAFF);
+    } catch (e) {
+      erro = e;
+    }
+    expect((erro as ErroLicenca).codigo).toBe("sem_declaracao");
+  });
+
+  it("DC.Rights só vale dentro da janela do cabeçalho (primeiros 20.000 caracteres)", () => {
+    const sem = mara.replace("<DC.Rights>Public Domain</DC.Rights>", "<DC.Rights />");
+    const longe = sem.replace(
+      "</ThML>",
+      `${"<p>enchimento</p>".repeat(2000)}<DC.Rights>Public Domain</DC.Rights></ThML>`,
+    );
+    expect(() => exigirLicencaThml(longe, SCHAFF)).toThrow(ErroLicenca);
+  });
+
+  it("nome esperado ausente do DC reprova, citando quem faltou", () => {
+    expect(() =>
+      exigirLicencaThml(mara, { tradutores: ["Harmon, Austin Morris"], licenca: "Public Domain" }),
+    ).toThrow(/Harmon, Austin Morris/);
+  });
+
+  it("o cabeçalho real de Lightfoot (com DOCTYPE) passa com o nome lido no arquivo", () => {
+    const c = exigirLicencaThml(lightfoot, {
+      tradutores: ["Lightfoot, Joseph Barber (1828-1889)"],
+      licenca: "Public Domain",
+    });
+    expect(c.editora).toBe("Grand Rapids, MI: Christian Classics Ethereal Library");
   });
 });

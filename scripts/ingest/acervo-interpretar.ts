@@ -8,14 +8,17 @@ import {
   type CabecalhoGutenberg,
   type CabecalhoHtml,
   type CabecalhoTei,
+  type CabecalhoThml,
   exigirDedicacaoDominioPublico,
   exigirLicencaGutenberg,
+  exigirLicencaThml,
   exigirTraducaoTei,
 } from "./acervo-licenca";
 import { ErroOrigem, FORMATOS_ORIGEM, type OrigemAcervo } from "./acervo-origens";
 import { type ConfigGutenberg, parsearGutenberg } from "./acervo-parse-gutenberg";
 import { type ConfigHtml, parsearHtml } from "./acervo-parse-html";
 import { parsearTei, type SecaoTei } from "./acervo-parse-tei";
+import { type ConfigThml, parsearThml } from "./acervo-parse-thml";
 
 export type ConfigInterpretar = {
   /** Tradutores e licença que o cabeçalho do próprio arquivo tem de trazer (`verificador` da origem). */
@@ -28,6 +31,8 @@ export type ConfigInterpretar = {
   gutenberg?: ConfigGutenberg;
   /** Formato `html`: a palavra que abre o cabeçalho de cada unidade (`rotulo_unidade`). */
   html?: ConfigHtml;
+  /** Formato `thml`: qual nível de divisão do arquivo vira seção (`divisao_secao`). */
+  thml?: ConfigThml;
 };
 
 export type ResultadoInterpretado = {
@@ -35,11 +40,13 @@ export type ResultadoInterpretado = {
   /** Notas de editor lidas à parte, para o derivador conferir que nenhuma entrou num parágrafo. */
   notas: string[];
   /** O que o próprio arquivo declarou (tradutores, licença, anos, aviso da edição). */
-  cabecalho: CabecalhoTei | CabecalhoGutenberg | CabecalhoHtml;
+  cabecalho: CabecalhoTei | CabecalhoGutenberg | CabecalhoHtml | CabecalhoThml;
   /** Unidades que a numeração do arquivo salta: a origem não as traz (só os formatos que numeram as unidades). */
   ausentes?: string[];
   /** Unidades fora da tabela de correspondência, que ficaram com a numeração da própria origem. */
   foraDaTabela?: string[];
+  /** Formato `thml`: divisões do nível da seção sem nenhum parágrafo (tabelas, páginas de rosto), puladas. */
+  divisoesSemParagrafo?: string[];
 };
 
 /** Interpreta o conteúdo bruto de um arquivo de origem conforme o formato registrado. */
@@ -76,6 +83,16 @@ export function interpretarOrigem(
         throw new ErroOrigem("formato html exige `rotulo_unidade` no registro de cada arquivo");
       const { secoes, notas } = parsearHtml(conteudo, config.html);
       return { secoes, notas, cabecalho };
+    }
+    case "thml": {
+      // A licença vem do DC.Rights do cabeçalho; só depois o corpo é lido.
+      const cabecalho = exigirLicencaThml(conteudo, config.verificador);
+      if (!config.thml)
+        throw new ErroOrigem(
+          "formato thml exige `divisao_secao` no registro de cada arquivo (o nível de divisão que vira seção)",
+        );
+      const { secoes, notas, divisoesSemParagrafo } = parsearThml(conteudo, config.thml);
+      return { secoes, notas, cabecalho, divisoesSemParagrafo };
     }
     default:
       if ((FORMATOS_ORIGEM as readonly string[]).includes(formato))

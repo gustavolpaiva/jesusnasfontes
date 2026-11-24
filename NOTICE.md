@@ -108,3 +108,19 @@ changed or unchanged, for any purpose." A fixture junta trechos reais da página
 reescrita: itens da navegação do site, o título, o parágrafo da dedicação, a legenda de símbolos, o Prólogo e os
 ditos 1, 2 e 3; depois do recorte, o título final e o cabeçalho "Notes on Translation". Os ditos 4 a 113 e as notas
 do tradutor ficaram fora. O sha256 da página inteira está em `data/acervo.lock.json`.
+
+### Christian Classics Ethereal Library: fixtures do leitor ThML (`ccel-anf08-mara.xml`, `ccel-anf01-notas.xml`, `ccel-lightfoot-trecho.xml`)
+
+Recortes de teste de volumes ThML do Christian Classics Ethereal Library (CCEL, Calvin University,
+<https://ccel.org>), cada um declarando no próprio cabeçalho `DC.Rights: Public Domain` (traduções inglesas do
+século XIX, em domínio público). O arquivo completo de cada volume fica só na máquina de quem desenvolve,
+fixado pelo sha256 em `data/acervo.lock.json`, e nunca entra no repositório.
+
+- `ccel-anf08-mara.xml`: o cabeçalho ThML inteiro e a divisão `ix.xvii` (a carta de Mara bar Serapião, com as
+  notas do editor) de `anf08.xml` (*Ante-Nicene Fathers*, vol. 8, edição de Philip Schaff,
+  <https://ccel.org/ccel/schaff/anf08.xml>), sem nenhuma alteração do texto.
+- `ccel-anf01-notas.xml`: o cabeçalho ThML inteiro e um recorte com nota longa de `anf01.xml`
+  (*Ante-Nicene Fathers*, vol. 1, <https://ccel.org/ccel/schaff/anf01.xml>), sem nenhuma alteração do texto.
+- `ccel-lightfoot-trecho.xml`: o cabeçalho ThML (com o DOCTYPE de DTD externo que a origem traz) e três
+  parágrafos da divisão `ii.iii` de `fathers.xml` (*The Apostolic Fathers*, de J. B. Lightfoot, edição CCEL,
+  <https://ccel.org/ccel/lightfoot/fathers.xml>), sem nenhuma alteração do texto.

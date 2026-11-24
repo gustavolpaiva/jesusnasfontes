@@ -1,0 +1,24 @@
+# Fixture de teste: metadados da Fonte do recorte real da carta de Mara bar Serapião (ANF 8, CCEL).
+# O resumo e as palavras-chave são de teste, escritos para exercitar a carga.
+slug: mara-bar-serapiao
+titulo: Carta de Mara bar Serapião
+autor: Mara bar Serapião
+epoca: século I a III d.C. (data disputada)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library (ANF, volume 8)
+origem_url: https://ccel.org/ccel/schaff/anf08
+traduzida_por_nos: false
+limites_pt: >-
+  Fixture de teste: carta siríaca antiga, de data e autoria disputadas, que menciona um "sábio rei" dos judeus.
+secoes:
+  # o slug da seção é o id da divisão da edição (ix.xvii) em kebab-case, como o derivador o emite
+  - slug: ix-xvii
+    titulo: Carta de Mara a Serapião
+    resumo_pt: >-
+      Resumo de teste: a carta de Mara ao filho Serapião, com a menção ao "sábio rei" dos judeus.
+    palavras_chave_pt: [Mara, Serapião, sábio rei]
