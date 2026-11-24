@@ -5,6 +5,10 @@
     "josefo-antiguidades": {
       "sha256": "1d3d83162fceb012bb30cfb739c1fc6dff3b9598bcb8399bc4302405436af6f8",
       "bytes": 2743226
+    },
+    "luciano-peregrino": {
+      "sha256": "a44af0d6c19d8b6d6032935b629b83678c2431486ea408901bd798a78136316c",
+      "bytes": 37483
     }
   }
 }
