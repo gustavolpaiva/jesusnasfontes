@@ -1,0 +1,40 @@
+# Fonte do Acervo: Fragmentos de Papias, na edição do volume 1 da coleção Ante-Nicene Fathers (CCEL, ThML).
+# O texto vem do derivado `data/acervo-derivados/papias-fragmentos.json`, gerado por `pnpm acervo:derivar`
+# a partir da origem `ccel-anf01` (data/acervo-origens.yaml): esta Fonte é a divisão vii.ii do volume. Os
+# fragmentos sobrevivem citados por outros autores (sobretudo Eusébio), reunidos pelos editores; nenhum
+# resumo atribui a Papias texto que o volume não traz. O resumo auxiliar é escrita automática de busca (D-18).
+slug: papias-fragmentos
+titulo: Fragmentos de Papias
+autor: Papias de Hierápolis
+epoca: entre cerca de 110 e 140 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-anterior-1929
+licenca_url: https://ccel.org/ccel/schaff/anf01.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf01
+tradutor: Schaff, Philip (1819-1893)
+traducao_ano: 1867
+# pubHistory do volume: texto editado por Alexander Roberts e James Donaldson, Edimburgo, 1867, com material
+# adicional de A. Cleveland Coxe, 1886; o cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da
+# série. Nenhum outro tradutor é atribuído de memória (plano 02-10).
+edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
+traduzida_por_nos: false
+limites_pt: >-
+  Obra perdida de um bispo de Hierápolis, escrita em grego no começo do século II: só sobrevive em citações
+  de autores posteriores, sobretudo Eusébio, reunidas aqui pelos editores da coleção. Nenhum dos cinco
+  livros chegou inteiro, e o que se lê são trechos escolhidos por quem citou. O texto lido é a tradução
+  inglesa do volume 1 da coleção Ante-Nicene Fathers.
+secoes:
+  - slug: vii-ii
+    titulo: Fragmentos
+    resumo_pt: >-
+      Trechos que sobraram da Exposição dos oráculos do Senhor: a nota sobre os cinco livros e o prefácio do
+      próprio Papias, que diz ter recebido o que ouviu dos anciãos — o que disseram André, Pedro, Filipe,
+      Tomé, Tiago, João e Mateus, e o que diziam Aristião e o presbítero João. Reúnem ainda a tradição sobre
+      Marcos, intérprete de Pedro, e sobre Mateus, que pôs os oráculos em hebraico, a esperança do milênio
+      com as vinhas colossais, a morte inchada de Judas, os graus das moradas no além e a lista das Marias do
+      evangelho.
+    palavras_chave_pt: [fragmentos, Eusébio, Marcos, Mateus, anciãos, milênio, Hierápolis, oráculos do Senhor]

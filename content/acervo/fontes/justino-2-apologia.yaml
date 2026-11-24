@@ -1,0 +1,34 @@
+# Fonte do Acervo: Segunda Apologia de Justino Mártir, na edição do volume 1 da coleção Ante-Nicene Fathers
+# (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/justino-2-apologia.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf01` (data/acervo-origens.yaml): esta Fonte é a divisão
+# viii.iii do volume. O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: justino-2-apologia
+titulo: Segunda Apologia
+autor: Justino Mártir
+epoca: por volta de 161 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-anterior-1929
+licenca_url: https://ccel.org/ccel/schaff/anf01.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf01
+tradutor: Schaff, Philip (1819-1893)
+traducao_ano: 1867
+edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
+traduzida_por_nos: false
+limites_pt: >-
+  Defesa curta escrita em grego pelo mesmo autor da Primeira Apologia, movida por execuções de cristãos em
+  Roma sob o prefeito Urbico. O texto lido é a tradução inglesa do volume 1 da coleção Ante-Nicene Fathers.
+secoes:
+  - slug: viii-iii
+    titulo: Texto
+    resumo_pt: >-
+      Defesa provocada pelas execuções ordenadas pelo prefeito Urbico em Roma: Justino narra o caso de uma
+      mulher convertida que acabou por denunciar o marido intemperante, e a morte de quem confessava ser
+      cristão, como Lucius, que agradeceu ao ser condenado. Critica o filósofo Crescens e os juízes que
+      condenam o que não entendem, sustenta que todos os que viveram segundo o Logos foram perseguidos, e
+      recorda a própria conversão, quando via os cristãos sem medo da morte; encerra pedindo a publicação do
+      escrito e a conversão dos leitores.
+    palavras_chave_pt: [Urbico, Roma, Crescens, Logos, martírio, conversão, Simão, denunciação]

@@ -1,0 +1,46 @@
+# Fonte do Acervo: Diálogo com Trifão, de Justino Mártir, na edição do volume 1 da coleção Ante-Nicene
+# Fathers (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/justino-dialogo-trifao.json`, gerado
+# por `pnpm acervo:derivar` a partir da origem `ccel-anf01` (data/acervo-origens.yaml): esta Fonte é a
+# divisão viii.iv do volume, com os 142 capítulos nas referências dos parágrafos. O resumo auxiliar é
+# escrita automática de busca (D-18) e nunca substitui o texto.
+slug: justino-dialogo-trifao
+titulo: Diálogo com Trifão
+autor: Justino Mártir
+epoca: por volta de 160 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-anterior-1929
+licenca_url: https://ccel.org/ccel/schaff/anf01.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf01
+tradutor: Schaff, Philip (1819-1893)
+traducao_ano: 1867
+edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
+traduzida_por_nos: false
+# Teto próprio de seção (Pitfall 9, a obra que o plano apontava como candidata): o Diálogo é UMA divisão do
+# volume (viii.iv, 142 capítulos nas referências dos parágrafos, sem divisões próprias no arquivo); texto
+# medido de 362.130 caracteres. O teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 370000
+  motivo: >-
+    o Diálogo com Trifão é uma divisão única da edição: os 142 capítulos vivem nas referências dos
+    parágrafos, não em divisões próprias do arquivo, e o agrupamento por capítulos não existe no pipeline
+    (plano 02-11, teto do plano 02-08); o texto medido tem 362.130 caracteres
+limites_pt: >-
+  Obra escrita em grego em forma de diálogo entre o autor, filósofo cristão, e um judeu erudito chamado
+  Trifão, com os amigos deste. A conversa expõe o caminho do autor pelas escolas filosóficas até a conversão
+  e debate lei, profetas e fé em Cristo. O texto lido é a tradução inglesa do volume 1 da coleção
+  Ante-Nicene Fathers.
+secoes:
+  - slug: viii-iv
+    titulo: Texto
+    resumo_pt: >-
+      Conversa começada num passeio matinal, quando Trifão, formado com um sócrático, aborda o filósofo:
+      Justino conta o caminho pelas escolas — estóico, peripatético, pitagórico e platônico — e a conversão
+      por um velho encontrado perto do mar, e Trifão pergunta pela filosofia cristã. No debate sobre a lei, a
+      circuncisão, os mandamentos e os profetas, defende o Logos preexistente, o nascimento da virgem, os
+      dois adventos de Cristo, o reino de mil anos em Jerusalém e a ressurreição dos mortos. Terminam em paz,
+      cada um desejando ao outro a salvação, com a oração de Justino pelos companheiros.
+    palavras_chave_pt: [Trifão, filosofia, conversão, lei, circuncisão, profetas, Logos, virgem, milênio, ressurreição]

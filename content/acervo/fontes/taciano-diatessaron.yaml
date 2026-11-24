@@ -1,0 +1,51 @@
+# Fonte do Acervo: Diatessaron, de Taciano, na edição do volume 9 da coleção Ante-Nicene Fathers (CCEL,
+# ThML). O texto vem do derivado `data/acervo-derivados/taciano-diatessaron.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf09` (data/acervo-origens.yaml): esta Fonte é o texto da
+# harmonia (iv.iii) e as subscrições dos dois manuscritos árabes (iv.iv). O resumo auxiliar é escrita
+# automática de busca (D-18) e nunca substitui o texto.
+slug: taciano-diatessaron
+titulo: Diatessaron
+autor: Taciano
+epoca: por volta de 170 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf09.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf09
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+# Teto próprio de seção (Pitfall 9): a harmonia é UMA divisão do volume (iv.iii, as 55 seções da edição nas
+# referências dos parágrafos); texto medido de 348.636 caracteres. O teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 350000
+  motivo: >-
+    o texto do Diatessaron é uma divisão única da edição: as 55 seções da harmonia vivem nas referências dos
+    parágrafos, não em divisões próprias do arquivo, e o agrupamento por seções não existe no pipeline
+    (plano 02-11, teto do plano 02-08); o texto medido tem 348.636 caracteres
+limites_pt: >-
+  Harmonia dos quatro evangelhos composta em siríaco por Taciano no século II; o texto original se perdeu e
+  chegou por uma tradução árabe medieval, declarada nas subscrições como obra do sacerdote Abu'l Faraj
+  'Abdulla ibn-at-Tayyib, conhecida por dois manuscritos. Lê-se aqui a tradução inglesa do árabe publicada
+  no volume 9 da coleção Ante-Nicene Fathers.
+secoes:
+  - slug: iv-iii
+    titulo: Texto
+    resumo_pt: >-
+      Harmonia dos quatro evangelhos em narrativa contínua: abre com o prólogo de João, no princípio era o
+      Verbo, e junta os relatos da infância de Zacarias e Isabel, do nascimento de João e de Jesus, o
+      ministério, os ensinos, os milagres, a paixão e a ressurreição, até a ascensão em Betânia e a nota
+      final de que o mundo não caberia nos livros se tudo fosse escrito. Os versículos dos evangelhos entram
+      numerados entre colchetes, como na edição.
+    palavras_chave_pt: [harmonia, quatro evangelhos, João, Verbo, infância, ministério, paixão, ressurreição, ascensão]
+  - slug: iv-iv
+    titulo: Subscrições
+    resumo_pt: >-
+      As subscrições com que a harmonia fecha nos dois manuscritos árabes: o manuscrito Borgiano e o do
+      Vaticano declaram que o evangelho foi compilado por Taciano a partir dos quatro evangelistas e que a
+      tradução do siríaco para o árabe é do sacerdote Abu'l Faraj 'Abdulla ibn-at-Tayyib, de um exemplar
+      copiado por 'Isa ibn-'Ali.
+    palavras_chave_pt: [subscrições, manuscrito Borgiano, Vaticano, Abu'l Faraj, tradução árabe, colofão]

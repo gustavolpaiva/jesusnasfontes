@@ -1,0 +1,43 @@
+# Fonte do Acervo: Primeira Apologia de Justino Mártir, na edição do volume 1 da coleção Ante-Nicene Fathers
+# (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/justino-1-apologia.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf01` (data/acervo-origens.yaml): esta Fonte é a divisão
+# viii.ii do volume, com os capítulos nas referências dos parágrafos. O resumo auxiliar é escrita automática
+# de busca (D-18) e nunca substitui o texto.
+slug: justino-1-apologia
+titulo: Primeira Apologia
+autor: Justino Mártir
+epoca: por volta de 155 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-anterior-1929
+licenca_url: https://ccel.org/ccel/schaff/anf01.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf01
+tradutor: Schaff, Philip (1819-1893)
+traducao_ano: 1867
+edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
+traduzida_por_nos: false
+# Teto próprio de seção (Pitfall 9): a obra é UMA divisão do volume (viii.ii, 71 capítulos nas referências
+# dos parágrafos, sem divisões próprias no arquivo); texto medido de 113.864 caracteres. O teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 120000
+  motivo: >-
+    a Primeira Apologia é uma divisão única da edição: os 71 capítulos vivem nas referências dos parágrafos,
+    não em divisões próprias do arquivo; o texto medido tem 113.864 caracteres (plano 02-11, teto do plano
+    02-08)
+limites_pt: >-
+  Defesa escrita em grego por um filósofo cristão nascido em Flavia Neápolis, na Palestina, endereçada ao
+  imperador Antonino Pio, aos seus filhos e ao senado. A edição apensa à defesa dois documentos imperiais.
+  O texto lido é a tradução inglesa do volume 1 da coleção Ante-Nicene Fathers.
+secoes:
+  - slug: viii-ii
+    titulo: Texto
+    resumo_pt: >-
+      Defesa endereçada ao imperador Antonino Pio, a Veríssimo e a Lúcio, filósofos e filhos do imperador, e
+      ao senado: Justino se apresenta em nome dos cristãos de todas as nações e pede que sejam julgados por
+      atos, não pelo nome. Expõe os ensinos e os ritos cristãos, lê os mitos dos poetas como obra de demônios
+      que imitam as profecias, mostra nos profetas o anúncio de Cristo e sustenta a ressurreição da carne e o
+      juízo; encerra com dois documentos imperiais apensos sobre o tratamento dos acusados.
+    palavras_chave_pt: [Antonino Pio, senado, apologia, demônios, profecias, Cristo, batismo, eucaristia, editos imperiais]

@@ -1,0 +1,47 @@
+# Fonte do Acervo: Apologético, de Tertuliano, na edição do volume 3 da coleção Ante-Nicene Fathers (CCEL,
+# ThML). O texto vem do derivado `data/acervo-derivados/tertuliano-apologetico.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf03` (data/acervo-origens.yaml): esta Fonte é a divisão iv.iii
+# do volume, com os 50 capítulos e as Elucidations do editor nas referências dos parágrafos. O resumo
+# auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: tertuliano-apologetico
+titulo: Apologético
+autor: Tertuliano
+epoca: cerca de 197 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf03.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf03
+# O cabeçalho digital (DC.Creator) nomeia Philip Schaff, editor da série, e Allan Menzies, editor do volume;
+# o pubHistory não existe. A tradução do próprio texto é declarada na abertura da divisão: "Translated by
+# the Rev. S. Thelwall" (iv.iii.i-p3).
+tradutor: Schaff, Philip (1819-1893) e Menzies, Allan (1845-1916)
+edicao: "Ante-Nicene Fathers, vol. 3, Christian Classics Ethereal Library (edição digital); tradução da obra pelo rev. S. Thelwall, declarada no próprio texto, sem ano declarado"
+traduzida_por_nos: false
+# Teto próprio de seção (Pitfall 9): a obra é UMA divisão do volume (iv.iii, 50 capítulos mais as
+# Elucidations do editor nas referências dos parágrafos); texto medido de 206.331 caracteres. O teto é 80.000.
+secao_max_caracteres:
+  caracteres: 210000
+  motivo: >-
+    o Apologético é uma divisão única da edição: os capítulos e as Elucidations do editor vivem nas
+    referências dos parágrafos, não em divisões próprias do arquivo, e o agrupamento por capítulos não
+    existe no pipeline (plano 02-11, teto do plano 02-08); o texto medido tem 206.331 caracteres
+limites_pt: >-
+  Defesa escrita em latim e endereçada aos governantes do Império Romano. A tradução inglesa lida é a do
+  reverendo S. Thelwall, declarada na abertura do próprio texto, no volume 3 da coleção Ante-Nicene Fathers.
+  A divisão inclui as Elucidations apensas pelo editor americano da coleção, com cronologia do autor e notas
+  sobre os estudos de Kaye.
+secoes:
+  - slug: iv-iii
+    titulo: Texto
+    resumo_pt: >-
+      Defesa endereçada aos governantes do Império: protesta contra a condenação pelo nome, sem crime
+      provado, recusa a injustiça de obrigar à adoração e reivindica liberdade para o culto. Refuta as
+      acusações e as religiões do Império, mostra a antiguidade e a autoridade das Escrituras, descreve os
+      costumes e a vida das comunidades, e proclama que, quanto mais os cristãos são ceifados, mais crescem
+      em número, pois o sangue dos cristãos é semente. Fecha com as Elucidations do editor da coleção, que
+      trazem cronologia do autor e notas de Kaye sobre a obra.
+    palavras_chave_pt: [governantes romanos, liberdade de religião, perseguição, mártires, sangue é semente, Escrituras, costumes cristãos, Elucidations]

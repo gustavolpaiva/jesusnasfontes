@@ -1,0 +1,42 @@
+# Fonte do Acervo: Apologia de Aristides, nas duas traduções do volume 9 da coleção Ante-Nicene Fathers
+# (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/aristides-apologia.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf09` (data/acervo-origens.yaml): o grego pela história de
+# Barlaam e Josafé (xiii.iii) e o siríaco (xiii.iv). O resumo auxiliar é escrita automática de busca (D-18).
+slug: aristides-apologia
+titulo: Apologia de Aristides
+autor: Aristides, filósofo de Atenas
+epoca: primeira metade do século II d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf09.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf09
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Apologia cristã primitiva escrita em grego, de datação debatida; a tradução do siríaco a apresenta como
+  defesa feita diante do imperador Adriano. Sobrevive em duas formas: o texto siríaco e uma versão grega
+  refeita, preservada dentro da história medieval de Barlaam e Josafé, ambas traduzidas neste volume. O texto
+  lido é a tradução inglesa do volume 9 da coleção Ante-Nicene Fathers.
+secoes:
+  - slug: xiii-iii
+    titulo: Conforme a história de Barlaam e Josafé (grego)
+    resumo_pt: >-
+      A apologia na versão grega, preservada dentro da história de Barlaam e Josafé: o autor conclui, pela
+      ordem do mundo, que há um Deus sem começo e sem fim, e passa em revista as classes de homens — caldeus,
+      gregos e egípcios com os seus deuses, os judeus e os cristãos — para mostrar quais participam da
+      verdade. Fecha declarando ao rei que nada disse além do que está nos escritos dos cristãos.
+    palavras_chave_pt: [Barlaam e Josafé, grego, apologia, rei, deuses dos gregos, egípcios, caldeus, verdade]
+  - slug: xiii-iv
+    titulo: Tradução do siríaco
+    resumo_pt: >-
+      A mesma apologia na tradução do siríaco, apresentada como defesa de Aristides, filósofo ateniense, a
+      Hadriano, o rei: Deus sem começo nem fim, conhecido pela criação, e quatro classes de homens —
+      bárbaros, gregos, judeus e cristãos —, com a origem da religião dos cristãos em Jesus, o Messias,
+      chamado Filho do Deus Altíssimo. Termina com a advertência do juízo que virá sobre o gênero humano por
+      Jesus, o Messias.
+    palavras_chave_pt: [siríaco, Adriano, Jesus Messias, apologia, bárbaros, gregos, judeus, cristãos]
