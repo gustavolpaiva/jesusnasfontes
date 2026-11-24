@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, unstable_rethrow } from "next/navigation";
 import { ChipEstado } from "@/components/acervo/chip-estado";
 import { StatusMessage } from "@/components/estado/status-message";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
 import { type FonteDoPainel, lerFonteDoPainel } from "@/modules/acervo/consultas-admin";
@@ -84,7 +85,7 @@ export default async function PaginaEditarFonte({
           <FormularioFonteDoArquivo fonte={fonte} salvaAgora={false} />
           <section aria-labelledby="titulo-secoes" className="flex flex-col gap-3">
             <h2 id="titulo-secoes" className="text-label text-ink-muted">
-              {`Seções (${fonte.secoes.length})`}
+              <Algarismos>{`Seções (${fonte.secoes.length})`}</Algarismos>
             </h2>
             <ul className="flex flex-col border-y border-rule">
               {fonte.secoes.map((s) => (

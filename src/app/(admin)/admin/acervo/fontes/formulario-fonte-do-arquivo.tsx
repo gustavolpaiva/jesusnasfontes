@@ -39,6 +39,12 @@ export function FormularioFonteDoArquivo({
     if (versao > 0) mensagem.current?.focus();
   }, [versao]);
 
+  // O servidor mudou o valor por fora do formulário (a reversão ao arquivo): o campo acompanha o que está salvo.
+  useEffect(() => {
+    setLimites(fonte.limitesPt ?? "");
+    setPublicada(fonte.publicada);
+  }, [fonte.limitesPt, fonte.publicada]);
+
   async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     setPendente(true);

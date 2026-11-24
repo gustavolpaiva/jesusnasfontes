@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { mensagemDaFalha } from "@/app/(admin)/admin/convites/mensagens";
 import { StatusMessage } from "@/components/estado/status-message";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -507,7 +508,9 @@ function SecaoDoFormulario({
       data-slot="secao-do-formulario"
       className="flex flex-col gap-4 border-t border-rule pt-4"
     >
-      <legend className="text-label mb-2">{`Seção ${i + 1}`}</legend>
+      <legend className="text-label mb-2">
+        <Algarismos>{`Seção ${i + 1}`}</Algarismos>
+      </legend>
       <Field>
         <FieldLabel htmlFor={`campo-${id("titulo")}`}>Título</FieldLabel>
         <Input

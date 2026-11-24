@@ -131,7 +131,7 @@ export async function salvarResumoDeSecao(dados: unknown): Promise<ResultadoDeSa
   try {
     await comAdmin(sessao.sessao.id, async (tx) => {
       await tx.execute(
-        sql`select acervo.salvar_resumo_secao(${sessao.sessao.id}::uuid, ${`${slug}/${secao}`}, ${resumo_pt}, ${listaDePalavras(palavras_chave_pt)}::text[])`,
+        sql`select acervo.salvar_resumo_secao(${sessao.sessao.id}::uuid, ${`${slug}/${secao}`}, ${resumo_pt}, (select array_agg(p) from jsonb_array_elements_text(${JSON.stringify(listaDePalavras(palavras_chave_pt))}::jsonb) p))`,
       );
     });
     revalidatePath(`${LISTA}/${slug}`);
@@ -156,7 +156,7 @@ export async function reverterAoArquivo(
   try {
     await comAdmin(sessao.sessao.id, async (tx) => {
       await tx.execute(
-        sql`select acervo.reverter_fonte(${sessao.sessao.id}::uuid, ${s.data}, ${lista.length === 0 ? null : lista}::text[])`,
+        sql`select acervo.reverter_fonte(${sessao.sessao.id}::uuid, ${s.data}, (select array_agg(c) from jsonb_array_elements_text(${lista.length === 0 ? null : JSON.stringify(lista)}::jsonb) c))`,
       );
     });
     revalidatePath(LISTA);
