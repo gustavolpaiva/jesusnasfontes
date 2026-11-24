@@ -12,6 +12,7 @@ import {
   conferirFonte,
   conferirFontes,
   conferirYaml,
+  lerOpcoes,
   tradutorConfere,
 } from "../../../scripts/acervo/conferir-fontes";
 import { extratoDaFonte } from "../../../scripts/acervo/extrato-fonte";
@@ -373,6 +374,24 @@ function pastaDeConferencia(comDerivado: boolean): string {
   );
   return raiz;
 }
+
+describe("lerOpcoes", () => {
+  it("consome cada flag com o seu valor antes de colher os slugs posicionais", () => {
+    const { slugs, opcoes } = lerOpcoes([
+      "--fontes",
+      "content/acervo/fontes",
+      "luciano-peregrino",
+    ]);
+    expect(slugs).toEqual(["luciano-peregrino"]);
+    expect(opcoes.fontes).toBe(path.resolve("content/acervo/fontes"));
+  });
+
+  it("sem slug explícito, o valor de --fontes não vira slug e a pasta toda é conferida", () => {
+    const { slugs, opcoes } = lerOpcoes(["--fontes", "content/acervo/fontes"]);
+    expect(slugs).toEqual([]);
+    expect(opcoes.fontes).toBe(path.resolve("content/acervo/fontes"));
+  });
+});
 
 describe("conferirFontes (arquivos)", () => {
   it("imprime OK e sai 0 com YAML, derivado e lock coerentes", () => {

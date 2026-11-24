@@ -264,19 +264,30 @@ export function conferirFontes(
   return { linhas, codigo: semDerivado ? 2 : reprovou ? 1 : 0 };
 }
 
-function lerOpcoes(argumentos: string[]): { slugs: string[]; opcoes: OpcoesConferir } {
-  const valor = (flag: string, padrao: string): string => {
-    const i = argumentos.indexOf(flag);
-    if (i < 0) return padrao;
-    const v = argumentos[i + 1];
-    if (!v)
-      throw new Error(
-        "Uso: acervo:conferir [--fontes <pasta>] [--derivados <pasta>] [--lock <arquivo>]",
-      );
-    return path.resolve(v);
-  };
+/**
+ * Separa as flags (cada uma com o seu valor) dos argumentos posicionais. O valor de uma flag nunca vira
+ * slug: antes da correção, `--fontes <pasta> <slug>` tratava `<pasta>` como slug e reprovava de mentira.
+ */
+export function lerOpcoes(argumentos: string[]): { slugs: string[]; opcoes: OpcoesConferir } {
+  const valores = new Map<string, string>();
+  const slugs: string[] = [];
+  for (let i = 0; i < argumentos.length; i++) {
+    const a = argumentos[i];
+    if (a.startsWith("--")) {
+      const v = argumentos[i + 1];
+      if (!v)
+        throw new Error(
+          "Uso: acervo:conferir [--fontes <pasta>] [--derivados <pasta>] [--lock <arquivo>]",
+        );
+      valores.set(a, v);
+      i++;
+    } else {
+      slugs.push(a);
+    }
+  }
+  const valor = (flag: string, padrao: string): string => path.resolve(valores.get(flag) ?? padrao);
   return {
-    slugs: argumentos.filter((a) => !a.startsWith("--")),
+    slugs,
     opcoes: {
       fontes: valor("--fontes", PASTA_FONTES),
       derivados: valor("--derivados", PASTA_DERIVADOS),
