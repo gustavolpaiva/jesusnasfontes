@@ -99,13 +99,74 @@ export function nomeiaOEditor(tradutor: string, editor: string): boolean {
   if (casarSemEspaco(tradutor, editor)) return true;
   const sobrenome = sobrenomeDe(editor);
   if (sobrenome.length < 3) return false;
-  const palavras = tradutor
+  return palavrasDe(tradutor).includes(sobrenome);
+}
+
+export type EvidenciaDoTradutor = { ref: string; tradutores: readonly string[]; trecho: string };
+
+const semAcento = (t: string) =>
+  t
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR")
+    .toLocaleLowerCase("pt-BR");
+/** Palavras de um texto, sem acento nem caixa, só letras. */
+const palavrasDe = (t: string): string[] =>
+  semAcento(t)
     .split(/[^a-z]+/)
     .filter(Boolean);
-  return palavras.includes(sobrenome);
+const compactar = (t: string) => t.split(/\s+/).filter(Boolean).join(" ");
+
+/**
+ * O `tradutor` do YAML é o que a evidência nomeia: o sobrenome de cada nome esperado aparece como palavra (sem acento
+ * nem caixa), e fora dos nomes esperados só sobram conectivos e iniciais. Outro nome (Whiston no lugar de Thelwall, ou
+ * Thelwall "e Whiston") reprova.
+ */
+export function tradutorBateComAEvidencia(tradutor: string, esperados: readonly string[]): boolean {
+  const palavras = palavrasDe(tradutor);
+  const permitidas = new Set([...esperados.flatMap(palavrasDe), ...CONECTIVOS_DO_TRADUTOR]);
+  return (
+    esperados.every((e) => palavras.includes(sobrenomeDe(e))) &&
+    palavras.every((p) => p.length === 1 || permitidas.has(p))
+  );
+}
+
+const resumir = (t: string, max = 140) => (t.length > max ? `${t.slice(0, max)}…` : t);
+
+/** A evidência prova ESTE nome: o trecho nomeia os esperados, o tradutor do YAML os confere e o parágrafo diz o trecho. */
+function falhasDeEvidencia(
+  tradutor: string,
+  ev: EvidenciaDoTradutor,
+  contexto: ContextoDaConferencia,
+): string[] {
+  const falhas: string[] = [];
+  const palavrasDoTrecho = palavrasDe(ev.trecho);
+  for (const e of ev.tradutores)
+    if (!palavrasDoTrecho.includes(sobrenomeDe(e)))
+      falhas.push(
+        `tradutor-evidencia: o trecho registrado de ${ev.ref} não nomeia "${e}" (diz: "${resumir(ev.trecho)}")`,
+      );
+  if (!tradutorBateComAEvidencia(tradutor, ev.tradutores))
+    falhas.push(
+      `tradutor-evidencia: "${tradutor}" não é o tradutor que a evidência ${ev.ref} nomeia (${ev.tradutores.join(", ")}; o parágrafo diz: "${resumir(ev.trecho)}")`,
+    );
+  const { derivado } = contexto;
+  if (!derivado) return falhas;
+  const paragrafo = derivado.secoes.flatMap((s) => s.paragrafos).find((p) => p.ref === ev.ref);
+  if (paragrafo) {
+    if (!compactar(paragrafo.texto).includes(compactar(ev.trecho)))
+      falhas.push(
+        `tradutor-evidencia: o parágrafo ${ev.ref} do derivado não contém o trecho do registro (diz: "${resumir(compactar(paragrafo.texto))}")`,
+      );
+  } else if (
+    (contexto.divisoesDoArquivo ?? []).some(
+      (d) => ev.ref === d || ev.ref.startsWith(`${d}.`) || ev.ref.startsWith(`${d}-`),
+    )
+  ) {
+    // A evidência cai numa divisão que ESTA Fonte publica e o parágrafo não está nela: referência errada.
+    falhas.push(`tradutor-evidencia: o parágrafo ${ev.ref} não existe no derivado desta Fonte`);
+  }
+  // Fora das divisões da Fonte o parágrafo não está no derivado: o trecho fixado vale e o `acervo:verify` o prova no bruto.
+  return falhas;
 }
 
 export type ContextoDaConferencia = {
@@ -115,8 +176,13 @@ export type ContextoDaConferencia = {
   editores?: readonly string[];
   /** O volume (id da origem), para dizer de onde vem o editor na mensagem. */
   volume?: string;
-  /** Referência do parágrafo da introdução que nomeia o tradutor (`evidencia_tradutor` do arquivo). */
-  evidenciaTradutor?: string | null;
+  /**
+   * A evidência do tradutor, como o registro a fixa (`evidencia_tradutor`, `tradutor_esperado`, `evidencia_trecho`):
+   * a referência do parágrafo da introdução, quem ele nomeia e o trecho exato.
+   */
+  evidenciaTradutor?: EvidenciaDoTradutor | null;
+  /** Divisões do arquivo (`divisoes`): uma evidência dentro delas TEM de estar no derivado. */
+  divisoesDoArquivo?: readonly string[];
   /** Editores que a evidência mostra terem traduzido ESTA obra também (`tradutor_tambem_editor`). */
   tradutorTambemEditor?: readonly string[];
   /** O derivado versionado da Fonte; `null` quando não há (Fonte não publicada sem derivado). */
@@ -141,10 +207,14 @@ function falhasDeTradutorEEditor(tradutor: string, contexto: ContextoDaConferenc
         `tradutor-e-editor: "${tradutor}" nomeia "${editor}", editor do volume${volume}; o tradutor desta obra é quem a introdução da edição nomeia (registre-o com \`evidencia_tradutor\`) ou fica sem tradutor`,
       );
   }
-  if (contexto.tradutores.length === 0 && !contexto.evidenciaTradutor)
-    falhas.push(
-      `tradutor-sem-evidencia: "${tradutor}" não tem \`evidencia_tradutor\` no registro (a referência do parágrafo da introdução que nomeia o tradutor); o cabeçalho do volume${volume} não o verifica`,
-    );
+  if (contexto.tradutores.length === 0) {
+    if (contexto.evidenciaTradutor)
+      falhas.push(...falhasDeEvidencia(tradutor, contexto.evidenciaTradutor, contexto));
+    else
+      falhas.push(
+        `tradutor-sem-evidencia: "${tradutor}" não tem evidência no registro (\`evidencia_tradutor\`, \`tradutor_esperado\` e \`evidencia_trecho\`: o parágrafo da introdução que nomeia o tradutor); o cabeçalho do volume${volume} não o verifica`,
+      );
+  }
   return falhas;
 }
 
@@ -318,7 +388,17 @@ export function conferirFontes(
       tradutores: achado.origem.verificador.tradutores ?? [],
       editores: achado.origem.verificador.editores ?? [],
       volume: achado.origemId,
-      evidenciaTradutor: achado.arquivo.evidencia_tradutor ?? null,
+      evidenciaTradutor:
+        achado.arquivo.evidencia_tradutor &&
+        achado.arquivo.tradutor_esperado &&
+        achado.arquivo.evidencia_trecho
+          ? {
+              ref: achado.arquivo.evidencia_tradutor,
+              tradutores: achado.arquivo.tradutor_esperado,
+              trecho: achado.arquivo.evidencia_trecho,
+            }
+          : null,
+      divisoesDoArquivo: achado.arquivo.divisoes ?? [],
       tradutorTambemEditor: achado.arquivo.tradutor_tambem_editor ?? [],
       derivado,
     });

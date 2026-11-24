@@ -94,6 +94,11 @@ const esquemaArquivo = z
       .string()
       .regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, "referência de parágrafo inválida")
       .optional(),
+    // Os três campos da evidência vêm juntos: quem a evidência diz que traduziu (`tradutor_esperado`, o nome como a
+    // introdução o escreve) e o trecho EXATO do parágrafo `evidencia_tradutor` que o nomeia (`evidencia_trecho`). O
+    // `acervo:conferir` liga o `tradutor` do YAML a esse nome e ao parágrafo; o `acervo:verify` prova o trecho no bruto.
+    tradutor_esperado: z.array(z.string().min(1)).min(1).optional(),
+    evidencia_trecho: z.string().min(8).optional(),
     // Editor do volume que a evidência mostra ter traduzido ESTA obra também (Lightfoot, por exemplo): só os nomes
     // aqui listados escapam da regra "editor não é tradutor", e só com `evidencia_tradutor` presente.
     tradutor_tambem_editor: z.array(z.string().min(1)).min(1).optional(),
@@ -152,13 +157,22 @@ const esquemaOrigem = z
         message: "a origem exige os tradutores que o cabeçalho declara",
       });
     }
-    for (const [i, a] of o.arquivos.entries())
+    for (const [i, a] of o.arquivos.entries()) {
+      const campos = [a.evidencia_tradutor, a.tradutor_esperado, a.evidencia_trecho];
+      if (campos.some(Boolean) && !campos.every(Boolean))
+        ctx.addIssue({
+          code: "custom",
+          path: ["arquivos", i, "evidencia_tradutor"],
+          message:
+            "a evidência do tradutor exige os três campos juntos: `evidencia_tradutor`, `tradutor_esperado` e `evidencia_trecho`",
+        });
       if (a.tradutor_tambem_editor && !a.evidencia_tradutor)
         ctx.addIssue({
           code: "custom",
           path: ["arquivos", i, "tradutor_tambem_editor"],
           message: "editor que também traduziu exige `evidencia_tradutor`",
         });
+    }
   });
 
 export type OrigemAcervo = z.infer<typeof esquemaOrigem>;

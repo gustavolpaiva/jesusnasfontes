@@ -19,6 +19,7 @@ import {
   verificarDerivados,
 } from "../acervo/derivados";
 import { conferirBruto, derivar, serializar } from "./acervo-derivar";
+import { conferirEvidenciaNoBruto } from "./acervo-evidencia";
 import { ErroLicenca } from "./acervo-licenca";
 import {
   acharArquivoDoDerivado,
@@ -166,6 +167,15 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
           bruto: bytes,
           sha256Lock: noLock,
         });
+        // A evidência do tradutor (parágrafo da introdução + trecho exato fixado no registro) existe no bruto.
+        if (arquivo.evidencia_tradutor && arquivo.evidencia_trecho) {
+          const motivo = conferirEvidenciaNoBruto(
+            new TextDecoder(arquivo.charset ?? "utf-8").decode(bytes),
+            interpretado,
+            { ref: arquivo.evidencia_tradutor, trecho: arquivo.evidencia_trecho },
+          );
+          if (motivo) throw new Error(`${arquivo.slug}: ${motivo}`);
+        }
         if (!origem.publicavel) {
           // Origem barrada: dela não sai derivado. Aparece como NÃO PUBLICÁVEL com o motivo.
           linhas.push(

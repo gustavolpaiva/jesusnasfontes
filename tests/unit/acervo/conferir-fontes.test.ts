@@ -270,6 +270,18 @@ describe("regras do conferidor", () => {
 
 // Volume editado (CCEL): o cabeçalho só nomeia o EDITOR; quem traduziu cada obra está na introdução da edição.
 const SCHAFF = "Schaff, Philip (1819-1893)";
+const TRECHO_THELWALL =
+  "[Translated by the Rev. S. Thelwall, Late Scholar of Christ’s College, Cantab.]";
+const EVIDENCIA_THELWALL = {
+  ref: "iv.iii.i-p3",
+  tradutores: ["S. Thelwall"],
+  trecho: TRECHO_THELWALL,
+};
+const EVIDENCIA_SCHAFF = {
+  ref: "iv.iii.i-p3",
+  tradutores: [SCHAFF],
+  trecho: "Translated by Philip Schaff, with notes",
+};
 const VOLUME = {
   tradutores: [],
   editores: [SCHAFF, "Menzies, Allan (1845-1916)"],
@@ -290,7 +302,7 @@ describe("editor não é tradutor (ACER-04)", () => {
   it("tradutor igual ao editor do volume reprova, nomeando a Fonte (pela linha) e o nome", () => {
     const falhas = conferirComTradutor(SCHAFF, {
       ...VOLUME,
-      evidenciaTradutor: "iii-p1",
+      evidenciaTradutor: EVIDENCIA_SCHAFF,
       derivado: derivadoValido(),
     });
     expect(falhas).toHaveLength(1);
@@ -303,14 +315,14 @@ describe("editor não é tradutor (ACER-04)", () => {
     expect(
       conferirComTradutor("Philip Schaff", {
         ...VOLUME,
-        evidenciaTradutor: "iii-p1",
+        evidenciaTradutor: EVIDENCIA_THELWALL,
         derivado: derivadoValido(),
       })[0],
     ).toContain("tradutor-e-editor");
     expect(
       conferirComTradutor("S. Thelwall com Allan Menzies", {
         ...VOLUME,
-        evidenciaTradutor: "iii-p1",
+        evidenciaTradutor: EVIDENCIA_THELWALL,
         derivado: derivadoValido(),
       })[0],
     ).toContain("Menzies");
@@ -320,7 +332,7 @@ describe("editor não é tradutor (ACER-04)", () => {
     expect(
       conferirComTradutor("S. Thelwall", {
         ...VOLUME,
-        evidenciaTradutor: "iv.iii-p1",
+        evidenciaTradutor: EVIDENCIA_THELWALL,
         derivado: derivadoValido(),
       }),
     ).toEqual([]);
@@ -338,7 +350,7 @@ describe("editor não é tradutor (ACER-04)", () => {
   });
 
   it("editor que a evidência mostra ter traduzido a obra passa só quando listado em tradutor_tambem_editor", () => {
-    const base = { ...VOLUME, evidenciaTradutor: "iii-p1", derivado: derivadoValido() };
+    const base = { ...VOLUME, evidenciaTradutor: EVIDENCIA_SCHAFF, derivado: derivadoValido() };
     expect(conferirComTradutor(SCHAFF, { ...base, tradutorTambemEditor: [SCHAFF] })).toEqual([]);
     expect(conferirComTradutor(SCHAFF, { ...base, tradutorTambemEditor: ["Outro"] })[0]).toContain(
       "tradutor-e-editor",
@@ -353,6 +365,108 @@ describe("editor não é tradutor (ACER-04)", () => {
     ).toBe(true);
   });
 
+  it("a evidência liga o tradutor ao NOME que ela prova: Whiston no Tertuliano reprova mesmo com evidência de Thelwall", () => {
+    const falhas = conferirComTradutor("William Whiston", {
+      ...VOLUME,
+      evidenciaTradutor: EVIDENCIA_THELWALL,
+      derivado: derivadoValido(),
+    });
+    expect(falhas).toHaveLength(1);
+    expect(falhas[0]).toContain("tradutor-evidencia");
+    expect(falhas[0]).toContain("William Whiston");
+    expect(falhas[0]).toContain("S. Thelwall");
+    expect(falhas[0]).toContain("iv.iii.i-p3");
+    expect(falhas[0]).toContain("Late Scholar");
+  });
+
+  it("Thelwall com a evidência certa passa, em qualquer grafia do nome (acento, caixa, ordem, título)", () => {
+    for (const tradutor of ["S. Thelwall", "Rev. S. THELWALL", "Thelwáll, S."])
+      expect(
+        conferirComTradutor(tradutor, {
+          ...VOLUME,
+          evidenciaTradutor: EVIDENCIA_THELWALL,
+          derivado: derivadoValido(),
+        }),
+      ).toEqual([]);
+  });
+
+  it("nome a mais ao lado do tradutor da evidência reprova", () => {
+    const falhas = conferirComTradutor("S. Thelwall e William Whiston", {
+      ...VOLUME,
+      evidenciaTradutor: EVIDENCIA_THELWALL,
+      derivado: derivadoValido(),
+    });
+    expect(falhas[0]).toContain("tradutor-evidencia");
+  });
+
+  it("o trecho do registro tem de nomear o tradutor esperado", () => {
+    const falhas = conferirComTradutor("S. Thelwall", {
+      ...VOLUME,
+      evidenciaTradutor: { ...EVIDENCIA_THELWALL, trecho: "[Translated by the Rev. J. Smith]" },
+      derivado: derivadoValido(),
+    });
+    expect(falhas.some((f) => f.includes("não nomeia") && f.includes("S. Thelwall"))).toBe(true);
+  });
+
+  describe("o parágrafo de evidência no derivado versionado", () => {
+    const derivadoComIntro = (texto: string) =>
+      derivadoDeTeste([
+        {
+          slug: "iv-iii",
+          titulo: "Apology",
+          ordem: 1,
+          paragrafos: [paragrafo("iv.iii.i-p3", texto), paragrafo("iv.iii.i-p4", "Corpo da obra.")],
+        },
+      ]);
+    const contexto = (derivado: Derivado, divisoes: string[] = ["iv.iii"]) => ({
+      ...VOLUME,
+      evidenciaTradutor: EVIDENCIA_THELWALL,
+      divisoesDoArquivo: divisoes,
+      derivado,
+    });
+
+    it("o parágrafo existe e traz o trecho: passa", () => {
+      expect(
+        conferirComTradutor("S. Thelwall", contexto(derivadoComIntro(TRECHO_THELWALL))),
+      ).toEqual([]);
+    });
+
+    it("referência que não existe numa divisão da própria Fonte reprova", () => {
+      const sem = derivadoDeTeste([
+        {
+          slug: "iv-iii",
+          titulo: "Apology",
+          ordem: 1,
+          paragrafos: [paragrafo("iv.iii.i-p4", "Corpo da obra.")],
+        },
+      ]);
+      const falhas = conferirComTradutor("S. Thelwall", contexto(sem));
+      expect(falhas).toHaveLength(1);
+      expect(falhas[0]).toContain("iv.iii.i-p3");
+      expect(falhas[0]).toContain("não existe");
+    });
+
+    it("parágrafo que existe mas diz outra coisa reprova, citando o que ele diz", () => {
+      const falhas = conferirComTradutor(
+        "S. Thelwall",
+        contexto(derivadoComIntro("[Edited by the Rev. J. Smith, Cantab.]")),
+      );
+      expect(falhas).toHaveLength(1);
+      expect(falhas[0]).toContain("não contém o trecho");
+      expect(falhas[0]).toContain("Edited by the Rev. J. Smith");
+    });
+
+    it("evidência fora das divisões da Fonte (introdução do volume) vale pelo trecho fixado: o verify a prova no bruto", () => {
+      const fora = { ...EVIDENCIA_THELWALL, ref: "iv.i-p2" };
+      expect(
+        conferirComTradutor("S. Thelwall", {
+          ...contexto(derivadoComIntro(TRECHO_THELWALL)),
+          evidenciaTradutor: fora,
+        }),
+      ).toEqual([]);
+    });
+  });
+
   it("tradutor verificado no cabeçalho (origem TEI) dispensa a evidência de introdução", () => {
     const fonte = fonteValida();
     expect(
@@ -360,6 +474,18 @@ describe("editor não é tradutor (ACER-04)", () => {
         f.startsWith("tradutor"),
       ),
     ).toEqual([]);
+  });
+
+  it("NPNF2-01: McGiffert, que o cabeçalho marca como Translator, passa sem evidência de introdução; com o editor junto reprova", () => {
+    const npnf = {
+      tradutores: ["McGiffert, Rev. Arthur Cushman, Ph.D."],
+      editores: [SCHAFF],
+      volume: "ccel-npnf201",
+      derivado: derivadoValido(),
+    };
+    expect(conferirComTradutor("McGiffert, Rev. Arthur Cushman, Ph.D.", npnf)).toEqual([]);
+    const falhas = conferirComTradutor(`McGiffert, Rev. Arthur Cushman, Ph.D. com ${SCHAFF}`, npnf);
+    expect(falhas.some((f) => f.startsWith("tradutor-e-editor"))).toBe(true);
   });
 
   it("nomeiaOEditor casa pelo nome inteiro ou pelo sobrenome como palavra, sem acento nem caixa", () => {
@@ -395,6 +521,12 @@ describe("conferirFontes (arquivos): editor e evidência vêm do registro", () =
     o.formato = "thml";
     o.verificador = { editores: ["Prado, Eva"], licenca: "Public Domain" };
   };
+  const comEvidencia = (o: Record<string, unknown>) => {
+    const a = arquivo(o);
+    a.evidencia_tradutor = "iv.iii-p1";
+    a.tradutor_esperado = ["Alice B. Silva", "Bruno C. Souza"];
+    a.evidencia_trecho = "Translated by Alice B. Silva and Bruno C. Souza";
+  };
   const arquivo = (o: Record<string, unknown>) =>
     (o.arquivos as Record<string, unknown>[])[0] ?? {};
 
@@ -409,7 +541,7 @@ describe("conferirFontes (arquivos): editor e evidência vêm do registro", () =
   it("volume ThML: com evidencia_tradutor, e o tradutor não sendo o editor, a Fonte passa", () => {
     const r = rodar((o) => {
       comoThml(o);
-      arquivo(o).evidencia_tradutor = "iv.iii-p1";
+      comEvidencia(o);
     });
     expect(r.linhas).toContain("OK fonte-teste");
     expect(r.codigo).toBe(0);
@@ -418,7 +550,7 @@ describe("conferirFontes (arquivos): editor e evidência vêm do registro", () =
   it("volume ThML: o editor do registro no campo tradutor reprova mesmo com evidência", () => {
     const r = rodar((o) => {
       comoThml(o);
-      arquivo(o).evidencia_tradutor = "iv.iii-p1";
+      comEvidencia(o);
       (o.verificador as Record<string, unknown>).editores = ["Souza, Bruno C."];
     });
     expect(r.codigo).toBe(1);
