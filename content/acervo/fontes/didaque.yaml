@@ -1,0 +1,36 @@
+# Fonte do Acervo: Didaqué (O Ensino dos Doze Apóstolos), na tradução inglesa de Lightfoot (edição CCEL).
+# O texto vem do derivado `data/acervo-derivados/didaque.json`, gerado por `pnpm acervo:derivar` a partir da
+# origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): o volume único de Lightfoot, do qual esta Fonte
+# é a divisão ii.xii. Aqui ficam só os metadados, o resumo e as palavras-chave da seção. O resumo auxiliar
+# nunca substitui o texto.
+slug: didaque
+titulo: Didaqué (O Ensino dos Doze Apóstolos)
+autor: null
+epoca: fim do século I ou começo do II (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Manual cristão anônimo, escrito em grego e datado pela maior parte dos estudiosos entre o fim do século I e
+  o começo do II. Prescreve conduta, ritos e normas de comunidade em nome do ensino dos doze apóstolos. O
+  texto grego completo só se tornou conhecido em 1873, com a descoberta do manuscrito copiado em 1056; trechos
+  já circulavam por versões antigas.
+secoes:
+  - slug: ii-xii
+    titulo: Texto
+    resumo_pt: >-
+      Manual que abre com o ensino das duas vias, a da vida e a da morte, e enumera os preceitos de conduta de
+      cada uma. Prescreve o batismo em água viva com jejum prévio, a oração, a ceia de ação de graças reservada
+      aos batizados e as esmolas, e fixa normas para examinar e receber apóstolos, profetas, mestres e
+      viajantes. Termina com um apelo à vigilância diante da vinda do Senhor.
+    palavras_chave_pt: [duas vias, batismo, eucaristia, jejum, profetas, viajantes, vigilância]
