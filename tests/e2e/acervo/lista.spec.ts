@@ -132,6 +132,7 @@ test("a linha inteira é clicável: o clique no canto da linha, longe do título
   const linha = page
     .locator('[data-slot="linha-fonte"]')
     .filter({ hasText: "Antiguidades Judaicas" });
+  await expect(linha).toBeVisible();
   const caixa = await linha.boundingBox();
   expect(caixa).not.toBeNull();
   // Canto direito e baixo da linha: nenhum texto ali, só o pseudo-elemento do link.
