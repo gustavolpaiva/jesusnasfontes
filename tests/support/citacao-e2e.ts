@@ -38,7 +38,8 @@ export const JOSEFO = {
   paragrafo: "josefo-antiguidades/18.63",
   secao: "18",
   slug: "josefo-antiguidades",
-  trecho: "Now there was about this time Jesus, a wise man",
+  // O trecho carrega marcação de propósito: tem de aparecer como TEXTO e nunca virar elemento (T-02-52).
+  trecho: 'Now there was about this time Jesus, a wise man <img src=x onerror="window.__xss=1">',
   rotulo: "Flávio Josefo, Antiguidades Judaicas, 18.63",
 } as const;
 
@@ -193,7 +194,7 @@ export async function semearCitacoes(projeto: string): Promise<SemeadoDeCitacao>
   await inserirCitacoes(afirmacoes.indisponivel, [
     { tipo: "paragrafo", id: JOSEFO.paragrafo, trecho: " ", idioma: "en" },
   ]);
-  await aprovarPelaFuncao(afirmacoes["indisponivel"], "posicao-majoritaria");
+  await aprovarPelaFuncao(afirmacoes.indisponivel, "posicao-majoritaria");
 
   // Ficha em rascunho: a aprovação é recusada pelo banco (P0003) e a Afirmação continua com "Fonte em preparação".
   await inserirCitacoes(afirmacoes["ficha-rascunho"], [{ tipo: "ficha", item: itemRascunho }]);
@@ -211,4 +212,78 @@ export async function removerCitacoes(semeado: SemeadoDeCitacao): Promise<void> 
     await c.query("delete from acervo.citacao where afirmacao_id = any($1::text[])", [ids]);
   });
   await removerFichas(semeado.sufixoDasFichas);
+}
+
+// ───────────────────────── Estudo com Citação para as varreduras (axe, reflow, teclado, cinza) ─────────────────────────
+
+/** O Estudo da varredura: nenhum outro teste o lê (os Estudos de `ESTUDO_DO_PROJETO` são do spec da Citação). */
+export const ESTUDO_DA_VARREDURA = "por-que-quatro-e-por-que-diferem";
+
+/**
+ * Semeia, UMA vez por banco, as Citações do Estudo da varredura: uma Afirmação de Passagem, uma de parágrafo, uma de
+ * ficha e uma com as três. Idempotente e seguro entre processos (trava de aconselhamento): vários processos de varredura
+ * chamam isto e só o primeiro grava. O banco da execução é descartável, então nada precisa ser removido. Devolve o slug.
+ */
+export async function semearCitacoesDaVarredura(slugDaFichaVerificada: string): Promise<string> {
+  await comCliente("dono", async (dono) => {
+    await dono.query("select pg_advisory_lock(190219)");
+    try {
+      const ids = (
+        await dono.query<{ id: string }>(
+          `select a.id from acervo.afirmacao a join conteudo.estudo e on e.id = a.estudo_id
+            where e.slug = $1 order by a.ordem`,
+          [ESTUDO_DA_VARREDURA],
+        )
+      ).rows.map((l) => l.id);
+      if (ids.length < 4)
+        throw new Error(`o Estudo ${ESTUDO_DA_VARREDURA} tem ${ids.length} Afirmações`);
+      const [passagem, paragrafo, ficha, varias] = ids as [string, string, string, string];
+      const ja = await dono.query(
+        "select 1 from acervo.aprovacao_afirmacao where afirmacao_id = $1",
+        [passagem],
+      );
+      if (ja.rowCount) return;
+      const item = `${slugDaFichaVerificada}/argumento-1`;
+      await inserirCitacoes(passagem, [{ tipo: "passagem", ...LUCAS_2_7 }]);
+      await aprovarPelaFuncao(passagem, "consenso");
+      await inserirCitacoes(paragrafo, [
+        { tipo: "paragrafo", id: JOSEFO.paragrafo, trecho: JOSEFO.trecho, idioma: "en" },
+      ]);
+      await aprovarPelaFuncao(paragrafo, "posicao-majoritaria");
+      await inserirCitacoes(ficha, [{ tipo: "ficha", item }]);
+      await aprovarPelaFuncao(ficha, "disputada");
+      await inserirCitacoes(varias, [
+        { tipo: "passagem", ...LUCAS_2_7 },
+        { tipo: "paragrafo", id: JOSEFO.paragrafo, trecho: JOSEFO.trecho, idioma: "en" },
+        { tipo: "ficha", item },
+      ]);
+      await aprovarPelaFuncao(varias, "consenso");
+    } finally {
+      await dono.query("select pg_advisory_unlock(190219)");
+    }
+  });
+  return ESTUDO_DA_VARREDURA;
+}
+
+/** O Estudo com capitular na primeira Afirmação (Citação de Passagem nela) e Afirmações sem Citação: só a conferência visual usa. */
+export const ESTUDO_DA_CAPITULAR = "como-o-texto-chegou-ate-nos";
+
+/** Idempotente e seguro entre processos: põe a Citação de Passagem em `bh05-a1` (a primeira frase, que leva capitular). */
+export async function semearCitacaoDaCapitular(): Promise<string> {
+  await comCliente("dono", async (dono) => {
+    await dono.query("select pg_advisory_lock(190219)");
+    try {
+      const id = "bh05-a1";
+      const ja = await dono.query(
+        "select 1 from acervo.aprovacao_afirmacao where afirmacao_id = $1",
+        [id],
+      );
+      if (ja.rowCount) return;
+      await inserirCitacoes(id, [{ tipo: "passagem", ...LUCAS_2_7 }]);
+      await aprovarPelaFuncao(id, "posicao-majoritaria");
+    } finally {
+      await dono.query("select pg_advisory_unlock(190219)");
+    }
+  });
+  return ESTUDO_DA_CAPITULAR;
 }

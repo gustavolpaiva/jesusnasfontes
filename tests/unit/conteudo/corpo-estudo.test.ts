@@ -136,6 +136,86 @@ describe("CorpoEstudo: Afirmação e chip (TRIL-07)", () => {
   });
 });
 
+describe("CorpoEstudo: Citação aprovada (ACER-06, ACER-10, D-10, D-12)", () => {
+  const corpo = [
+    "## O que acontece",
+    "",
+    ":afirmacao[Primeira com Citação]{#cit-a1} e :afirmacao[segunda sem]{#cit-a2}.",
+    "",
+    "## Mais adiante",
+    "",
+    ":afirmacao[Terceira sem Citação]{#cit-a3}.",
+  ].join("\n");
+  const citacao = {
+    grau: "posicao-majoritaria" as const,
+    itens: [
+      {
+        tipo: "paragrafo" as const,
+        id: "c1",
+        nivel: "primaria" as const,
+        autor: "Autor de Teste",
+        obra: "Obra de Teste",
+        ref: "1.1",
+        trecho: 'Texto com <img src=x onerror="alert(1)"> dentro',
+        idioma: "en" as const,
+        href: "/acervo/obra-de-teste/1#p-1.1",
+      },
+    ],
+  };
+  const afirmacoes = (comCitacao: boolean) => [
+    { id: "cit-a1", texto: "Primeira com Citação", ordem: 1, citacao: comCitacao ? citacao : null },
+    { id: "cit-a2", texto: "segunda sem", ordem: 2, citacao: null },
+    { id: "cit-a3", texto: "Terceira sem Citação", ordem: 3, citacao: null },
+  ];
+
+  it("a Afirmação com Citação aprovada troca o chip pelo botão do par de selos; as outras mantêm 'Fonte em preparação'", () => {
+    const saida = html(estudo(corpo, { afirmacoes: afirmacoes(true) }));
+    // Um botão, fechado, com o nome pelo conteúdo e o ordinal do bloco.
+    expect(saida.match(/data-slot="citacao-botao"/g)).toHaveLength(1);
+    expect(saida).toContain('aria-expanded="false"');
+    expect(saida).toContain("Fonte primária");
+    expect(saida).toContain("Posição majoritária");
+    expect(saida).toContain(", Grau de certeza: ");
+    expect(saida).toContain(". Mostrar a Citação.");
+    // O painel só existe aberto: fechado, o trecho de terceiros nem está no HTML.
+    expect(saida).not.toContain("citacao-painel");
+    expect(saida).not.toContain("onerror");
+    // Os dois chips restantes seguem tracejados e inalterados (a segunda do bloco leva o ordinal 2).
+    expect(saida.match(/data-slot="chip-fonte"/g)).toHaveLength(2);
+    expect(saida).toContain('Fonte em preparação · <span class="algarismos">2</span></span>');
+    expect(saida).toContain("border-dashed");
+  });
+
+  it("sem Citação aprovada o corpo é o da Fase 1: nenhum botão e nenhum resumo dos selos", () => {
+    const saida = html(estudo(corpo, { afirmacoes: afirmacoes(false) }));
+    expect(saida).not.toContain("citacao-botao");
+    expect(saida).not.toContain("O que são os dois selos?");
+    expect(saida.match(/data-slot="chip-fonte"/g)).toHaveLength(3);
+  });
+
+  it("o resumo dos dois selos vem uma vez, antes da primeira seção com Citação; o de 'Fonte em preparação' continua", () => {
+    const saida = html(estudo(corpo, { afirmacoes: afirmacoes(true) }));
+    expect(saida.match(/O que são os dois selos\?/g)).toHaveLength(1);
+    expect(saida.match(/O que é “Fonte em preparação”\?/g)).toHaveLength(1);
+    expect(saida.indexOf("O que são os dois selos?")).toBeLessThan(
+      saida.indexOf("Primeira com Citação"),
+    );
+  });
+
+  it("o botão fica dentro do parágrafo e só com elementos válidos nele (span e button)", () => {
+    const saida = html(estudo(corpo, { afirmacoes: afirmacoes(true) }));
+    const paragrafo = /<p class="text-leitura[^"]*">(.*?)<\/p>/s.exec(saida)?.[1] ?? "";
+    expect(paragrafo).toContain("citacao-botao");
+    expect(paragrafo).not.toMatch(/<(div|p|ul|li|blockquote)[ >]/);
+  });
+
+  it("a Afirmação que o Estudo não conhece fica com o chip (id sem Citação)", () => {
+    const saida = html(estudo(corpo, { afirmacoes: [] }));
+    expect(saida).not.toContain("citacao-botao");
+    expect(saida.match(/data-slot="chip-fonte"/g)).toHaveLength(3);
+  });
+});
+
 describe("CorpoEstudo: capitular", () => {
   const c = (md: string) => html(estudo(md)).includes("first-letter:float-left");
   it("é sempre a letra flutuante, nunca `initial-letter` (que não respeita o clear do chip)", () => {

@@ -45,8 +45,7 @@ function AvisoDoTrecho() {
         className="mt-1 size-5 shrink-0 text-signal-warning"
       />
       <span className="min-w-0 [overflow-wrap:anywhere]">
-        <span className="text-label mr-2 text-signal-warning">Atenção.</span>
-        {FRASE_DO_AVISO}
+        <span className="text-label text-signal-warning">Atenção.</span> {FRASE_DO_AVISO}
       </span>
     </span>
   );
@@ -101,7 +100,7 @@ function ItemDaCitacao({
       </span>
       {mostrarNivel ? (
         <span className="block">
-          <SeloNivel nivel={item.nivel} />
+          <SeloNivel nivel={item.nivel} className="whitespace-normal" />
         </span>
       ) : null}
 

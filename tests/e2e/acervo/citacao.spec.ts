@@ -35,6 +35,8 @@ test.afterAll(async () => {
   if (semeado) await removerCitacoes(semeado);
 });
 
+// Ruído preexistente do Caderno (`textarea` com `caret-color` posto antes de hidratar), fora do escopo da Citação.
+const RUIDO_DO_CADERNO = /anotacao-campo/;
 const NAO_PODE_APARECER =
   /hydrat|validateDOMNesting|cannot be a descendant|cannot contain|did not match/i;
 
@@ -42,10 +44,11 @@ const NAO_PODE_APARECER =
 function vigiarConsole(page: Page): string[] {
   const avisos: string[] = [];
   page.on("console", (m) => {
-    if (NAO_PODE_APARECER.test(m.text())) avisos.push(m.text());
+    if (NAO_PODE_APARECER.test(m.text()) && !RUIDO_DO_CADERNO.test(m.text())) avisos.push(m.text());
   });
   page.on("pageerror", (e) => {
-    if (NAO_PODE_APARECER.test(e.message)) avisos.push(e.message);
+    if (NAO_PODE_APARECER.test(e.message) && !RUIDO_DO_CADERNO.test(e.message))
+      avisos.push(e.message);
   });
   return avisos;
 }
@@ -181,3 +184,212 @@ test("o resumo dos dois selos aparece uma vez por Estudo, antes da primeira seç
   );
   expect(JOSEFO.rotulo).toContain("Josefo");
 });
+
+/** Abre a Citação da Afirmação e devolve o painel. */
+async function abrir(page: Page, afirmacao: string) {
+  const botao = botaoDe(page, afirmacao);
+  await esperarHidratado(botao);
+  await botao.click();
+  await expect(botao).toHaveAttribute("aria-expanded", "true");
+  const painel = painelDe(page, afirmacao);
+  await expect(painel).toBeVisible();
+  return { botao, painel };
+}
+
+/** O painel só pode ter `span`, `q`, `a`, `em`, `sup`, `time` e o ícone: nunca `p`, `div`, `blockquote`, `ul` (HTML válido dentro de `<p>`). */
+async function semElementoInvalido(painel: ReturnType<typeof painelDe>): Promise<void> {
+  const proibidos = await painel.evaluate(
+    (el) =>
+      el.querySelectorAll("p, div, blockquote, ul, ol, li, h1, h2, h3, h4, img, script").length,
+  );
+  expect(
+    proibidos,
+    "elementos que não cabem dentro de um <p> ou que o trecho de terceiros injetou",
+  ).toBe(0);
+}
+
+test("Citação de parágrafo de Fonte: nome da Fonte e referência, trecho em inglês com lang, link de 44 px para o parágrafo (D-10)", async ({
+  page,
+}) => {
+  const console_ = vigiarConsole(page);
+  await abrirEstudo(page);
+  const { botao, painel } = await abrir(page, semeado.afirmacoes.paragrafo);
+
+  await expect(botao.locator('[data-slot="selo-grau"]')).toHaveText("Posição majoritária");
+  await expect(botao.locator('[data-slot="selo-grau"] [data-ponto="cheio"]')).toHaveCount(2);
+  await expect(botao.locator('[data-slot="selo-grau"] [data-ponto="vazado"]')).toHaveCount(1);
+
+  await expect(painel.locator('[data-slot="citacao-fonte"]')).toHaveText(
+    JOSEFO.rotulo.replace(", Antiguidades", ", Antiguidades"),
+  );
+  // Só o título da obra em itálico.
+  await expect(painel.locator('[data-slot="citacao-fonte"] em')).toHaveText(
+    "Antiguidades Judaicas",
+  );
+  const trecho = painel.locator('[data-slot="trecho-citado"]');
+  await expect(trecho).toHaveAttribute("lang", "en");
+  // A marcação do trecho é TEXTO: o `<img>` aparece escrito, não como elemento, e nada executou.
+  await expect(trecho).toContainText(JOSEFO.trecho);
+  expect(
+    await page.evaluate(() => (window as unknown as { __xss?: number }).__xss),
+  ).toBeUndefined();
+  await expect(painel).toContainText("Trecho em inglês, como está no Acervo.");
+  await expect(painel).toContainText(
+    "Grau de certeza: Posição majoritária. A maior parte dos pesquisadores aceita; uma minoria discorda.",
+  );
+
+  const link = painel.getByRole("link", { name: "Ler na Fonte: Antiguidades Judaicas 18.63" });
+  await expect(link).toHaveAttribute("href", `/acervo/${JOSEFO.slug}/${JOSEFO.secao}#p-18.63`);
+  expect((await link.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await semElementoInvalido(painel);
+  expect(console_).toEqual([]);
+});
+
+test("Citação de ficha: 'Trecho da ficha, p. X de Obra', 'Verificada em' sem nome, nunca 'leia o livro' (D-11, D-05)", async ({
+  page,
+}) => {
+  const console_ = vigiarConsole(page);
+  await abrirEstudo(page);
+  const { botao, painel } = await abrir(page, semeado.afirmacoes.ficha);
+
+  await expect(botao.locator('[data-slot="selo-nivel"]')).toHaveText("Pesquisa acadêmica");
+  await expect(botao.locator('[data-slot="selo-grau"]')).toHaveText("Disputada");
+  await expect(botao.locator('[data-slot="selo-grau"] [data-ponto="cheio"]')).toHaveCount(1);
+  await expect(botao.locator('[data-slot="selo-grau"] [data-ponto="vazado"]')).toHaveCount(2);
+
+  // A frase é LITERAL, nesta forma; a obra em itálico.
+  await expect(painel.locator('[data-slot="citacao-fonte"]')).toHaveText(
+    "Trecho da ficha, p. 39–53 de Obra de Teste Completa",
+  );
+  await expect(painel.locator('[data-slot="citacao-fonte"] em')).toHaveText(
+    "Obra de Teste Completa",
+  );
+  // Sem trecho original curto, o texto em português da ficha.
+  const trecho = painel.locator('[data-slot="trecho-citado"]');
+  await expect(trecho).toContainText("Primeiro argumento da obra de teste");
+  await expect(trecho).toHaveAttribute("lang", "pt-BR");
+  await expect(painel).toContainText(/Verificada em \d{1,2} de \p{L}+ de \d{4}\./u);
+  await expect(painel).toContainText(
+    "Grau de certeza: Disputada. Pesquisadores sérios divergem e não há posição majoritária clara.",
+  );
+  const texto = (await painel.innerText()).toLowerCase();
+  expect(texto).not.toContain("leia o livro");
+  expect(texto).not.toContain("@");
+  const link = painel.getByRole("link", { name: "Ver a ficha de Obra de Teste Completa" });
+  await expect(link).toHaveAttribute("href", `/acervo/${semeado.fichas.completa}`);
+  expect((await link.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  await semElementoInvalido(painel);
+  expect(console_).toEqual([]);
+});
+
+test("várias Citações: o botão mostra o Nível mais direto; o painel é a lista 'Citações (3)' com um selo de Nível por Citação", async ({
+  page,
+}) => {
+  const console_ = vigiarConsole(page);
+  await abrirEstudo(page);
+  const { botao, painel } = await abrir(page, semeado.afirmacoes.varias);
+
+  // As três Citações: Passagem (primária), parágrafo (primária) e ficha (acadêmica): o botão mostra Fonte primária.
+  await expect(botao.locator('[data-slot="selo-nivel"]')).toHaveText("Fonte primária");
+  await expect(botao.locator('[data-slot="selo-grau"]')).toHaveText("Consenso");
+  await expect(painel).toContainText("Citações (3)");
+  const lista = painel.locator('[role="list"]');
+  await expect(lista).toHaveCount(1);
+  const itens = lista.locator('[role="listitem"]');
+  await expect(itens).toHaveCount(3);
+  await expect(itens.nth(0)).toContainText("Citação 1 de 3");
+  await expect(itens.nth(2)).toContainText("Citação 3 de 3");
+  await expect(itens.nth(0).locator('[data-slot="selo-nivel"]')).toHaveText("Fonte primária");
+  await expect(itens.nth(2).locator('[data-slot="selo-nivel"]')).toHaveText("Pesquisa acadêmica");
+  await expect(itens.nth(0).locator('[data-alvo="passagem"]')).toHaveCount(1);
+  await expect(itens.nth(1).locator('[data-alvo="paragrafo"]')).toHaveCount(1);
+  await expect(itens.nth(2).locator('[data-alvo="ficha"]')).toHaveCount(1);
+  await semElementoInvalido(painel);
+  expect(console_).toEqual([]);
+});
+
+test("trecho indisponível: o aviso do contrato aparece, o nome da Fonte e o link ficam, e o Estudo não cai", async ({
+  page,
+}) => {
+  const console_ = vigiarConsole(page);
+  await abrirEstudo(page);
+  const { painel } = await abrir(page, semeado.afirmacoes.indisponivel);
+  const aviso = painel.locator('[data-slot="aviso-do-trecho"]');
+  await expect(aviso).toHaveText("Atenção. Não foi possível mostrar o trecho agora.");
+  await expect(aviso).toHaveAttribute("role", "status");
+  await expect(painel.locator('[data-slot="citacao-fonte"]')).toHaveText(JOSEFO.rotulo);
+  await expect(painel.getByRole("link", { name: /Ler na Fonte/ })).toBeVisible();
+  await expect(painel.locator('[data-slot="trecho-citado"]')).toHaveCount(0);
+  // O resto do Estudo está de pé.
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await semElementoInvalido(painel);
+  expect(console_).toEqual([]);
+});
+
+test("a ficha NÃO verificada nunca sustenta Citação: o banco recusa (P0003) e a Afirmação continua com 'Fonte em preparação'", async ({
+  page,
+}) => {
+  await abrirEstudo(page);
+  const a = semeado.afirmacoes["ficha-rascunho"];
+  expect(await tentarAprovar(a, "consenso")).toBe("P0003");
+  await page.reload();
+  await esperarEstudoAssentado(page);
+  await expect(citacaoDe(page, a)).toHaveCount(0);
+  await expect(page.locator('[data-slot="chip-fonte"]')).toHaveCount(2);
+});
+
+test("vários painéis podem ficar abertos ao mesmo tempo, sem fechar o outro", async ({ page }) => {
+  await abrirEstudo(page);
+  const um = await abrir(page, semeado.afirmacoes.passagem);
+  const dois = await abrir(page, semeado.afirmacoes.paragrafo);
+  await expect(um.painel).toBeVisible();
+  await expect(dois.painel).toBeVisible();
+  await expect(um.botao).toHaveAttribute("aria-expanded", "true");
+});
+
+// Reflow (UI-SPEC "Verificação renderizada", critério l): o Estudo com o par de selos e TODOS os painéis abertos não
+// rola na horizontal em 390 nem em 320 px, no tamanho de texto padrão e no passo 5, medido antes e depois de abrir.
+for (const largura of [390, 320]) {
+  for (const passo of ["3", "5"]) {
+    test(`sem rolagem horizontal em ${largura} px, passo ${passo} do texto, antes e depois de abrir os painéis`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      test.setTimeout(90_000);
+      await page.setViewportSize({ width: largura, height: 800 });
+      await context.addCookies([
+        { name: "escala-texto", value: passo, url: baseURL ?? "http://localhost" },
+      ]);
+      const console_ = vigiarConsole(page);
+      await abrirEstudo(page);
+      const sobra = () =>
+        page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+      expect(await sobra(), "antes de abrir").toBeLessThanOrEqual(0);
+      const botoes = page.locator('[data-slot="citacao-botao"]');
+      const n = await botoes.count();
+      expect(n).toBeGreaterThanOrEqual(5);
+      for (let i = 0; i < n; i++) {
+        await esperarHidratado(botoes.nth(i));
+        await botoes.nth(i).click();
+      }
+      await expect(page.locator('[data-slot="citacao-painel"]')).toHaveCount(n);
+      expect(await sobra(), "depois de abrir os painéis").toBeLessThanOrEqual(0);
+      // Nenhum painel passa da largura da janela nem tem filho que passe.
+      const excesso = await page.evaluate(() => {
+        const janela = document.documentElement.clientWidth;
+        return [
+          ...document.querySelectorAll(
+            '[data-slot="citacao-painel"], [data-slot="citacao-painel"] *',
+          ),
+        ]
+          .filter((el) => el.getBoundingClientRect().right > janela + 1)
+          .map((el) => el.tagName);
+      });
+      expect(excesso, "elemento do painel fora da janela").toEqual([]);
+      expect(console_).toEqual([]);
+    });
+  }
+}
