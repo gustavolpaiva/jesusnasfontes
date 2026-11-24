@@ -20,15 +20,16 @@ export function LinhaFonte({ fonte }: { fonte: LinhaDaLista }) {
   return (
     <li
       data-slot="linha-fonte"
-      className="relative flex min-h-16 flex-col justify-center gap-1 border-b border-rule py-3 transition-colors duration-150 last:border-b-0 hover:bg-paper-soft"
+      className="relative flex min-h-16 flex-col justify-center border-b border-rule py-2 transition-colors duration-150 last:border-b-0 hover:bg-paper-soft has-[a:focus-visible]:bg-paper-soft"
     >
+      {/* O link tem 44 px de altura e o contorno de foco; o pseudo-elemento estende o clique à linha toda. */}
       <Link
         href={`/acervo/${fonte.slug}`}
-        className="text-ui font-semibold text-ink no-underline [overflow-wrap:anywhere] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ring"
+        className="text-ui flex min-h-11 items-center rounded-sm font-semibold text-ink no-underline [overflow-wrap:anywhere] after:absolute after:inset-0 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         {fonte.titulo}
       </Link>
-      <span className="text-meta text-ink-muted [overflow-wrap:anywhere]">
+      <span className="text-meta -mt-1 pb-1 text-ink-muted [overflow-wrap:anywhere]">
         {metaDaLinha(fonte)}
       </span>
     </li>

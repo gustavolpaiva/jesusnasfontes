@@ -6,7 +6,12 @@ import { prepararTela, TELAS } from "./telas";
 // folha e os diálogos devolvendo o foco ao botão que os abriu. Roda no Chromium (o Tab do Safari só
 // percorre controles com uma opção do sistema; os demais testes de teclado do produto também o pulam).
 
-const COM_DIALOGO = new Set(["sessao-folha-aberta", "menu-aberto", "conta-dialogo-apagar"]);
+const COM_DIALOGO = new Set([
+  "sessao-folha-aberta",
+  "menu-aberto",
+  "menu-aberto-admin",
+  "conta-dialogo-apagar",
+]);
 const MAXIMO_DE_TABS = 70;
 
 type Passo = {

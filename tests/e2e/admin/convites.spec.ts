@@ -1,5 +1,6 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { emailsPara } from "../../support/caixa-de-email";
+import { esperarHidratado } from "../../support/hidratacao";
 import { entrarComoAdmin } from "../../support/login-admin-e2e";
 import {
   contar,
@@ -390,16 +391,48 @@ test("os três estados se distinguem sem cor, o e-mail longo quebra sem estourar
   expect(estouro).toBeLessThanOrEqual(0);
 });
 
-test("o link Convites da navegação das Trilhas leva à lista de convites do Admin", async ({
+test("Admin: o bloco Administração do Menu leva à lista de convites e a faixa não tem Convites", async ({
   page,
 }) => {
   await entrarComoAdmin(page);
   await page.goto("/trilhas");
   await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
-  const link = page.getByRole("navigation", { name: "Seções" }).getByRole("link", {
-    name: "Convites",
-  });
+  // A faixa tem os mesmos quatro itens para todos; Convites saiu dela.
+  const faixa = page.getByRole("navigation", { name: "Seções" }).filter({ visible: true });
+  // (Na largura de computador o cabeçalho acrescenta o link "Administração" depois dos quatro.)
+  const itens = await faixa.getByRole("link").allInnerTexts();
+  expect(itens.slice(0, 4)).toEqual(["Trilhas", "Acervo", "Caderno", "Conta"]);
+  await expect(faixa.getByRole("link", { name: "Convites" })).toHaveCount(0);
+
+  const botao = page.getByRole("button", { name: "Abrir menu" });
+  await esperarHidratado(botao);
+  await botao.click();
+  const folha = page.getByRole("dialog", { name: "Menu" });
+  const bloco = folha.locator('[data-slot="menu-administracao"]');
+  await expect(bloco.getByRole("heading", { level: 2, name: "Administração" })).toBeVisible();
+  const link = bloco.getByRole("link", { name: "Convites" });
   await expect(link).toHaveAttribute("href", "/admin/convites");
+  // Alvo de 44 px medido.
+  expect((await link.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await link.click();
   await expect(page.getByRole("heading", { level: 1, name: "Convites" })).toBeVisible();
+});
+
+test("Estudante: o Menu não tem o bloco Administração (controle negativo)", async ({ page }) => {
+  const estudante = emailDeTeste("sem-bloco-admin");
+  await convidarParaTeste(estudante);
+  await entrarPorLink(page, estudante);
+  await page.goto("/trilhas");
+  await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+  const botao = page.getByRole("button", { name: "Abrir menu" });
+  await esperarHidratado(botao);
+  await botao.click();
+  const folha = page.getByRole("dialog", { name: "Menu" });
+  // Controle positivo: o Menu abriu e tem a navegação e a Aparência.
+  await expect(folha.getByRole("heading", { name: "Aparência" })).toBeVisible();
+  await expect(folha.getByRole("link", { name: "Trilhas" })).toBeVisible();
+  await expect(folha.getByRole("heading", { name: "Administração" })).toHaveCount(0);
+  await expect(folha.getByRole("link", { name: "Convites" })).toHaveCount(0);
+  // Nem o link do cabeçalho de computador.
+  await expect(page.getByRole("link", { name: "Administração" })).toHaveCount(0);
 });

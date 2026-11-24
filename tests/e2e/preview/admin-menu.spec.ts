@@ -3,7 +3,8 @@ import type { ExecucaoCanario } from "../../../scripts/dev/execucao-canario";
 import { abrirSessao, novaExecucao, prepararAdmin } from "./suporte-canario";
 
 // Achado do plano 01-19: na navegação das telas de Estudante, o item "Convites" do Admin apontava para
-// /convites (rota que não existe, 404). A rota é /admin/convites. Este teste prova o link PELA TELA do
+// /convites (rota que não existe, 404). A rota é /admin/convites. Desde o plano 02-03 o destino vive no
+// bloco "Administração" do Menu (a faixa tem quatro itens para todos). Este teste prova o link PELA TELA do
 // Estudante (Trilhas), onde o defeito morava; o e2e local de `tests/e2e/admin/convites.spec.ts` guarda
 // o conserto na fonte.
 
@@ -19,7 +20,7 @@ test.afterAll(async () => {
   await execucao?.finalizar();
 });
 
-test("Admin: o link Convites da navegação das Trilhas abre a lista de convites", async ({
+test("Admin: o link Convites do Menu, nas Trilhas, abre a lista de convites", async ({
   browser,
   baseURL,
 }) => {
@@ -33,8 +34,10 @@ test("Admin: o link Convites da navegação das Trilhas abre a lista de convites
     await prepararAdmin(page);
     await page.goto("/trilhas");
     await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+    await page.getByRole("button", { name: "Abrir menu" }).click();
     await page
-      .getByRole("navigation", { name: "Seções" })
+      .getByRole("dialog", { name: "Menu" })
+      .locator('[data-slot="menu-administracao"]')
       .getByRole("link", { name: "Convites" })
       .click();
     await expect(page.getByRole("heading", { level: 1, name: "Convites" })).toBeVisible({

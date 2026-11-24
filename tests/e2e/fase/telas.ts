@@ -344,6 +344,41 @@ export const TELAS: Tela[] = [
       );
     },
   },
+  // Acervo (plano 02-03)
+  {
+    id: "acervo-lista",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/acervo");
+      await h1(page, "Acervo");
+      await expect(page.locator('[data-slot="linha-fonte"]').first()).toBeVisible();
+    },
+  },
+  {
+    id: "acervo-lista-filtrada",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/acervo?nivel=primaria");
+      await h1(page, "Acervo");
+      await expect(
+        page.getByRole("link", { name: /^Fonte primária/ }).filter({ visible: true }),
+      ).toHaveAttribute("aria-current", "true");
+    },
+  },
+  {
+    id: "acervo-lista-aviso-de-nivel",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/acervo?nivel=inexistente");
+      await h1(page, "Acervo");
+      await expect(
+        page.getByRole("status").filter({ hasText: "Não há Fontes neste Nível ainda." }),
+      ).toBeVisible();
+    },
+  },
   // Caderno
   {
     id: "caderno-vazio",
@@ -455,6 +490,19 @@ export const TELAS: Tela[] = [
       await esperarHidratado(botao);
       await botao.click();
       await expect(page.getByRole("dialog")).toBeVisible();
+    },
+  },
+  {
+    id: "menu-aberto-admin",
+    quem: "admin",
+    abrir: async (page) => {
+      await page.goto("/trilhas");
+      await h1(page, "Trilhas");
+      const botao = page.getByRole("button", { name: "Abrir menu" });
+      await esperarHidratado(botao);
+      await botao.click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Administração" })).toBeVisible();
     },
   },
   {

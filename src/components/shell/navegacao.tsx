@@ -17,6 +17,8 @@ export function Navegacao({ itens, posicao }: Props) {
   const caminho = usePathname();
   if (itens.length === 0) return null;
   const noCabecalho = posicao === "cabecalho";
+  // Sem folga lateral na faixa: com quatro colunas em 320 px (80 px cada), "Caderno" em versalete mede
+  // 77 px (medido no plano 02-03); com 4 px de cada lado sobravam 72 px e a palavra quebrava no meio.
 
   return (
     <nav
@@ -43,7 +45,7 @@ export function Navegacao({ itens, posicao }: Props) {
                 href={item.href}
                 aria-current={ativo ? "page" : undefined}
                 className={[
-                  "text-label flex min-w-0 flex-1 items-center justify-center px-1 text-center [overflow-wrap:anywhere] hyphens-auto no-underline transition-colors duration-150",
+                  "text-label flex min-w-0 flex-1 items-center justify-center px-0 text-center [overflow-wrap:anywhere] hyphens-auto no-underline transition-colors duration-150",
                   noCabecalho ? "min-h-11 border-b-2 px-4" : "-mt-px min-h-[60px] border-t-2",
                   ativo
                     ? "border-rubric text-rubric"
