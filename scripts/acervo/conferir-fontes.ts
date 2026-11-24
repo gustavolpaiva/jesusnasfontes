@@ -32,77 +32,11 @@ export const MIN_PALAVRAS_CHAVE = 3;
 export const MAX_PALAVRAS_CHAVE = 10;
 
 const numero = (v: number) => v.toLocaleString("pt-BR");
-const escapeDeRegex = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// O que pode sobrar no campo `tradutor` além dos nomes verificados na origem: só conectivos e o papel de cada
-// nome ("com revisão de"). Qualquer outra palavra é nome que a origem não verificou.
-const CONECTIVOS_DO_TRADUTOR = new Set([
-  "e",
-  "com",
-  "de",
-  "por",
-  "rev",
-  "revisão",
-  "revisada",
-  "corrigida",
-  "tradução",
-  "and",
-  "und",
-  "with",
-]);
-
-/** Casa o nome esperado no texto do YAML tolerando espaço e quebra entre os caracteres ("F. C. T." ~ "F.C.T."). */
-function casarSemEspaco(texto: string, nome: string): { inicio: number; fim: number } | null {
-  const padrao = new RegExp(
-    [...nome]
-      .filter((c) => !/\s/.test(c))
-      .map(escapeDeRegex)
-      .join("\\s*"),
-  );
-  const m = padrao.exec(texto);
-  return m ? { inicio: m.index, fim: m.index + m[0].length } : null;
-}
-
-/**
- * O `tradutor` do YAML confere com os nomes lidos e verificados no cabeçalho da origem
- * (`verificador.tradutores` do registro): todo nome esperado aparece, e fora deles só conectivos. O nome que a
- * origem não verificou (o caso Harmon no Perseus) reprova.
- */
-export function tradutorConfere(tradutor: string, esperados: readonly string[]): boolean {
-  let resto = tradutor;
-  for (const nome of esperados) {
-    const achado = casarSemEspaco(resto, nome);
-    if (!achado) return false;
-    resto = `${resto.slice(0, achado.inicio)} ${resto.slice(achado.fim)}`;
-  }
-  const palavras = resto.split(/[^A-Za-zÀ-ÿ]+/).filter(Boolean);
-  return palavras.every((p) => CONECTIVOS_DO_TRADUTOR.has(p.toLocaleLowerCase("pt-BR")));
-}
-
-/** O sobrenome de um nome do registro ("Schaff, Philip (1819-1893)" ou "Philip Schaff"), sem acento e em minúsculas. */
-function sobrenomeDe(nome: string): string {
-  const semAnos = nome.replace(/\([^)]*\)/g, " ");
-  const virgula = semAnos.indexOf(",");
-  const bruto =
-    virgula >= 0
-      ? semAnos.slice(0, virgula)
-      : (semAnos.trim().split(/\s+/).filter(Boolean).pop() ?? "");
-  return bruto
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLocaleLowerCase("pt-BR");
-}
-
-/** O `tradutor` do YAML nomeia este editor (pelo nome inteiro ou pelo sobrenome como palavra)? */
-export function nomeiaOEditor(tradutor: string, editor: string): boolean {
-  if (casarSemEspaco(tradutor, editor)) return true;
-  const sobrenome = sobrenomeDe(editor);
-  if (sobrenome.length < 3) return false;
-  return palavrasDe(tradutor).includes(sobrenome);
-}
-
-export type EvidenciaDoTradutor = { ref: string; tradutores: readonly string[]; trecho: string };
+// ───────────────────────── nomes: UMA normalização para todo lado de toda comparação ─────────────────────────
+// O valor do YAML, o nome esperado, a frase da evidência e os conectivos passam todos por `palavrasDe`: sem acento,
+// sem caixa, só letras. Comparar um lado normalizado com outro cru reprovava "Tradução de S. Thelwall" por causa do
+// "ç" e "De Rossi, Giovanni Battista" por causa do sobrenome composto.
 
 const semAcento = (t: string) =>
   t
@@ -116,17 +50,126 @@ const palavrasDe = (t: string): string[] =>
     .filter(Boolean);
 const compactar = (t: string) => t.split(/\s+/).filter(Boolean).join(" ");
 
+/** Partículas de sobrenome: fazem parte do sobrenome ("De Rossi", "von Harnack") e nunca são outro nome. */
+const PARTICULAS = new Set(
+  "de da do das dos di del della delle degli du des von van der den ten ter la le el al bin ibn zu y".split(
+    " ",
+  ),
+);
+
+// O que pode sobrar no campo `tradutor` além dos nomes esperados: só conectivos, títulos e o papel de cada nome
+// ("com revisão de", "tradução de", "traduzido por", "tr."). Qualquer outra palavra é nome que a origem não nomeou.
+const CONECTIVOS_DO_TRADUTOR = new Set(
+  [
+    "e",
+    "com",
+    "de",
+    "por",
+    "pelo",
+    "pela",
+    "rev",
+    "revisão",
+    "revisada",
+    "corrigida",
+    "tradução",
+    "traduzido",
+    "traduzida",
+    "tradutor",
+    "tradutora",
+    "tr",
+    "trad",
+    "translated",
+    "translator",
+    "by",
+    "and",
+    "und",
+    "with",
+    "dr",
+    "sir",
+    "prof",
+    "ph",
+  ].flatMap(palavrasDe),
+);
+const SOBRA_PERMITIDA = (p: string, nomes: ReadonlySet<string>) =>
+  p.length === 1 || CONECTIVOS_DO_TRADUTOR.has(p) || PARTICULAS.has(p) || nomes.has(p);
+
+/** `sequencia` aparece em `palavras` como palavras seguidas, na mesma ordem. Devolve a posição, ou -1. */
+function acharSequencia(palavras: readonly string[], sequencia: readonly string[]): number {
+  if (sequencia.length === 0) return -1;
+  for (let i = 0; i + sequencia.length <= palavras.length; i++)
+    if (sequencia.every((w, k) => palavras[i + k] === w)) return i;
+  return -1;
+}
+
 /**
- * O `tradutor` do YAML é o que a evidência nomeia: o sobrenome de cada nome esperado aparece como palavra (sem acento
- * nem caixa), e fora dos nomes esperados só sobram conectivos e iniciais. Outro nome (Whiston no lugar de Thelwall, ou
- * Thelwall "e Whiston") reprova.
+ * O `tradutor` do YAML confere com os nomes lidos e verificados no cabeçalho da origem
+ * (`verificador.tradutores` do registro): todo nome esperado aparece, e fora deles só conectivos. O nome que a
+ * origem não verificou (o caso Harmon no Perseus) reprova.
+ */
+export function tradutorConfere(tradutor: string, esperados: readonly string[]): boolean {
+  let restantes = palavrasDe(tradutor);
+  for (const nome of esperados) {
+    const sequencia = palavrasDe(nome);
+    const onde = acharSequencia(restantes, sequencia);
+    if (onde < 0) return false;
+    restantes = [...restantes.slice(0, onde), ...restantes.slice(onde + sequencia.length)];
+  }
+  return restantes.every((p) => SOBRA_PERMITIDA(p, new Set()));
+}
+
+/**
+ * O sobrenome de um nome do registro, como SEQUÊNCIA de palavras (sem acento nem caixa): "Schaff, Philip (1819-1893)"
+ * dá [schaff]; "De Rossi, Giovanni Battista" e "Giovanni Battista de Rossi" dão [de, rossi]; "Hans van der Meer", [van, der, meer].
+ */
+export function sobrenomeDe(nome: string): string[] {
+  const semAnos = nome.replace(/\([^)]*\)/g, " ");
+  const virgula = semAnos.indexOf(",");
+  if (virgula >= 0) return palavrasDe(semAnos.slice(0, virgula));
+  const palavras = palavrasDe(semAnos);
+  let inicio = palavras.length - 1;
+  while (inicio > 0 && PARTICULAS.has(palavras[inicio - 1] as string)) inicio--;
+  return palavras.slice(Math.max(inicio, 0));
+}
+
+/**
+ * O texto traz o sobrenome: a sequência inteira ("de Rossi", composto), ou, na grafia invertida ("Rossi, Giovanni Battista
+ * de"), o miolo seguido com as partículas em qualquer lugar do texto. "Rossi" sozinho NÃO nomeia "de Rossi".
+ */
+function traz(palavras: readonly string[], nome: string): boolean {
+  const seq = sobrenomeDe(nome);
+  if (seq.length === 0) return false;
+  if (acharSequencia(palavras, seq) >= 0) return true;
+  const miolo = seq.filter((p) => !PARTICULAS.has(p));
+  const particulas = seq.filter((p) => PARTICULAS.has(p));
+  const onde = acharSequencia(palavras, miolo);
+  // grafia invertida: as partículas vêm DEPOIS do miolo ("Rossi, Giovanni Battista de"); antes dele são conectivo ("tradução de Rossi")
+  return (
+    particulas.length > 0 &&
+    miolo.length > 0 &&
+    onde >= 0 &&
+    particulas.every((p) => palavras.indexOf(p, onde + miolo.length) >= 0)
+  );
+}
+
+/** O `tradutor` do YAML nomeia este editor (pelo nome inteiro ou pelo sobrenome)? */
+export function nomeiaOEditor(tradutor: string, editor: string): boolean {
+  if (acharSequencia(palavrasDe(tradutor), palavrasDe(editor)) >= 0) return true;
+  if (sobrenomeDe(editor).join("").length < 3) return false;
+  return traz(palavrasDe(tradutor), editor);
+}
+
+export type EvidenciaDoTradutor = { ref: string; tradutores: readonly string[]; trecho: string };
+
+/**
+ * O `tradutor` do YAML é o que a evidência nomeia: o sobrenome de cada nome esperado aparece (sem acento nem caixa,
+ * composto como sequência), e fora dos nomes esperados só sobram conectivos, partículas e iniciais. Outro nome
+ * (Whiston no lugar de Thelwall, ou Thelwall "e Whiston") reprova.
  */
 export function tradutorBateComAEvidencia(tradutor: string, esperados: readonly string[]): boolean {
   const palavras = palavrasDe(tradutor);
-  const permitidas = new Set([...esperados.flatMap(palavrasDe), ...CONECTIVOS_DO_TRADUTOR]);
+  const nomes = new Set(esperados.flatMap(palavrasDe));
   return (
-    esperados.every((e) => palavras.includes(sobrenomeDe(e))) &&
-    palavras.every((p) => p.length === 1 || permitidas.has(p))
+    esperados.every((e) => traz(palavras, e)) && palavras.every((p) => SOBRA_PERMITIDA(p, nomes))
   );
 }
 
@@ -141,7 +184,7 @@ function falhasDeEvidencia(
   const falhas: string[] = [];
   const palavrasDoTrecho = palavrasDe(ev.trecho);
   for (const e of ev.tradutores)
-    if (!palavrasDoTrecho.includes(sobrenomeDe(e)))
+    if (!traz(palavrasDoTrecho, e))
       falhas.push(
         `tradutor-evidencia: o trecho registrado de ${ev.ref} não nomeia "${e}" (diz: "${resumir(ev.trecho)}")`,
       );

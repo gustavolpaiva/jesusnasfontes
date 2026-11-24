@@ -14,6 +14,7 @@ import {
   conferirYaml,
   lerOpcoes,
   nomeiaOEditor,
+  tradutorBateComAEvidencia,
   tradutorConfere,
 } from "../../../scripts/acervo/conferir-fontes";
 import { extratoDaFonte } from "../../../scripts/acervo/extrato-fonte";
@@ -494,6 +495,153 @@ describe("editor não é tradutor (ACER-04)", () => {
     expect(nomeiaOEditor("Alexander Roberts", "Roberts, Alexander (1826-1901)")).toBe(true);
     expect(nomeiaOEditor("S. Thelwall", SCHAFF)).toBe(false);
     expect(nomeiaOEditor("Schaffner", SCHAFF)).toBe(false);
+  });
+});
+
+// Uma normalização para todo lado de toda comparação (YAML, nome esperado, frase da evidência, conectivos): cada nome
+// esperado vale em TODAS as variantes de grafia que o conteúdo pode trazer.
+describe("variantes de nome: o tradutor certo nunca é reprovado pela grafia", () => {
+  const PAPEIS = [
+    "",
+    "Tradução de ",
+    "Traduzido por ",
+    "TRADUÇÃO DE ",
+    "tr. ",
+    "Trad. ",
+    "Translated by ",
+  ];
+  const NOMES: { esperado: string; variantes: string[] }[] = [
+    {
+      esperado: "S. Thelwall",
+      variantes: [
+        "S. Thelwall",
+        "Thelwall, S.",
+        "S.Thelwall",
+        "s. THELWALL",
+        "S. Thelwáll",
+        "Rev. S. Thelwall",
+      ],
+    },
+    {
+      esperado: "Giovanni Battista de Rossi",
+      variantes: [
+        "Giovanni Battista de Rossi",
+        "De Rossi, Giovanni Battista",
+        "G. B. De Rossi",
+        "Rossi, Giovanni Battista de",
+        "giovanni battista DE ROSSI",
+      ],
+    },
+    {
+      esperado: "De Rossi, Giovanni Battista",
+      variantes: ["De Rossi, Giovanni Battista", "Giovanni Battista de Rossi", "G. B. de Rossi"],
+    },
+    {
+      esperado: "Adolf von Harnack",
+      variantes: [
+        "Adolf von Harnack",
+        "Von Harnack, Adolf",
+        "A. von Harnack",
+        "Harnack, Adolf von",
+      ],
+    },
+    {
+      esperado: "Jan van der Meer",
+      variantes: ["Jan van der Meer", "Van der Meer, Jan", "J. van der Meer"],
+    },
+    {
+      esperado: "João da Silva",
+      variantes: ["João da Silva", "Silva, João da", "Joao da Silva", "Da Silva, João"],
+    },
+  ];
+
+  for (const { esperado, variantes } of NOMES)
+    for (const papel of PAPEIS)
+      for (const variante of variantes) {
+        const valor = `${papel}${variante}`;
+        it(`"${valor}" é o tradutor esperado "${esperado}"`, () => {
+          expect(tradutorBateComAEvidencia(valor, [esperado])).toBe(true);
+          // a frase da evidência, na mesma grafia, também nomeia o esperado
+          const falhas = conferirFonte(
+            { ...fonteValida(), tradutor: valor, licenca: "dp-declarado-pela-origem" },
+            {
+              tradutores: [],
+              editores: [],
+              evidenciaTradutor: {
+                ref: "x-p1",
+                tradutores: [esperado],
+                trecho: `[${papel}${variante}, late of the College]`,
+              },
+              derivado: derivadoValido(),
+            },
+          );
+          expect(falhas.filter((f) => f.startsWith("tradutor"))).toEqual([]);
+        });
+      }
+
+  it("o nome errado continua reprovando em toda variante: Whiston no lugar de Thelwall, e nome a mais", () => {
+    for (const papel of PAPEIS) {
+      expect(tradutorBateComAEvidencia(`${papel}William Whiston`, ["S. Thelwall"])).toBe(false);
+      expect(
+        tradutorBateComAEvidencia(`${papel}S. Thelwall e William Whiston`, ["S. Thelwall"]),
+      ).toBe(false);
+      // "Rossi" sozinho não é "de Rossi": o sobrenome composto vale como sequência. (Ambiguidade que a gramática não
+      // desfaz: em "Tradução de Rossi" o "de" do papel também lê "de Rossi"; por isso o papel "… de" fica de fora aqui.)
+      if (!papel.trim().toLowerCase().endsWith("de"))
+        expect(
+          tradutorBateComAEvidencia(`${papel}Rossi, Giovanni Battista`, [
+            "Giovanni Battista de Rossi",
+          ]),
+        ).toBe(false);
+      expect(
+        tradutorBateComAEvidencia(`${papel}Giulio Rossi Mancini`, ["Giovanni Battista de Rossi"]),
+      ).toBe(false);
+    }
+  });
+
+  it("o trecho da evidência que não nomeia o sobrenome composto inteiro reprova", () => {
+    const falhas = conferirFonte(
+      {
+        ...fonteValida(),
+        tradutor: "De Rossi, Giovanni Battista",
+        licenca: "dp-declarado-pela-origem",
+      },
+      {
+        tradutores: [],
+        evidenciaTradutor: {
+          ref: "x-p1",
+          tradutores: ["Giovanni Battista de Rossi"],
+          trecho: "[Translated by De Rossi, Esq.]",
+        },
+        derivado: derivadoValido(),
+      },
+    );
+    expect(falhas.some((f) => f.includes("não nomeia"))).toBe(false); // o sobrenome composto aparece inteiro
+    const sem = conferirFonte(
+      {
+        ...fonteValida(),
+        tradutor: "De Rossi, Giovanni Battista",
+        licenca: "dp-declarado-pela-origem",
+      },
+      {
+        tradutores: [],
+        evidenciaTradutor: {
+          ref: "x-p1",
+          tradutores: ["Giovanni Battista de Rossi"],
+          trecho: "[Translated by Giovanni Battista Rossi]",
+        },
+        derivado: derivadoValido(),
+      },
+    );
+    expect(sem.some((f) => f.includes("não nomeia"))).toBe(true);
+  });
+
+  it("tradutor provado no cabeçalho também passa em toda grafia de papel e acento", () => {
+    for (const papel of PAPEIS) {
+      expect(tradutorConfere(`${papel}Alice B. Silva`, ["Alice B. Silva"])).toBe(true);
+      expect(tradutorConfere(`${papel}SILVA, Alice B.`, ["Alice B. Silva"])).toBe(false); // nome inteiro: ordem do cabeçalho
+    }
+    expect(tradutorConfere("Tradução de Álice B. Silva", ["Alice B. Silva"])).toBe(true);
   });
 });
 
