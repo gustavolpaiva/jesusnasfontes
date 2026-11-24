@@ -1,0 +1,34 @@
+# Fonte do Acervo: A morte de Peregrino, de Luciano de Samósata, na tradução inglesa de Fowler e Fowler (Perseus
+# Digital Library). O texto vem do derivado `data/acervo-derivados/luciano-peregrino.json`, gerado por
+# `pnpm acervo:derivar` a partir da origem `perseus-greeklit-luciano` (data/acervo-origens.yaml) — só o
+# `perseus-eng4` de Fowler e Fowler; o `perseus-eng2` do mesmo diretório é a tradução protegida de Harmon (1936).
+# O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: luciano-peregrino
+titulo: A morte de Peregrino
+autor: Luciano de Samósata
+epoca: cerca de 165 d.C.
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: edicao-digital-cc-by-sa-e-traducao-dp
+licenca_url: https://creativecommons.org/licenses/by-sa/4.0/
+origem_nome: Perseus Digital Library
+origem_url: https://www.perseus.tufts.edu/
+tradutor: Henry Watson Fowler e Francis George Fowler
+traducao_ano: 1905
+edicao: The Works of Lucian of Samosata, Clarendon Press, 1905
+traduzida_por_nos: false
+limites_pt: >-
+  Sátira escrita em grego no século II por um autor pagão hostil ao cristianismo; o cristianismo aparece de
+  passagem, nas cenas da vida de Peregrino. A obra é humorística e não busca relatar fatos com exatidão. O texto
+  lido é a tradução inglesa de Fowler e Fowler (1905), preservada em cópias medievais.
+secoes:
+  - slug: texto
+    titulo: Texto
+    resumo_pt: >-
+      Sátira em forma de carta a Crônio sobre a vida e a morte de Peregrino, chamado Proteu, que buscou a fama em
+      muitas transformações e terminou ateando a própria pira em Olímpia. No caminho ele adota o cristianismo na
+      Palestina, onde se torna profeta e chefe da comunidade, e é sustentado na prisão pelas comunidades da Ásia
+      antes de abraçar o cinismo.
+    palavras_chave_pt: [Peregrino, Proteu, sátira, cristianismo, filósofo cínico, Olímpia]
