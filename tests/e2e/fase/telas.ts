@@ -1,10 +1,11 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
-import { semearCitacoesDaVarredura } from "../../support/citacao-e2e";
+import { semearCitacoesDaVarredura, semearPropostasDaVarredura } from "../../support/citacao-e2e";
 import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { falharFala, instalarFalaFalsa, VOZ_PT_BR } from "../../support/fala-falsa";
 import {
+  type SlugsDeFicha,
   semearFichas,
   semearFichasParaConferir,
   type slugsParaConferir,
@@ -44,10 +45,21 @@ export type Tela = {
 
 // A ficha de teste da varredura: semeada UMA vez por processo, no banco descartável da execução (o e2e inteiro roda
 // num banco que é removido no fim, então não há o que limpar). Obra inventada, verificada pelas funções reais.
-let fichaDaVarredura: Promise<string> | undefined;
+let fichasDaVarredura: Promise<SlugsDeFicha> | undefined;
+function fichasSemeadasDaVarredura(): Promise<SlugsDeFicha> {
+  fichasDaVarredura ??= semearFichas(`varredura-${process.pid}`).then((s) => s.slugs);
+  return fichasDaVarredura;
+}
 function fichaVerificadaDaVarredura(): Promise<string> {
-  fichaDaVarredura ??= semearFichas(`varredura-${process.pid}`).then((s) => s.slugs.completa);
-  return fichaDaVarredura;
+  return fichasSemeadasDaVarredura().then((s) => s.completa);
+}
+
+// As propostas de Grau da lista do Admin (plano 02-21), UMA vez por banco: pendente (com as três Citações), aprovada,
+// aguardando ficha (a ficha em rascunho) e texto mudado. A aprovação nasce pela função real do banco.
+let propostasDaVarredura: Promise<void> | undefined;
+function propostasDeGrauDaVarredura(): Promise<void> {
+  propostasDaVarredura ??= fichasSemeadasDaVarredura().then((f) => semearPropostasDaVarredura(f));
+  return propostasDaVarredura;
 }
 
 // As fichas do painel de fichas do Admin (plano 02-18), UMA vez por processo, nos cinco estados: a verificada e a alterada
@@ -729,6 +741,30 @@ export const TELAS: Tela[] = [
       await esperarHidratado(botao);
       await botao.click();
       await expect(page.getByRole("alertdialog")).toBeVisible();
+    },
+  },
+  // Admin: graus propostos (plano 02-21): a lista com os quatro estados e a proposta pendente aberta
+  {
+    id: "admin-graus-lista",
+    quem: "admin",
+    cinza: true,
+    abrir: async (page) => {
+      await propostasDeGrauDaVarredura();
+      await page.goto("/admin/acervo/graus?filtro=todas");
+      await h1(page, "Graus propostos");
+      // Os quatro estados na mesma tela: é o que a leitura em cinza precisa distinguir.
+      for (const estado of ["pendente", "aprovada", "aguardando-ficha", "texto-mudou"])
+        await expect(
+          page.locator(`[data-slot="accordion-item"][data-estado="${estado}"]`).first(),
+        ).toBeVisible();
+      const gatilho = page
+        .locator('[data-slot="accordion-item"][data-estado="pendente"]')
+        .first()
+        .locator('[data-slot="proposta-gatilho"]');
+      await esperarHidratado(gatilho);
+      await gatilho.click();
+      await expect(gatilho).toHaveAttribute("aria-expanded", "true");
+      await expect(page.locator('[data-slot="aprovar-grau"]').first()).toBeVisible();
     },
   },
   {

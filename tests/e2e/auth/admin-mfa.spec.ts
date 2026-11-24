@@ -400,6 +400,9 @@ test("a lista de rotas lida do disco: nenhuma abre só com o primeiro fator; as 
   page,
   browser,
 }) => {
+  // O teste cresce com o número de rotas (cada uma é renderizada duas vezes no servidor de desenvolvimento): com a lista de
+  // graus (plano 02-21) o WebKit sob carga passava dos 30 s padrão sem nenhuma asserção falhar.
+  test.setTimeout(90_000);
   const rotas = rotasDoApp();
   expect(rotas).toEqual(expect.arrayContaining(["/trilhas", "/admin", "/admin/segundo-fator"]));
   const protegidas = rotas.filter((r) => !PUBLICAS.has(r) && !ISENTAS.has(r));
