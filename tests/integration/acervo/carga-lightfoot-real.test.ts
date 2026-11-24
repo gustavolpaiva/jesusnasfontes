@@ -80,7 +80,7 @@ describe.skipIf(emNeon())("carga das nove Fontes reais de Lightfoot", () => {
       0,
     );
     expect(totalSecoes).toBe(15);
-    expect(totalParagrafos).toBe(1921);
+    expect(totalParagrafos).toBe(1933);
 
     const r = await carregarFontes(itens, { cliente: carga });
     expect(r.fontes.inseridos).toBe(9);
@@ -94,6 +94,18 @@ describe.skipIf(emNeon())("carga das nove Fontes reais de Lightfoot", () => {
         where f.slug = 'didaque' and p.ref = 'ii.xii-p1'`,
     );
     expect(p.rows[0]?.texto).toContain("There are two ways");
+    // A Oração do Senhor e as orações eucarísticas são <verse> irmão de <p> na origem: chegam ao banco.
+    const versos = await dono.query<{ ref: string; texto: string }>(
+      `select p.ref, p.texto from acervo.fonte_paragrafo p
+         join acervo.fonte_secao s on s.id = p.secao_id join acervo.fonte f on f.id = s.fonte_id
+        where f.slug = 'didaque' and p.ref in ('ii.xii-p48.3', 'ii.xii-p51.3', 'ii.xii-p54.21')`,
+    );
+    const porRef = new Map(versos.rows.map((x) => [x.ref, x.texto]));
+    expect(porRef.get("ii.xii-p48.3")).toContain(
+      "Our Father, which art in heaven, / hallowed be Thy name;",
+    );
+    expect(porRef.get("ii.xii-p51.3")).toContain("for the holy vine of Thy son David");
+    expect(porRef.get("ii.xii-p54.21")).toContain("Remember, Lord, Thy Church");
     const ordem = await dono.query<{ slug: string; ordem: number }>(
       `select s.slug, s.ordem from acervo.fonte_secao s join acervo.fonte f on f.id = s.fonte_id
         where f.slug = 'inacio-cartas' order by s.ordem`,
