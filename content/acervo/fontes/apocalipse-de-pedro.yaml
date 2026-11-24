@@ -18,11 +18,12 @@ origem_url: https://ccel.org/ccel/schaff/anf09
 # O cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da série, e não declara tradutor nem ano.
 # A introdução do volume registra apenas que a tradução foi feita sobre a edição de Harnack (2ª ed., Leipzig,
 # 1893). O campo tradutor carrega o nome que o DC.Creator verifica; nada é atribuído de memória.
-# A introdução da edição (v.i-p29) declara só a FONTE da tradução ("made from Harnack's edition of the text,
-# 2d ed., Leipzig, 1893") e NÃO nomea o tradutor: o campo fica ausente e a página mostra "tradutor não
-# identificado na edição". Editor do volume: Philip Schaff na edição digital (DC.Creator).
+# A página de título da parte do volume (v-p6), que traz o Apocalipse de Pedro com a Visio Pauli, o
+# Apocalipse de Maria Virgem e o Apocalipse de Esdras, declara: "Andrew Rutherford, B.D." — evidência
+# registrada em data/acervo-origens.yaml. Editor do volume: Philip Schaff na edição digital (DC.Creator).
+tradutor: Andrew Rutherford, B.D.
 editor: Philip Schaff
-edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); a introdução diz que a tradução segue a edição do texto de Harnack, 2ª ed., Leipzig, 1893, sem nomear o tradutor; o cabeçalho não declara nem a edição impressa nem o ano da tradução"
+edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); tradução por Andrew Rutherford, nomeado na página de título da parte (v-p6); a introdução diz que ela segue a edição do texto de Harnack, 2ª ed., Leipzig, 1893; o cabeçalho não declara nem a edição impressa nem o ano da tradução"
 traduzida_por_nos: false
 limites_pt: >-
   Apocalipse apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior aos fatos e

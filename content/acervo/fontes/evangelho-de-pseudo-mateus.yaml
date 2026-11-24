@@ -6,7 +6,7 @@
 slug: evangelho-de-pseudo-mateus
 titulo: Evangelho de Pseudo-Mateus
 autor: atribuído pela tradição a Mateus (as cartas de abertura o declaram, e a edição o chama de Pseudo-Mateus)
-epoca: composição estimada entre os séculos IV e VIII d.C. (datação debatida; a introdução registra o intervalo amplo dos quatro primeiros séculos)
+epoca: composição estimada nos quatro primeiros séculos da era cristã (I–IV d.C., intervalo que a introdução da edição registra como o ponto de acordo da maioria das autoridades)
 nivel: primaria
 tipo_texto: integral
 idioma: en
@@ -26,19 +26,19 @@ edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem a
 traduzida_por_nos: false
 limites_pt: >-
   Evangelho apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior aos fatos,
-  estimada em intervalo largo entre os séculos IV e VIII d.C. Reconta o nascimento e a infância de Jesus
-  ampliando o Protoevangelho de Tiago, com milagres da fuga ao Egito e da infância; o texto reflete a
-  tradição de quem o escreveu e nada mais se afirma sobre o seu valor histórico.
+  estimada nos quatro primeiros séculos da era cristã (I–IV d.C.), como a introdução da edição registra.
+  Reconta o nascimento e a infância de Jesus ampliando o Protoevangelho de Tiago, com milagres da fuga ao
+  Egito e da infância; o texto reflete a tradição de quem o escreveu e nada mais se afirma sobre o seu
+  valor histórico.
 secoes:
   - slug: vii-v
     titulo: Texto
     resumo_pt: >-
       Abre com as cartas trocadas entre os bispos Cromácio e Heliodoro e Jerônimo, que apresentam a obra
       como o nascimento de Maria e a infância do Salvador. Segue o nascimento de Maria (Joaquim e Ana, a
-      menina no templo, a vara de José que floresce em pomba), a anunciação, a prova da água, o nascimento
-      na gruta de Belém com as parteiras Zelomi e Salomé, os magos e a fuga ao
+      menina no templo, a vara de José, de onde sai uma pomba), a anunciação, a prova da água, o nascimento na gruta de Belém com as parteiras Zelomi e Salomé, os magos e a fuga ao
       Egito — onde dragões e leões se prostram, a palmeira se dobra e os ídolos caem. De volta, os milagres
       da infância: poças no Jordão, doze pardais em sábado, meninos mortos e revividos, mestres vencidos
-      pela primeira letra, o trono alongado, até o banquete final que Jesus abençoa primeiro, sob a luz de
+      pela primeira letra, o leito alongado, até o banquete final que Jesus abençoa primeiro, sob a luz de
       Deus, enquanto dorme.
     palavras_chave_pt: [Joaquim e Ana, Maria no templo, vara de José, gruta de Belém, parteiras, fuga ao Egito, dragões, palmeira, doze pardais, mestres]

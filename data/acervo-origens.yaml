@@ -950,9 +950,13 @@ ccel-anf09:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["v.ii", "v.iii"]
-      # A introdução (v.i-p29) declara só a FONTE: "The present translation is made from Harnack's edition
-      # of the text, 2d ed., Leipzig, 1893" — não nomeia o tradutor: a Fonte fica SEM `tradutor` (a página
-      # mostra "tradutor não identificado na edição").
+      # A introdução (v.i-p29) declara só a FONTE da tradução ("made from Harnack's edition of the text, 2d
+      # ed., Leipzig, 1893"); quem a assina é a página de título da parte do volume (v-p6: "Andrew
+      # Rutherford, B.D."), que traz o Apocalipse de Pedro com a Visio Pauli, o Apocalipse de Maria Virgem
+      # e o Apocalipse de Esdras.
+      evidencia_tradutor: v-p6
+      tradutor_esperado: ["Andrew Rutherford"]
+      evidencia_trecho: "Andrew Rutherford, B.D."
   verificador:
     # Editores do volume (DC.Creator com papel Editor no cabeçalho): NUNCA são prova de quem traduziu uma obra.
     editores:
