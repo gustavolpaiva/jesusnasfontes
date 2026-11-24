@@ -10,9 +10,17 @@
       "sha256": "78ae152adc40696bfe851996191f83ac5ef3c9fabb33009f93e53bdcdecbd562",
       "bytes": 30629
     },
+    "apocalipse-de-pedro": {
+      "sha256": "44187b4cd34c3e33abac215bc76c2ef7da75ebdf90a6e550edc098136468220b",
+      "bytes": 10178
+    },
     "aristides-apologia": {
       "sha256": "16d7415fa232675e27bf32fa656f834385563e4b19c34374fefb8e13cbdad657",
       "bytes": 71353
+    },
+    "atos-de-paulo-e-tecla": {
+      "sha256": "5fbf1ca0204d37af42324dfb99988e29f194d5dc21f56e2c3925e795423b2dd5",
+      "bytes": 32090
     },
     "atos-de-pilatos": {
       "sha256": "16b9c221fa61f10388ace4c71aae124e82be7b4b1dd8c57be131552664f7d900",
