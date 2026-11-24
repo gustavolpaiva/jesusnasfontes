@@ -1,0 +1,42 @@
+# Fonte do Acervo: Atos de Paulo e Tecla, na edição do volume 8 da coleção Ante-Nicene Fathers (CCEL,
+# ThML). O texto vem do derivado `data/acervo-derivados/atos-de-paulo-e-tecla.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf08` (divisão vii.xxvi do volume, com o final alternativo do
+# manuscrito usado por Grabe que a edição publica em apêndice). O resumo auxiliar é escrita automática de
+# busca (D-18) e nunca substitui o texto.
+slug: atos-de-paulo-e-tecla
+titulo: Atos de Paulo e Tecla
+autor: anônimo (Tertuliano, citado pela introdução da edição, o atribui a um presbítero da Ásia)
+epoca: século II d.C. (estimativa; a introdução da edição o chama de indubitavelmente antigo e registra o testemunho de Tertuliano)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Acto apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior aos fatos e
+  estimada no século II d.C. Narra a pregação de Paulo em Icônio e Antioquia e a jornada da virgem Tecla,
+  que o escuta e recusa o noivado; a introdução da edição registra que Tertuliano o atribuiu a um
+  presbítero da Ásia. O texto reflete a tradição de quem o escreveu e nada mais se afirma sobre o seu
+  valor histórico.
+secoes:
+  - slug: vii-xxvi
+    titulo: Texto
+    resumo_pt: >-
+      Paulo sobe a Icônio com Demas e Hermógenes, hospeda-se com Onesíforo e, pregando a castidade, é
+      ouvido pela virgem Tecla, que rompe o
+      noivado com Tâmiris. Denunciado e açoitado, Paulo é expulso; Tecla, condenada à fogueira, é salva
+      por nuvem de água e granizo. Em Antioquia, recusando Alexandre, é condenada às feras; a rainha
+      Trifena acolhe-a em lugar da filha morta, a leoa lhe lambe os pés e ela batiza-se numa cova de água.
+      Solta, reencontra Paulo em Mira, é enviada a ensinar e vive setenta e dois anos
+      numa gruta de Selêucia, curando, até entrar viva na rocha; morre aos noventa
+      anos perto do túmulo de Paulo. A edição traz ainda o final alternativo do manuscrito de Grabe,
+      no monte Calamon.
+    palavras_chave_pt: [Paulo, Tecla, Icônio, castidade, fogueira, Trifena, batismo, feras, Selêucia, final alternativo]

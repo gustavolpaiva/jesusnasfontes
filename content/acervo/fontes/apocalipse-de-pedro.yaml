@@ -1,0 +1,52 @@
+# Fonte do Acervo: Apocalipse de Pedro, fragmento de Akhmîm e fragmentos citados por outros autores, na
+# edição do volume 9 da coleção Ante-Nicene Fathers (CCEL, ThML). O texto vem do derivado
+# `data/acervo-derivados/apocalipse-de-pedro.json`, gerado por `pnpm acervo:derivar` a partir da origem
+# `ccel-anf09` (divisões v.ii e v.iii do volume; a introdução fica de fora). O resumo auxiliar é escrita
+# automática de busca (D-18) e nunca substitui o texto.
+slug: apocalipse-de-pedro
+titulo: Apocalipse de Pedro
+autor: atribuído pela tradição a Pedro (a visão é narrada na primeira pessoa)
+epoca: composição estimada antes da metade do século II d.C. (como a introdução deduz do Cânon Muratoriano); o fragmento foi copiado entre os séculos VIII e XII
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf09.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf09
+# O cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da série, e não declara tradutor nem ano.
+# A introdução do volume registra apenas que a tradução foi feita sobre a edição de Harnack (2ª ed., Leipzig,
+# 1893). O campo tradutor carrega o nome que o DC.Creator verifica; nada é atribuído de memória.
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara nem a edição impressa nem o ano da tradução; a introdução do volume diz que a tradução segue a edição do texto de Harnack, 2ª ed., Leipzig, 1893"
+traduzida_por_nos: false
+limites_pt: >-
+  Apocalipse apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior aos fatos e
+  estimada antes da metade do século II d.C. O texto preservado é um fragmento que começa no meio de um
+  discurso de Jesus sobre o fim e termina de chofre num catálogo de castigos; o texto reflete a tradição de
+  quem o escreveu e nada mais se afirma sobre o seu valor histórico.
+secoes:
+  - slug: v-ii
+    titulo: Fragmento de Akhmîm
+    resumo_pt: >-
+      Começa no meio de um discurso de Jesus sobre falsos profetas; no monte, a pedido dos doze,
+      mostram-se dois homens mais brancos que a neve, os justos que partiram. Pedro vê o lugar dos justos,
+      terra florida fora do mundo, e, em frente, o lugar do castigo. Segue
+      o catálogo: blasfemos pendurados pela língua sobre fogo, os que pervertem a justiça num lago de lodo
+      flamejante, adúlteros, homicidas com serpentes (enquanto as almas dos mortos aprovam o juízo), os que
+      provocaram aborto, perseguidores, caluniadores, testemunhas falsas, ricos sem piedade rolando em
+      seixos e usurários no lago de pez e sangue — até cortar de chofre, no meio da lista, "nos que
+      deixaram o caminho de Deus…".
+    palavras_chave_pt: [lugar dos justos, castigos, falsos profetas, monte, blasfemos, homicidas, aborto, ricos, usurários, Akhmîm]
+  - slug: v-iii
+    titulo: Fragmentos citados por outros autores
+    resumo_pt: >-
+      Cinco passos que a edição recolhe de escritores posteriores: Clemente de Alexandria (nas Eclogae)
+      cita as crianças nascidas fora de tempo, entregues a um anjo que zela por elas para que atinjam a
+      melhor morada, e o leite das mulheres que, coalhado, gera feras que as devoram; Macário de Magnésia
+      (na Apocritica) cita a terra apresentando todos os homens diante de Deus no dia do juízo, ela
+      própria julgada junto com o céu; Clemente de novo, sobre os bebês expostos, criados por um anjo até
+      serem como os fiéis de cem anos; e Metódio (no Banquete), sobre os nascimentos prematuros entregues
+      a anjos, mesmo de adultério.
+    palavras_chave_pt: [fragmentos, Clemente de Alexandria, Macário de Magnésia, Metódio, nascidos fora de tempo, anjo, dia do juízo]
