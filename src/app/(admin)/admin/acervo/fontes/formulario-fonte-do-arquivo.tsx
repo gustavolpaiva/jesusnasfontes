@@ -30,6 +30,7 @@ export function FormularioFonteDoArquivo({
   const mensagem = useRef<HTMLDivElement>(null);
   const [limites, setLimites] = useState(fonte.limitesPt ?? "");
   const [publicada, setPublicada] = useState(fonte.publicada);
+  const [revisao, setRevisao] = useState(fonte.revisao);
   const [erro, setErro] = useState<string | null>(null);
   const [salva, setSalva] = useState(salvaAgora);
   const [pendente, setPendente] = useState(false);
@@ -43,16 +44,23 @@ export function FormularioFonteDoArquivo({
   useEffect(() => {
     setLimites(fonte.limitesPt ?? "");
     setPublicada(fonte.publicada);
-  }, [fonte.limitesPt, fonte.publicada]);
+    setRevisao(fonte.revisao);
+  }, [fonte.limitesPt, fonte.publicada, fonte.revisao]);
 
   async function aoEnviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     setPendente(true);
     setSalva(false);
     try {
-      const r = await salvarFonteDoArquivo({ slug: fonte.slug, limites_pt: limites, publicada });
+      const r = await salvarFonteDoArquivo({
+        slug: fonte.slug,
+        limites_pt: limites,
+        publicada,
+        revisao,
+      });
       if (r.ok) {
         setErro(null);
+        setRevisao(r.revisao);
         setSalva(true);
         router.refresh();
       } else {

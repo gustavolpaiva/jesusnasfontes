@@ -59,6 +59,8 @@ type Estado = {
   limites_pt: string;
   publicada: boolean;
   secoes: SecaoEmEdicao[];
+  /** A revisão da Fonte que este formulário leu: o banco recusa a escrita sobre uma revisão que já não é a atual. */
+  revisao: number | undefined;
 };
 
 function estadoInicial(f?: FonteDoPainel): Estado {
@@ -81,6 +83,7 @@ function estadoInicial(f?: FonteDoPainel): Estado {
     traduzida_por_nos: f?.traduzidaPorNos ?? false,
     limites_pt: f?.limitesPt ?? "",
     publicada: f?.publicada ?? false,
+    revisao: f?.revisao,
     secoes: (f?.secoes ?? []).map((s) => ({
       slug: s.slug,
       titulo: s.titulo ?? "",
@@ -123,6 +126,14 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
   const [salva, setSalva] = useState(false);
   const [pendente, setPendente] = useState(false);
   const [versaoDosErros, setVersaoDosErros] = useState(0);
+  const revisaoDoEstado = useRef(estado.revisao);
+  revisaoDoEstado.current = estado.revisao;
+
+  // A Fonte mudou no servidor por fora deste formulário (outra pessoa, a carga): a página recarregada traz outra revisão e o
+  // estado é refeito do que está salvo. A revisão que o próprio formulário acabou de salvar já é a do estado: nada a refazer.
+  useEffect(() => {
+    if (fonte && fonte.revisao !== revisaoDoEstado.current) setEstado(estadoInicial(fonte));
+  }, [fonte]);
 
   const mudar = <K extends keyof Estado>(campo: K, valor: Estado[K]) =>
     setEstado((e) => ({ ...e, [campo]: valor }));
@@ -145,16 +156,29 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
     setPendente(true);
     setSalva(false);
     try {
-      const { secoes, ...resto } = estado;
+      const { secoes, revisao, ...resto } = estado;
+      const enviadas = resto.tipo_texto === "integral" && podeTerSecoes(estado) ? secoes : [];
       const resultado: ResultadoDeSalvar = await salvarFonte({
         ...resto,
         modo: editando ? "editar" : "criar",
-        ...(editando ? { slug: fonte.slug } : {}),
-        secoes: resto.tipo_texto === "integral" && podeTerSecoes(estado) ? secoes : [],
+        ...(editando ? { slug: fonte.slug, revisao } : {}),
+        secoes: enviadas,
       });
       if (resultado.ok) {
         setErros({});
         setGeral(null);
+        // O estado passa a ser o que está salvo: a revisão nova e o endereço que o banco deu a cada seção enviada. Sem isto uma
+        // seção recém-criada seguiria "nova" na tela, e a seguinte reaproveitaria o endereço dela.
+        setEstado((e) => ({
+          ...e,
+          revisao: resultado.revisao,
+          secoes:
+            resultado.secoes.length === enviadas.length
+              ? e.secoes.map((x, i) =>
+                  i < enviadas.length ? { ...x, slug: resultado.secoes[i] ?? x.slug } : x,
+                )
+              : e.secoes,
+        }));
         if (editando) {
           setSalva(true);
           router.refresh();

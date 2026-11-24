@@ -31,7 +31,7 @@ const SEM_SESSAO = "00000000-0000-4000-8000-0000000000aa";
 const ASSINATURAS = [
   "acervo.salvar_fonte(uuid, jsonb)",
   "acervo.salvar_secao_painel(uuid, text, jsonb)",
-  "acervo.salvar_resumo_secao(uuid, text, text, text[])",
+  "acervo.salvar_resumo_secao(uuid, text, text, text[], integer)",
   "acervo.reverter_fonte(uuid, text, text[])",
 ] as const;
 
@@ -62,16 +62,55 @@ const INTEGRAL_VALIDA = {
   origem_nome: "Origem de teste",
 } as const;
 
-/** `acervo.salvar_fonte` pela conexão de `c`, com a sessão dada. */
-const salvar = (
+/** A revisão atual da Fonte, como o formulário a leu ao abrir. */
+const revisaoDe = async (slug: string): Promise<number> =>
+  (
+    (await superusuario.query("select revisao from acervo.fonte where slug = $1", [slug]))
+      .rows[0] as { revisao: number }
+  ).revisao;
+
+/**
+ * `acervo.salvar_fonte` pela conexão de `c`, com a sessão dada. Na edição, sem `revisao` explícita, manda a atual (o
+ * formulário que acabou de ler a Fonte); os testes da corrida mandam a revisão velha de propósito.
+ */
+const salvar = async (
   c: pg.Client,
   sessao: string,
   dados: Record<string, unknown>,
-): Promise<pg.QueryResult> =>
-  c.query("select acervo.salvar_fonte($1::uuid, $2::jsonb) as slug", [
+): Promise<pg.QueryResult> => {
+  const completos =
+    dados.modo === "editar" && dados.revisao === undefined && typeof dados.slug === "string"
+      ? { ...dados, revisao: await revisaoDe(dados.slug).catch(() => 0) }
+      : dados;
+  return c.query("select acervo.salvar_fonte($1::uuid, $2::jsonb) as slug", [
     sessao,
-    JSON.stringify(dados),
+    JSON.stringify(completos),
   ]);
+};
+
+/** `acervo.salvar_secao_painel`: cria se a seção não existe, edita se existe (o formulário sabe qual dos dois é). */
+const salvarSecao = async (
+  c: pg.Client,
+  sessao: string,
+  slug: string,
+  secao: Record<string, unknown>,
+): Promise<pg.QueryResult> => {
+  const existe =
+    typeof secao.slug === "string" &&
+    Number(
+      (
+        await superusuario.query(
+          "select count(*)::int as n from acervo.fonte_secao where id = $1",
+          [`${slug}/${secao.slug}`],
+        )
+      ).rows[0].n,
+    ) > 0;
+  return c.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb) as id", [
+    sessao,
+    slug,
+    JSON.stringify({ modo: existe ? "editar" : "criar", ...secao }),
+  ]);
+};
 
 const criar = (slug: string, extra: Record<string, unknown>, sessao = admin()) =>
   salvar(app, sessao, { modo: "criar", slug, titulo: `Obra ${slug}`, ...extra });
@@ -316,11 +355,11 @@ describe.skipIf(emNeon())("ACER-09 e licença: o banco recusa, a função só de
   it("Fonte que já tem parágrafo não vira protegida nem ficha pelo painel (gatilho, 23514)", async () => {
     const slug = slugNovo();
     await criar(slug, { ...INTEGRAL_VALIDA });
-    await app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
-      admin(),
-      slug,
-      JSON.stringify({ slug: "s1", titulo: "Seção", texto: "Primeiro.\n\nSegundo." }),
-    ]);
+    await salvarSecao(app, admin(), slug, {
+      slug: "s1",
+      titulo: "Seção",
+      texto: "Primeiro.\n\nSegundo.",
+    });
     await expect(
       salvar(app, admin(), {
         modo: "editar",
@@ -496,20 +535,13 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
   it("o texto vira parágrafos <slug>/<n> por linha em branco; reeditar reaproveita os ids; o resto é apagado", async () => {
     const slug = slugNovo();
     await criar(slug, { ...INTEGRAL_VALIDA });
-    const id = await app.query<{ id: string }>(
-      "select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb) as id",
-      [
-        admin(),
-        slug,
-        JSON.stringify({
-          slug: "s1",
-          titulo: "Primeira",
-          texto: "Um.\r\n\r\n\r\nDois.\n  \nTrês, em\nduas linhas.",
-          resumo_pt: "Resumo.",
-          palavras_chave_pt: ["a", "b"],
-        }),
-      ],
-    );
+    const id = await salvarSecao(app, admin(), slug, {
+      slug: "s1",
+      titulo: "Primeira",
+      texto: "Um.\r\n\r\n\r\nDois.\n  \nTrês, em\nduas linhas.",
+      resumo_pt: "Resumo.",
+      palavras_chave_pt: ["a", "b"],
+    });
     expect(id.rows[0]?.id).toBe(`${slug}/s1`);
     const lista = async () =>
       (
@@ -525,11 +557,7 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
     ]);
 
     // Uma segunda seção continua a numeração da Fonte.
-    await app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
-      admin(),
-      slug,
-      JSON.stringify({ slug: "s2", titulo: "Segunda", texto: "Quatro." }),
-    ]);
+    await salvarSecao(app, admin(), slug, { slug: "s2", titulo: "Segunda", texto: "Quatro." });
     expect(
       (
         await superusuario.query("select id from acervo.fonte_paragrafo where secao_id = $1", [
@@ -539,11 +567,11 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
     ).toEqual([{ id: `${slug}/4` }]);
 
     // Reeditar a primeira: ids por posição, e o excedente sai.
-    await app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
-      admin(),
-      slug,
-      JSON.stringify({ slug: "s1", titulo: "Primeira", texto: "Um corrigido.\n\nDois." }),
-    ]);
+    await salvarSecao(app, admin(), slug, {
+      slug: "s1",
+      titulo: "Primeira",
+      texto: "Um corrigido.\n\nDois.",
+    });
     expect((await lista()).map((p) => [p.id, p.texto])).toEqual([
       [`${slug}/1`, "Um corrigido."],
       [`${slug}/2`, "Dois."],
@@ -561,11 +589,7 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
   it("parágrafo com Citação não é apagado por reedição (chave estrangeira) e a seção fica como estava", async () => {
     const slug = slugNovo();
     await criar(slug, { ...INTEGRAL_VALIDA });
-    await app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
-      admin(),
-      slug,
-      JSON.stringify({ slug: "s1", titulo: "S", texto: "Um.\n\nDois." }),
-    ]);
+    await salvarSecao(app, admin(), slug, { slug: "s1", titulo: "S", texto: "Um.\n\nDois." });
     const hash = "a".repeat(64);
     await superusuario.query(
       "insert into acervo.afirmacao (id, texto, texto_hash) values ($1, 'x', $2)",
@@ -577,11 +601,7 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
     );
     // Reduzir a seção a um parágrafo apagaria o segundo, que tem Citação: a chave estrangeira recusa.
     await expect(
-      app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
-        admin(),
-        slug,
-        JSON.stringify({ slug: "s1", titulo: "S", texto: "Só um." }),
-      ]),
+      salvarSecao(app, admin(), slug, { slug: "s1", titulo: "S", texto: "Só um." }),
     ).rejects.toMatchObject({ code: "23503" });
     expect(
       (
@@ -592,11 +612,11 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
       ).rows.map((r) => r.texto),
     ).toEqual(["Um.", "Dois."]);
     // Controle positivo: corrigir o texto sem tirar parágrafo passa e mantém o id citado.
-    await app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
-      admin(),
-      slug,
-      JSON.stringify({ slug: "s1", titulo: "S", texto: "Um.\n\nDois corrigido." }),
-    ]);
+    await salvarSecao(app, admin(), slug, {
+      slug: "s1",
+      titulo: "S",
+      texto: "Um.\n\nDois corrigido.",
+    });
     expect(
       (
         await superusuario.query("select texto from acervo.fonte_paragrafo where id = $1", [
@@ -613,7 +633,7 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
       app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
         admin(),
         slug,
-        JSON.stringify(secao),
+        JSON.stringify({ modo: "criar", ...secao }),
       ]);
     await expect(tenta({ slug: "s1", titulo: " ", texto: "x" })).rejects.toMatchObject({
       code: "22023",
@@ -645,11 +665,11 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
     const slug = slugNovo();
     await criar(slug, { ...ACADEMICA_BASE, obra_protegida: true });
     await expect(
-      app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb)", [
-        admin(),
-        slug,
-        JSON.stringify({ slug: "s1", titulo: "t", texto: "Texto integral de obra protegida." }),
-      ]),
+      salvarSecao(app, admin(), slug, {
+        slug: "s1",
+        titulo: "t",
+        texto: "Texto integral de obra protegida.",
+      }),
     ).rejects.toMatchObject({ code: "23514" });
     expect(
       await contar("select count(*)::int as n from acervo.fonte_secao where id like $1", [
@@ -678,3 +698,197 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
     ).toBe(0);
   });
 });
+
+describe.skipIf(emNeon())(
+  "seção nova nunca reaproveita endereço, e a Fonte tem revisão (revisão cruzada do plano 02-17)",
+  () => {
+    const secaoBruta = (slug: string, secao: Record<string, unknown>) =>
+      app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb) as id", [
+        admin(),
+        slug,
+        JSON.stringify(secao),
+      ]);
+
+    it("criar com endereço que já existe é recusado (23505) e a seção persistida fica intacta; criar sem endereço gera o primeiro livre", async () => {
+      const slug = slugNovo();
+      await criar(slug, { ...INTEGRAL_VALIDA });
+      // Duas seções novas SEM endereço (o formulário não sabe os que o banco gera): endereços distintos.
+      const a = await secaoBruta(slug, { modo: "criar", titulo: "A", texto: "Texto de A." });
+      const b = await secaoBruta(slug, { modo: "criar", titulo: "B", texto: "Texto de B." });
+      expect(a.rows[0]?.id).toBe(`${slug}/secao-1`);
+      expect(b.rows[0]?.id).toBe(`${slug}/secao-2`);
+      // O estado velho do formulário (sem o endereço de A) tentando "criar" no endereço dela: recusado, A intacta.
+      await expect(
+        secaoBruta(slug, {
+          modo: "criar",
+          slug: "secao-1",
+          titulo: "B de novo",
+          texto: "Sobrescreveu.",
+        }),
+      ).rejects.toMatchObject({ code: "23505", constraint: "fonte_secao_pkey" });
+      expect(
+        (
+          await superusuario.query("select titulo from acervo.fonte_secao where id = $1", [
+            `${slug}/secao-1`,
+          ])
+        ).rows[0],
+      ).toEqual({ titulo: "A" });
+      expect(
+        (
+          await superusuario.query("select texto from acervo.fonte_paragrafo where secao_id = $1", [
+            `${slug}/secao-1`,
+          ])
+        ).rows,
+      ).toEqual([{ texto: "Texto de A." }]);
+      // O endereço livre depois de remover uma seção não é reusado enquanto outra de número maior existe: o primeiro LIVRE.
+      const c = await secaoBruta(slug, { modo: "criar", titulo: "C", texto: "Texto de C." });
+      expect(c.rows[0]?.id).toBe(`${slug}/secao-3`);
+      // Controle positivo: editar A pelo endereço dela funciona.
+      await secaoBruta(slug, {
+        modo: "editar",
+        slug: "secao-1",
+        titulo: "A editada",
+        texto: "Texto novo de A.",
+      });
+      expect(
+        (
+          await superusuario.query("select titulo from acervo.fonte_secao where id = $1", [
+            `${slug}/secao-1`,
+          ])
+        ).rows[0],
+      ).toEqual({ titulo: "A editada" });
+    });
+
+    it("editar seção que não existe é P0005; modo ausente ou inválido é 22023; editar sem endereço é 22023", async () => {
+      const slug = slugNovo();
+      await criar(slug, { ...INTEGRAL_VALIDA });
+      await expect(
+        secaoBruta(slug, { modo: "editar", slug: "nao-existe", titulo: "t", texto: "x" }),
+      ).rejects.toMatchObject({ code: "P0005" });
+      await expect(secaoBruta(slug, { slug: "s1", titulo: "t", texto: "x" })).rejects.toMatchObject(
+        { code: "22023" },
+      );
+      await expect(
+        secaoBruta(slug, { modo: "upsert", slug: "s1", titulo: "t", texto: "x" }),
+      ).rejects.toMatchObject({ code: "22023" });
+      await expect(
+        secaoBruta(slug, { modo: "editar", titulo: "t", texto: "x" }),
+      ).rejects.toMatchObject({ code: "22023" });
+      expect(
+        await contar("select count(*)::int as n from acervo.fonte_secao where id like $1", [
+          `${slug}/%`,
+        ]),
+      ).toBe(0);
+    });
+
+    it("revisão: escrever sobre revisão velha é recusado (40001) e nada muda; a atual passa e a revisão sobe", async () => {
+      const slug = slugNovo();
+      await criar(slug, { ...INTEGRAL_VALIDA, titulo: "Original" });
+      const lida = await revisaoDe(slug);
+      await salvar(app, admin(), {
+        modo: "editar",
+        slug,
+        titulo: "Primeira edição",
+        ...INTEGRAL_VALIDA,
+        revisao: lida,
+      });
+      expect(await revisaoDe(slug)).toBeGreaterThan(lida);
+      // Outra aba ainda com a revisão `lida`: recusada.
+      await expect(
+        salvar(app, admin(), {
+          modo: "editar",
+          slug,
+          titulo: "Segunda, com estado velho",
+          ...INTEGRAL_VALIDA,
+          revisao: lida,
+        }),
+      ).rejects.toMatchObject({ code: "40001" });
+      expect((await fonteDe(slug)).titulo).toBe("Primeira edição");
+      // Sem revisão: recusado (a função não é um upsert cego).
+      await expect(
+        app.query("select acervo.salvar_fonte($1::uuid, $2::jsonb)", [
+          admin(),
+          JSON.stringify({ modo: "editar", slug, titulo: "x", ...INTEGRAL_VALIDA }),
+        ]),
+      ).rejects.toMatchObject({ code: "22023" });
+      // Controle positivo: com a atual passa.
+      await salvar(app, admin(), { modo: "editar", slug, titulo: "Terceira", ...INTEGRAL_VALIDA });
+      expect((await fonteDe(slug)).titulo).toBe("Terceira");
+    });
+
+    it("revisão também vale para o resumo da seção e sobe a cada escrita do painel", async () => {
+      const slug = slugNovo();
+      await criar(slug, { ...INTEGRAL_VALIDA });
+      await secaoBruta(slug, { modo: "criar", titulo: "A", texto: "Texto." });
+      const lida = await revisaoDe(slug);
+      await app.query("select acervo.salvar_resumo_secao($1::uuid, $2, $3, $4::text[], $5)", [
+        admin(),
+        `${slug}/secao-1`,
+        "Resumo novo.",
+        ["x"],
+        lida,
+      ]);
+      expect(await revisaoDe(slug)).toBeGreaterThan(lida);
+      await expect(
+        app.query("select acervo.salvar_resumo_secao($1::uuid, $2, $3, $4::text[], $5)", [
+          admin(),
+          `${slug}/secao-1`,
+          "Com estado velho.",
+          [],
+          lida,
+        ]),
+      ).rejects.toMatchObject({ code: "40001" });
+      expect(
+        (
+          await superusuario.query("select resumo_pt from acervo.fonte_secao where id = $1", [
+            `${slug}/secao-1`,
+          ])
+        ).rows[0]?.resumo_pt,
+      ).toBe("Resumo novo.");
+    });
+
+    it("mudar o idioma da Fonte muda o dos parágrafos que ela já tem (mesmo sem mudar o texto) e o índice de busca em inglês os acompanha", async () => {
+      const slug = slugNovo();
+      await criar(slug, { ...INTEGRAL_VALIDA, idioma: "pt" });
+      await secaoBruta(slug, {
+        modo: "criar",
+        titulo: "A",
+        texto: "The quick brown foxes jumped.\n\nSecond paragraph here.",
+      });
+      const estado = async () =>
+        (
+          await superusuario.query(
+            "select idioma, tsv_en <> ''::tsvector as indexado from acervo.fonte_paragrafo where secao_id = $1 order by ordem",
+            [`${slug}/secao-1`],
+          )
+        ).rows;
+      expect(await estado()).toEqual([
+        { idioma: "pt", indexado: false },
+        { idioma: "pt", indexado: false },
+      ]);
+      await salvar(app, admin(), {
+        modo: "editar",
+        slug,
+        titulo: "Obra",
+        ...INTEGRAL_VALIDA,
+        idioma: "en",
+      });
+      expect(await estado()).toEqual([
+        { idioma: "en", indexado: true },
+        { idioma: "en", indexado: true },
+      ]);
+      // De volta ao português: saem do índice em inglês.
+      await salvar(app, admin(), {
+        modo: "editar",
+        slug,
+        titulo: "Obra",
+        ...INTEGRAL_VALIDA,
+        idioma: "pt",
+      });
+      expect(await estado()).toEqual([
+        { idioma: "pt", indexado: false },
+        { idioma: "pt", indexado: false },
+      ]);
+    });
+  },
+);

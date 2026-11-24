@@ -79,6 +79,17 @@ describe("contrato do formulário de Fonte", () => {
         .success,
     ).toBe(true);
     expect(esquemaFonteFormulario.safeParse({ ...valido, modo: "editar" }).success).toBe(false);
+    // A edição exige o endereço E a revisão que o formulário leu; sem a revisão o banco não teria como recusar a velha.
+    const semRevisao = esquemaFonteFormulario.safeParse({
+      ...valido,
+      modo: "editar",
+      slug: "obra",
+    });
+    expect(semRevisao.success).toBe(false);
+    expect(
+      esquemaFonteFormulario.safeParse({ ...valido, modo: "editar", slug: "obra", revisao: 3 })
+        .success,
+    ).toBe(true);
   });
 
   it("seção sem título ou sem texto é recusada com o caminho do campo", () => {
@@ -136,6 +147,11 @@ describe("tradução da recusa do banco (T-02-45: nunca texto do banco)", () => 
       tipo: "slug-repetido",
     });
     expect(traduzirErroDoPainel(new ErroDeBanco("P0006"))).toMatchObject({ campo: "tradicao" });
+    // Fonte alterada por outra pessoa ou pela carga desde a leitura: aviso próprio, nunca a mensagem de servidor.
+    expect(traduzirErroDoPainel(new ErroDeBanco("40001"))).toEqual({
+      tipo: "geral",
+      mensagem: MENSAGENS.revisao,
+    });
     expect(traduzirErroDoPainel(new ErroDeBanco("08006"))).toEqual({
       tipo: "geral",
       mensagem: MENSAGENS.servidor,

@@ -150,6 +150,7 @@ test("obra protegida com texto integral não salva: a mensagem do contrato fica 
   expect(await contar("select count(*) as n from acervo.fonte where titulo = $1", [titulo])).toBe(
     1,
   );
+  expect(avisos, "aviso de hidratação").toEqual([]);
 });
 
 test("texto integral sem licença, ou com endereço sem https, mostra a mensagem do contrato no campo certo", async ({
@@ -363,4 +364,109 @@ test("a ação de salvar recusa no servidor quem não é Admin: a mesma requisi�
   expect(resposta.status()).toBe(404);
   expect(await contar("select count(*) as n from acervo.fonte where titulo = $1", [alvo])).toBe(0);
   await contexto.close();
+});
+
+test("seção salva não se remove nem se sobrescreve pelo formulário: salvar A, adicionar B sem sair da página e salvar mantém as duas", async ({
+  page,
+}) => {
+  await entrarComoAdmin(page, `painel-secoes-${sufixo}`);
+  await abrirFormularioNovo(page);
+  const titulo = `Duas secoes ${sufixo}`;
+  const slug = `duas-secoes-${sufixo}`;
+  criadas.push(slug);
+  await page.getByLabel("Título", { exact: true }).fill(titulo);
+  await page.getByLabel("Origem do texto (endereço https)").fill("https://exemplo.invalid/obra");
+  await page.getByLabel("Licença (código)").fill("dp-declarado-pela-origem");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page).toHaveURL(/\?salvo=1/);
+  await esperarHidratado(page.getByRole("button", { name: "Salvar Fonte" }));
+
+  // Já na edição: adiciona a seção A e salva, SEM recarregar a página.
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await page.getByLabel("Título", { exact: true }).nth(1).fill("Seção A");
+  await page
+    .getByLabel("Texto (parágrafos separados por uma linha em branco)")
+    .fill("Texto da seção A.");
+  await expect(page.getByRole("button", { name: "Remover esta seção" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page.getByText("Fonte salva.")).toBeVisible();
+
+  // A seção salva já não é "nova": não há como removê-la daqui (e o endereço dela ficou no estado).
+  await expect(page.getByRole("button", { name: "Remover esta seção" })).toHaveCount(0);
+
+  // Adiciona B na mesma página e salva: B ganha OUTRO endereço e A continua intacta.
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await page.getByLabel("Título", { exact: true }).nth(2).fill("Seção B");
+  await page
+    .getByLabel("Texto (parágrafos separados por uma linha em branco)")
+    .nth(1)
+    .fill("Texto da seção B.");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page.getByText("Fonte salva.")).toBeVisible();
+  await expect
+    .poll(() =>
+      contar("select count(*) as n from acervo.fonte_secao where id like $1", [`${slug}/%`]),
+    )
+    .toBe(2);
+  await expect
+    .poll(() =>
+      lerTexto("select titulo as t from acervo.fonte_secao where id = $1", [`${slug}/secao-1`]),
+    )
+    .toBe("Seção A");
+  await expect
+    .poll(() =>
+      lerTexto("select titulo as t from acervo.fonte_secao where id = $1", [`${slug}/secao-2`]),
+    )
+    .toBe("Seção B");
+  await expect
+    .poll(() =>
+      lerTexto("select texto as t from acervo.fonte_paragrafo where secao_id = $1", [
+        `${slug}/secao-1`,
+      ]),
+    )
+    .toBe("Texto da seção A.");
+});
+
+test("formulário com a Fonte já alterada por outra aba é recusado com aviso e nada é sobrescrito; o digitado fica", async ({
+  page,
+}) => {
+  await entrarComoAdmin(page, `painel-revisao-${sufixo}`);
+  await abrirFormularioNovo(page);
+  const titulo = `Duas abas ${sufixo}`;
+  const slug = `duas-abas-${sufixo}`;
+  criadas.push(slug);
+  await page.getByLabel("Título", { exact: true }).fill(titulo);
+  await page.getByLabel("Origem do texto (endereço https)").fill("https://exemplo.invalid/obra");
+  await page.getByLabel("Licença (código)").fill("dp-declarado-pela-origem");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page).toHaveURL(/\?salvo=1/);
+
+  // Segunda aba do MESMO Admin, aberta na mesma revisão.
+  const aba2 = await page.context().newPage();
+  await aba2.goto(`/admin/acervo/fontes/${slug}`);
+  await esperarHidratado(aba2.getByRole("button", { name: "Salvar Fonte" }));
+  await esperarHidratado(page.getByRole("button", { name: "Salvar Fonte" }));
+
+  // A primeira aba salva uma mudança.
+  await page.getByLabel("Autor", { exact: true }).fill("Autor da primeira aba");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page.getByText("Fonte salva.")).toBeVisible();
+
+  // A segunda ainda tem a revisão velha: recusada, sem sobrescrever, e o que ela digitou continua.
+  await aba2.getByLabel("Autor", { exact: true }).fill("Autor da segunda aba");
+  await aba2.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(
+    aba2.getByText(/Esta Fonte foi alterada por outra pessoa, ou por uma carga do arquivo/),
+  ).toBeVisible();
+  await expect(aba2.getByLabel("Autor", { exact: true })).toHaveValue("Autor da segunda aba");
+  await expect
+    .poll(() => lerTexto("select autor as t from acervo.fonte where slug = $1", [slug]))
+    .toBe("Autor da primeira aba");
+  // Salvar de novo na primeira aba (que já tem a revisão nova) continua funcionando.
+  await page.getByLabel("Autor", { exact: true }).fill("Autor, de novo");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page.getByText("Fonte salva.")).toBeVisible();
+  await expect
+    .poll(() => lerTexto("select autor as t from acervo.fonte where slug = $1", [slug]))
+    .toBe("Autor, de novo");
 });

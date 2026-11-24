@@ -52,7 +52,7 @@ const FUNCOES_DE_EVIDENCIA = [
 const FUNCOES_DO_PAINEL = [
   "acervo.salvar_fonte(uuid, jsonb)",
   "acervo.salvar_secao_painel(uuid, text, jsonb)",
-  "acervo.salvar_resumo_secao(uuid, text, text, text[])",
+  "acervo.salvar_resumo_secao(uuid, text, text, text[], integer)",
   "acervo.reverter_fonte(uuid, text, text[])",
 ] as const;
 

@@ -24,6 +24,8 @@ export const MENSAGENS = {
   paragrafoCitado:
     "Um parágrafo que perderia o texto já tem Citação num Estudo. Mantenha o número de parágrafos e corrija o texto.",
   doArquivo: "Este campo vem do arquivo versionado e não se edita aqui.",
+  revisao:
+    "Esta Fonte foi alterada por outra pessoa, ou por uma carga do arquivo, enquanto você editava. Nada foi salvo. Recarregue a página para ver o que mudou; o que você digitou continua aqui até recarregar.",
 } as const;
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -85,12 +87,16 @@ export const esquemaFonteFormulario = z
     traduzida_por_nos: z.boolean(),
     limites_pt: textoOpcional(5000),
     publicada: z.boolean(),
+    /** A revisão que o formulário leu ao abrir; obrigatória na edição (o banco recusa a velha). */
+    revisao: z.number().int().min(0).max(2_000_000_000).optional(),
     secoes: z.array(esquemaSecaoFormulario).max(60).default([]),
   })
   .strict()
   .superRefine((f, ctx) => {
     if (f.modo === "editar" && !f.slug)
       ctx.addIssue({ code: "custom", path: ["slug"], message: "Fonte sem endereço." });
+    if (f.modo === "editar" && f.revisao === undefined)
+      ctx.addIssue({ code: "custom", path: ["revisao"], message: MENSAGENS.servidor });
     // Só a exigência de FORMA do Nível: a regra de ACER-09 e a de licença são do banco.
     if (f.nivel === "confessional" && f.tradicao === "")
       ctx.addIssue({ code: "custom", path: ["tradicao"], message: MENSAGENS.tradicao });
@@ -101,6 +107,7 @@ export type FormularioDeFonte = z.input<typeof esquemaFonteFormulario>;
 export const esquemaFonteDoArquivo = z
   .object({
     slug: z.string().regex(SLUG),
+    revisao: z.number().int().min(0).max(2_000_000_000),
     limites_pt: textoOpcional(5000),
     publicada: z.boolean(),
   })
@@ -110,6 +117,7 @@ export const esquemaResumoDeSecao = z
   .object({
     slug: z.string().regex(SLUG),
     secao: z.string().regex(SLUG),
+    revisao: z.number().int().min(0).max(2_000_000_000),
     resumo_pt: textoOpcional(2000),
     palavras_chave_pt: z.string().max(2000),
   })
@@ -117,7 +125,14 @@ export const esquemaResumoDeSecao = z
 
 /** Resultado de toda ação de salvar: erros por campo (id do campo → mensagem) ou o endereço da Fonte. */
 export type ResultadoDeSalvar =
-  | { ok: true; slug: string }
+  | {
+      ok: true;
+      slug: string;
+      /** A revisão depois de salvar: o formulário passa a mandar esta. */
+      revisao: number;
+      /** Os endereços das seções enviadas, na ordem em que foram enviadas (as novas ganham o gerado pelo banco). */
+      secoes: string[];
+    }
   | { ok: false; erros: Record<string, string>; geral?: string };
 
 /** O id do campo no formulário a partir do caminho do erro do zod: `secoes.0.titulo` vira `secoes-0-titulo`. */

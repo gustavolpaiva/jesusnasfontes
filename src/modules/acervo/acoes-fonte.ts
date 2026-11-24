@@ -1,9 +1,10 @@
 "use server";
 
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { comAdmin } from "@/db/com-admin";
+import { fonte } from "@/db/schema/texto";
 import { registrarErro } from "@/lib/registro";
 import { exigirAdmin, ROTA_SEGUNDO_FATOR } from "@/modules/identidade/sessao";
 import { traduzirErroDoPainel } from "./erros-painel";
@@ -57,42 +58,42 @@ export async function salvarFonte(dados: unknown): Promise<ResultadoDeSalvar> {
   const tentativas = f.modo === "criar" ? TENTATIVAS_DE_ENDERECO : 1;
   const comSecoes = f.tipo_texto === "integral" ? f.secoes : [];
 
-  // Seção nova ganha `secao-<n>` sem repetir as que já existem.
-  const usados = new Set(comSecoes.flatMap((s) => (s.slug ? [s.slug] : [])));
-  let proximo = 1;
-  const secoes = comSecoes.map((s) => {
-    let slug = s.slug;
-    if (!slug) {
-      while (usados.has(`secao-${proximo}`)) proximo++;
-      slug = `secao-${proximo}`;
-      usados.add(slug);
-    }
-    return {
-      slug,
-      titulo: s.titulo,
-      texto: s.texto,
-      resumo_pt: s.resumo_pt,
-      palavras_chave_pt: listaDePalavras(s.palavras_chave_pt),
-    };
-  });
+  // Seção que o formulário já conhece (tem endereço) é EDIÇÃO; a nova vai SEM endereço e o banco gera o primeiro livre.
+  // O banco recusa "criar" sobre endereço que existe, então um formulário com estado velho nunca sobrescreve seção.
+  const secoes = comSecoes.map((s) => ({
+    modo: s.slug ? "editar" : "criar",
+    ...(s.slug ? { slug: s.slug } : {}),
+    titulo: s.titulo,
+    texto: s.texto,
+    resumo_pt: s.resumo_pt,
+    palavras_chave_pt: listaDePalavras(s.palavras_chave_pt),
+  }));
 
   for (let i = 1; i <= tentativas; i++) {
     const slug = i === 1 ? base : `${base}-${i}`;
     try {
-      await comAdmin(sessao.sessao.id, async (tx) => {
+      const salvo = await comAdmin(sessao.sessao.id, async (tx) => {
         const { modo: _modo, secoes: _secoes, slug: _slug, ...campos } = f;
         await tx.execute(
           sql`select acervo.salvar_fonte(${sessao.sessao.id}::uuid, ${JSON.stringify({ ...campos, modo: f.modo, slug })}::jsonb)`,
         );
+        const enderecos: string[] = [];
         for (const s of secoes) {
-          await tx.execute(
-            sql`select acervo.salvar_secao_painel(${sessao.sessao.id}::uuid, ${slug}, ${JSON.stringify(s)}::jsonb)`,
+          const r = await tx.execute(
+            sql`select acervo.salvar_secao_painel(${sessao.sessao.id}::uuid, ${slug}, ${JSON.stringify(s)}::jsonb) as id`,
           );
+          const id = String((r.rows[0] as { id: string } | undefined)?.id ?? "");
+          enderecos.push(id.slice(slug.length + 1));
         }
+        const atual = await tx
+          .select({ revisao: fonte.revisao })
+          .from(fonte)
+          .where(eq(fonte.slug, slug));
+        return { enderecos, revisao: atual[0]?.revisao ?? 0 };
       });
       revalidatePath(LISTA);
       revalidatePath(`${LISTA}/${slug}`);
-      return { ok: true, slug };
+      return { ok: true, slug, revisao: salvo.revisao, secoes: salvo.enderecos };
     } catch (erro) {
       const t = traduzirErroDoPainel(erro);
       if (t.tipo === "slug-repetido" && i < tentativas) continue;
@@ -107,16 +108,21 @@ export async function salvarFonteDoArquivo(dados: unknown): Promise<ResultadoDeS
   const sessao = await exigirAdmin();
   const lido = esquemaFonteDoArquivo.safeParse(dados);
   if (!lido.success) return { ok: false, erros: errosPorCampo(lido.error) };
-  const { slug, limites_pt, publicada } = lido.data;
+  const { slug, limites_pt, publicada, revisao } = lido.data;
   try {
-    await comAdmin(sessao.sessao.id, async (tx) => {
+    const nova = await comAdmin(sessao.sessao.id, async (tx) => {
       await tx.execute(
-        sql`select acervo.salvar_fonte(${sessao.sessao.id}::uuid, ${JSON.stringify({ modo: "editar", slug, limites_pt, publicada })}::jsonb)`,
+        sql`select acervo.salvar_fonte(${sessao.sessao.id}::uuid, ${JSON.stringify({ modo: "editar", slug, limites_pt, publicada, revisao })}::jsonb)`,
       );
+      const atual = await tx
+        .select({ revisao: fonte.revisao })
+        .from(fonte)
+        .where(eq(fonte.slug, slug));
+      return atual[0]?.revisao ?? 0;
     });
     revalidatePath(LISTA);
     revalidatePath(`${LISTA}/${slug}`);
-    return { ok: true, slug };
+    return { ok: true, slug, revisao: nova, secoes: [] };
   } catch (erro) {
     return tratar("acervo-salvar-fonte-do-arquivo", erro);
   }
@@ -127,15 +133,20 @@ export async function salvarResumoDeSecao(dados: unknown): Promise<ResultadoDeSa
   const sessao = await exigirAdmin();
   const lido = esquemaResumoDeSecao.safeParse(dados);
   if (!lido.success) return { ok: false, erros: errosPorCampo(lido.error) };
-  const { slug, secao, resumo_pt, palavras_chave_pt } = lido.data;
+  const { slug, secao, resumo_pt, palavras_chave_pt, revisao } = lido.data;
   try {
-    await comAdmin(sessao.sessao.id, async (tx) => {
+    const nova = await comAdmin(sessao.sessao.id, async (tx) => {
       await tx.execute(
-        sql`select acervo.salvar_resumo_secao(${sessao.sessao.id}::uuid, ${`${slug}/${secao}`}, ${resumo_pt}, (select array_agg(p) from jsonb_array_elements_text(${JSON.stringify(listaDePalavras(palavras_chave_pt))}::jsonb) p))`,
+        sql`select acervo.salvar_resumo_secao(${sessao.sessao.id}::uuid, ${`${slug}/${secao}`}, ${resumo_pt}, (select array_agg(p) from jsonb_array_elements_text(${JSON.stringify(listaDePalavras(palavras_chave_pt))}::jsonb) p), ${revisao})`,
       );
+      const atual = await tx
+        .select({ revisao: fonte.revisao })
+        .from(fonte)
+        .where(eq(fonte.slug, slug));
+      return atual[0]?.revisao ?? 0;
     });
     revalidatePath(`${LISTA}/${slug}`);
-    return { ok: true, slug };
+    return { ok: true, slug, revisao: nova, secoes: [] };
   } catch (erro) {
     return tratar("acervo-salvar-resumo-de-secao", erro);
   }

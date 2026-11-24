@@ -19,13 +19,22 @@ type Props = {
   secao: string;
   resumoInicial: string;
   palavrasIniciais: string[];
+  /** A revisão da Fonte que a página leu; o banco recusa a escrita sobre uma que já não é a atual. */
+  revisaoInicial: number;
 };
 
-export function FormularioSecao({ slug, secao, resumoInicial, palavrasIniciais }: Props) {
+export function FormularioSecao({
+  slug,
+  secao,
+  resumoInicial,
+  palavrasIniciais,
+  revisaoInicial,
+}: Props) {
   const router = useRouter();
   const mensagem = useRef<HTMLDivElement>(null);
   const [resumo, setResumo] = useState(resumoInicial);
   const [palavras, setPalavras] = useState(palavrasIniciais.join(", "));
+  const [revisao, setRevisao] = useState(revisaoInicial);
   const [erro, setErro] = useState<string | null>(null);
   const [salva, setSalva] = useState(false);
   const [pendente, setPendente] = useState(false);
@@ -45,9 +54,11 @@ export function FormularioSecao({ slug, secao, resumoInicial, palavrasIniciais }
         secao,
         resumo_pt: resumo,
         palavras_chave_pt: palavras,
+        revisao,
       });
       if (r.ok) {
         setErro(null);
+        setRevisao(r.revisao);
         setSalva(true);
         router.refresh();
       } else {

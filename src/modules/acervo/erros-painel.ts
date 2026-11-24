@@ -33,6 +33,8 @@ export function traduzirErroDoPainel(erro: unknown): TraducaoDeErro {
       if (erro.constraint === undefined || erro.constraint === RESTRICAO_ACER09)
         return { tipo: "campo", campo: "obra_protegida", mensagem: MENSAGENS.obraProtegida };
       return { tipo: "geral", mensagem: MENSAGENS.servidor };
+    case "40001":
+      return { tipo: "geral", mensagem: MENSAGENS.revisao };
     case "23503":
       return { tipo: "campo", campo: "secoes", mensagem: MENSAGENS.paragrafoCitado };
     case "P0006":

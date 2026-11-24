@@ -128,6 +128,9 @@ export const fonte = acervo.table("fonte", {
   conflitoCarga: text("conflito_carga").array().notNull().default([]),
   publicadaArquivo: boolean("publicada_arquivo"),
   tradicao: text("tradicao"),
+  // 0023: revisão da Fonte (sobe a cada escrita do painel e da carga) e os valores do arquivo na carga recusada.
+  revisao: integer("revisao").notNull().default(0),
+  valoresRecusados: jsonb("valores_recusados"),
 });
 
 export const fonteSecao = acervo.table(

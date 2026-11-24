@@ -75,10 +75,17 @@ async function secao(id: string) {
   return (await dono.query("select * from acervo.fonte_secao where id = $1", [id])).rows[0];
 }
 const painel = (sql: string, params: unknown[]) => app.query(sql, params);
-const editarLimites = (slug: string, limites: string) =>
+const revisaoDe = async (slug: string): Promise<number> =>
+  ((await linha(slug)) as { revisao: number }).revisao;
+const editarLimites = async (slug: string, limites: string, revisao?: number) =>
   painel("select acervo.salvar_fonte($1::uuid, $2::jsonb)", [
     sessaoAdmin,
-    JSON.stringify({ modo: "editar", slug, limites_pt: limites }),
+    JSON.stringify({
+      modo: "editar",
+      slug,
+      limites_pt: limites,
+      revisao: revisao ?? (await revisaoDe(slug)),
+    }),
   ]);
 
 let contador = 0;
@@ -278,7 +285,7 @@ describe.skipIf(emNeon())(
       await carregarFontes([comSlug(slug)], { cliente: carga }); // arquivo: publicada = true
       await painel("select acervo.salvar_fonte($1::uuid, $2::jsonb)", [
         sessaoAdmin,
-        JSON.stringify({ modo: "editar", slug, publicada: false }),
+        JSON.stringify({ modo: "editar", slug, publicada: false, revisao: await revisaoDe(slug) }),
       ]);
       const mesmo = await carregarFontes([comSlug(slug)], { cliente: carga });
       expect(mesmo.conflitos).toEqual([]);
@@ -357,6 +364,86 @@ describe.skipIf(emNeon())(
       expect(f.conflito_carga).toEqual([]);
     });
 
+    it("última carga A, painel B, arquivo C: a carga recusa guardando C, e 'Reverter ao arquivo' volta a C (não a A) e limpa o aviso", async () => {
+      const slug = novoSlug();
+      await carregarFontes([comSlug(slug, (f) => ({ ...f, limites_pt: "A: da última carga." }))], {
+        cliente: carga,
+      });
+      await editarLimites(slug, "B: do painel.");
+      const recusada = await carregarFontes(
+        [comSlug(slug, (f) => ({ ...f, limites_pt: "C: o arquivo mudou." }))],
+        { cliente: carga },
+      );
+      expect(recusada.conflitos).toEqual([{ slug, campos: ["limites_pt"] }]);
+      expect((await linha(slug)).limites_pt).toBe("B: do painel.");
+      expect((await linha(slug)).valores_recusados).toEqual({ limites_pt: "C: o arquivo mudou." });
+      await painel("select acervo.reverter_fonte($1::uuid, $2, null)", [sessaoAdmin, slug]);
+      const f = await linha(slug);
+      expect(f.limites_pt).toBe("C: o arquivo mudou.");
+      expect(f.conflito_carga).toEqual([]);
+      expect(f.valores_recusados).toEqual({});
+      // A carga seguinte, com o mesmo arquivo (C), não vê conflito nem muda nada.
+      const limpa = await carregarFontes(
+        [comSlug(slug, (x) => ({ ...x, limites_pt: "C: o arquivo mudou." }))],
+        { cliente: carga },
+      );
+      expect(limpa).toMatchObject({ atualizados: 0, conflitos: [] });
+      expect((await linha(slug)).limites_pt).toBe("C: o arquivo mudou.");
+    });
+
+    it("o mesmo vale para o resumo e as palavras-chave de uma seção: a reversão usa o que o arquivo diz agora", async () => {
+      const slug = novoSlug();
+      await carregarFontes([comSlug(slug)], { cliente: carga });
+      await painel("select acervo.salvar_resumo_secao($1::uuid, $2, $3, $4::text[])", [
+        sessaoAdmin,
+        `${slug}/18`,
+        "Resumo do painel.",
+        ["p"],
+      ]);
+      await carregarFontes(
+        [
+          comSlug(slug, (f) => ({
+            ...f,
+            secoes: f.secoes.map((s) =>
+              s.slug === "18"
+                ? { ...s, resumo_pt: "Resumo novo do arquivo.", palavras_chave_pt: ["n1", "n2"] }
+                : s,
+            ),
+          })),
+        ],
+        { cliente: carga },
+      );
+      await painel("select acervo.reverter_fonte($1::uuid, $2, null)", [sessaoAdmin, slug]);
+      const s18 = await secao(`${slug}/18`);
+      expect(s18.resumo_pt).toBe("Resumo novo do arquivo.");
+      expect(s18.palavras_chave_pt).toEqual(["n1", "n2"]);
+    });
+
+    it("a carga que muda a Fonte sobe a revisão: o formulário aberto antes dela é recusado (40001) em vez de sobrescrever a carga", async () => {
+      const slug = novoSlug();
+      await carregarFontes([comSlug(slug)], { cliente: carga });
+      const lida = await revisaoDe(slug);
+      await carregarFontes(
+        [comSlug(slug, (f) => ({ ...f, limites_pt: "A carga mudou os limites." }))],
+        { cliente: carga },
+      );
+      expect(await revisaoDe(slug)).toBeGreaterThan(lida);
+      await expect(editarLimites(slug, "Do formulário velho.", lida)).rejects.toMatchObject({
+        code: "40001",
+      });
+      expect((await linha(slug)).limites_pt).toBe("A carga mudou os limites.");
+      // Carga sem mudança de conteúdo não sobe a revisão (senão todo formulário aberto morreria à toa).
+      const atual = await revisaoDe(slug);
+      await carregarFontes(
+        [comSlug(slug, (f) => ({ ...f, limites_pt: "A carga mudou os limites." }))],
+        { cliente: carga },
+      );
+      expect(await revisaoDe(slug)).toBe(atual);
+      // Controle positivo: com a revisão atual o painel salva.
+      await editarLimites(slug, "Do formulário novo.", atual);
+      expect((await linha(slug)).limites_pt).toBe("Do formulário novo.");
+    });
+
     it("corrida: edição do painel em curso faz a carga esperar e, ao acordar, ver a edição e recusar (a Fonte fica travada)", async () => {
       const slug = novoSlug();
       await carregarFontes([comSlug(slug)], { cliente: carga });
@@ -367,7 +454,12 @@ describe.skipIf(emNeon())(
         await painelB.query("begin");
         await painelB.query("select acervo.salvar_fonte($1::uuid, $2::jsonb)", [
           sessaoAdmin,
-          JSON.stringify({ modo: "editar", slug, limites_pt: "Edição em curso." }),
+          JSON.stringify({
+            modo: "editar",
+            slug,
+            limites_pt: "Edição em curso.",
+            revisao: await revisaoDe(slug),
+          }),
         ]);
         const pid = (await cargaB.query("select pg_backend_pid() as pid")).rows[0].pid as number;
         const emCurso = carregarFontes(

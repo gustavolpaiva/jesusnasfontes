@@ -50,6 +50,7 @@ export default async function PaginaResumoDaSecao({
         secao={secao.slug}
         resumoInicial={secao.resumoPt ?? ""}
         palavrasIniciais={secao.palavrasChavePt}
+        revisaoInicial={fonte.revisao}
       />
     </div>
   );

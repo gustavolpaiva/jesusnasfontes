@@ -258,14 +258,19 @@ function camposEditadosNoPainel(
   secoes: ReadonlyMap<string, LinhaSecao>,
   novos: ValoresDaFonte,
   querSecoes: readonly { id: string; titulo: string; resumo: string | null; palavras: string[] }[],
-): string[] {
+): { campos: string[]; valores: Record<string, unknown> } {
   const campos: string[] = [];
+  // O que o ARQUIVO diz agora para cada campo em conflito: a reversão do painel volta a isto, não ao valor da carga anterior.
+  const valores: Record<string, unknown> = {};
   const ultima = existente.valores_arquivo;
   if (existente.hash_ultima_carga !== null && ultima) {
     const atuais = valoresDaLinha(existente);
     if (hashDaFonte(atuais) !== existente.hash_ultima_carga) {
       for (const c of CAMPOS_DA_FONTE_NO_PAINEL)
-        if (!iguais(atuais[c], ultima[c] ?? null) && !iguais(atuais[c], novos[c])) campos.push(c);
+        if (!iguais(atuais[c], ultima[c] ?? null) && !iguais(atuais[c], novos[c])) {
+          campos.push(c);
+          valores[c] = novos[c];
+        }
     }
   }
   const novasPorId = new Map(querSecoes.map((s) => [s.id, s]));
@@ -283,11 +288,14 @@ function camposEditadosNoPainel(
       : {};
     for (const c of CAMPOS_DA_SECAO_NO_PAINEL) {
       const ultimaS = a.valores_arquivo[c] ?? (c === "palavras_chave_pt" ? [] : null);
-      if (!iguais(atuais[c], ultimaS) && !(c in novosS && iguais(atuais[c], novosS[c])))
+      if (!iguais(atuais[c], ultimaS) && !(c in novosS && iguais(atuais[c], novosS[c]))) {
         campos.push(`${a.slug}:${c}`);
+        // Seção que o arquivo largou: sem valor novo, a reversão cai no da última carga aceita.
+        if (c in novosS) valores[`${a.slug}:${c}`] = novosS[c];
+      }
     }
   }
-  return campos;
+  return { campos, valores };
 }
 
 async function carregarUma(
@@ -295,6 +303,12 @@ async function carregarUma(
   { fonte, derivado }: FonteParaCarga,
   total: Acumulado,
 ): Promise<void> {
+  const mudancas = () =>
+    [total.fontes, total.secoes, total.paragrafos].reduce(
+      (soma, k) => soma + k.inseridos + k.atualizados + k.removidos,
+      0,
+    );
+  const mudancasAntes = mudancas();
   // ───── Fonte
   // `for update`: a linha fica travada até o fim da transação. Uma edição do painel em curso (que também trava a
   // linha) faz esta leitura esperar e enxergar a edição; sem isto a carga poderia ler, o painel gravar e a carga
@@ -339,12 +353,17 @@ async function carregarUma(
 
   // ───── conflito com o painel (ACER-08): o valor atual difere do que a última carga gravou E do que o arquivo diz agora
   if (existente) {
-    const campos = camposEditadosNoPainel(existente, secoesAtuais, novosValores, querSecoes);
+    const { campos, valores: recusados } = camposEditadosNoPainel(
+      existente,
+      secoesAtuais,
+      novosValores,
+      querSecoes,
+    );
     if (campos.length > 0) {
-      await c.query("update acervo.fonte set conflito_carga = $1::text[] where id = $2", [
-        campos,
-        existente.id,
-      ]);
+      await c.query(
+        "update acervo.fonte set conflito_carga = $1::text[], valores_recusados = $2::jsonb where id = $3",
+        [campos, JSON.stringify(recusados), existente.id],
+      );
       total.conflitos.push({ slug: fonte.slug, campos });
       return;
     }
@@ -390,9 +409,9 @@ async function carregarUma(
     // conta como atualização, para a segunda carga seguir com atualizados=0.
     await c.query(
       `update acervo.fonte set hash_ultima_carga = $1, valores_arquivo = $2::jsonb, publicada_arquivo = $3,
-         conflito_carga = '{}'
+         conflito_carga = '{}', valores_recusados = null
        where id = $4 and (hash_ultima_carga is distinct from $1 or valores_arquivo is distinct from $2::jsonb
-         or publicada_arquivo is distinct from $3 or conflito_carga <> '{}')`,
+         or publicada_arquivo is distinct from $3 or conflito_carga <> '{}' or valores_recusados is not null)`,
       [hashNovo, JSON.stringify(novosValores), fonte.publicada, fonteId],
     );
   }
@@ -556,6 +575,10 @@ async function carregarUma(
       ],
     );
   }
+
+  // A Fonte mudou por baixo de quem a tem aberta no painel: a revisão sobe e o formulário velho passa a ser recusado.
+  if (existente && mudancas() > mudancasAntes)
+    await c.query("update acervo.fonte set revisao = revisao + 1 where id = $1", [fonteId]);
 }
 
 // ───────────────────────── comando: pnpm acervo:load ─────────────────────────

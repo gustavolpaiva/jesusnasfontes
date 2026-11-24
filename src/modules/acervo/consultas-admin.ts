@@ -54,6 +54,8 @@ export type FonteDoPainel = {
   limitesPt: string | null;
   publicada: boolean;
   origem: OrigemDoRegistro;
+  /** Sobe a cada escrita do painel ou da carga que muda a Fonte: o formulário a devolve e o banco recusa a velha. */
+  revisao: number;
   /** Campos que a última carga recusou porque o painel os editou (vazio = sem conflito). */
   conflito: string[];
   secoes: SecaoDoPainel[];
@@ -136,6 +138,7 @@ export async function lerFonteDoPainel(slug: string): Promise<FonteDoPainel | nu
       publicada: f.publicada,
       origem: ehOrigem(f.origemRegistro),
       conflito: f.conflitoCarga,
+      revisao: f.revisao,
       secoes: secoes.map((s) => ({
         id: s.id,
         slug: s.slug,
