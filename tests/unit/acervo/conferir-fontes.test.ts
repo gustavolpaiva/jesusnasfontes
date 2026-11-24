@@ -377,11 +377,7 @@ function pastaDeConferencia(comDerivado: boolean): string {
 
 describe("lerOpcoes", () => {
   it("consome cada flag com o seu valor antes de colher os slugs posicionais", () => {
-    const { slugs, opcoes } = lerOpcoes([
-      "--fontes",
-      "content/acervo/fontes",
-      "luciano-peregrino",
-    ]);
+    const { slugs, opcoes } = lerOpcoes(["--fontes", "content/acervo/fontes", "luciano-peregrino"]);
     expect(slugs).toEqual(["luciano-peregrino"]);
     expect(opcoes.fontes).toBe(path.resolve("content/acervo/fontes"));
   });

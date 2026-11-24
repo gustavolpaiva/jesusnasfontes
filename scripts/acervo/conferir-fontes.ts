@@ -273,6 +273,7 @@ export function lerOpcoes(argumentos: string[]): { slugs: string[]; opcoes: Opco
   const slugs: string[] = [];
   for (let i = 0; i < argumentos.length; i++) {
     const a = argumentos[i];
+    if (a === undefined) continue;
     if (a.startsWith("--")) {
       const v = argumentos[i + 1];
       if (!v)
