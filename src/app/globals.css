@@ -229,6 +229,15 @@
     font-style: italic;
     font-weight: 400;
   }
+  /* Frase no gatilho da lista de graus propostos (plano 02-21, UI-SPEC tela 13): no máximo 3 linhas. Em 320 px no passo
+     5 do texto a regra de reflow da fase (UI-03) proíbe texto cortado, então o corte SOME assim que a escala sai de 1:
+     o teto sobe junto (3 em 1,0; 28 em 1,25) e a frase inteira aparece. A frase inteira está sempre no conteúdo aberto. */
+  .frase-do-gatilho {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    -webkit-line-clamp: calc(3 + (var(--escala-texto) - 1) * 100);
+  }
   /* Parágrafo de Fonte alcançado por um link de Citação (#p-<ref>): forma, não cor. Preenchimento
      --paper-soft e filete esquerdo de 2 px em --ink. */
   .paragrafo-fonte:target {

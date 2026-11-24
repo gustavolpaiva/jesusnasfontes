@@ -6,6 +6,9 @@
 /** Prefixos aceitos. Para uma tela nova de administração voltar do segundo fator, o prefixo entra AQUI, de propósito. */
 export const PREFIXOS_DE_RETORNO: readonly string[] = ["/admin/acervo/fichas/"];
 
+/** Caminhos exatos aceitos (telas sem segmento depois do caminho): a lista de graus propostos (plano 02-21). */
+export const ROTAS_DE_RETORNO: readonly string[] = ["/admin/acervo/graus"];
+
 export const DESTINO_PADRAO = "/admin";
 
 // O resto do caminho: um só segmento, letras minúsculas, dígitos, hífen, ponto, sublinhado e til (a forma de um slug).
@@ -15,6 +18,7 @@ const RESTO = /^[a-z0-9][a-z0-9._~-]{0,159}$/;
 /** O caminho de retorno se for aceito; `null` caso contrário (nunca lança). */
 export function retornoSeguro(valor: unknown): string | null {
   if (typeof valor !== "string" || valor.length === 0 || valor.length > 200) return null;
+  if (ROTAS_DE_RETORNO.includes(valor)) return valor;
   const prefixo = PREFIXOS_DE_RETORNO.find((p) => valor.startsWith(p));
   if (!prefixo) return null;
   const resto = valor.slice(prefixo.length);

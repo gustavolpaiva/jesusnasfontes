@@ -5,6 +5,7 @@ import {
   listarFontesDoPainel,
   pendentesDaFila,
 } from "@/modules/acervo/consultas-admin";
+import { contarPropostasPendentes } from "@/modules/acervo/consultas-graus";
 import { listarConvites } from "@/modules/convites/consultas";
 import { exigirAdmin } from "@/modules/identidade/sessao";
 
@@ -28,7 +29,7 @@ async function contar<T>(
 
 export default async function PaginaAdministracao() {
   const sessao = await exigirAdmin();
-  const [convites, fontes, fichas] = await Promise.all([
+  const [convites, fontes, fichas, graus] = await Promise.all([
     contar(listarConvites, (l) => {
       const n = l.filter((c) => c.estado === "pendente").length;
       return n === 0 ? "Nenhuma pendência" : plural(n, "convite pendente", "convites pendentes");
@@ -46,17 +47,26 @@ export default async function PaginaAdministracao() {
         return n === 0 ? "Nenhuma pendência" : plural(n, "ficha a verificar", "fichas a verificar");
       },
     ),
+    contar(
+      () => contarPropostasPendentes(sessao.sessao.id),
+      (n) =>
+        n === 0
+          ? "Nenhuma pendência"
+          : plural(n, "proposta de Grau pendente", "propostas de Grau pendentes"),
+    ),
   ]);
   const areas = [
     { href: "/admin/convites", rotulo: "Convites", meta: convites },
     { href: "/admin/acervo/fontes", rotulo: "Fontes", meta: fontes },
     { href: "/admin/acervo/fichas", rotulo: "Fichas a verificar", meta: fichas },
+    { href: "/admin/acervo/graus", rotulo: "Graus propostos", meta: graus },
   ];
   return (
     <div className="coluna-leitura flex flex-col gap-6">
       <h1 className="text-display">Administração</h1>
       <p className="text-leitura">
-        Convide e acompanhe as pessoas do grupo, cuide das Fontes do Acervo e verifique as fichas.
+        Convide e acompanhe as pessoas do grupo, cuide das Fontes do Acervo, verifique as fichas e
+        aprove os Graus de certeza.
       </p>
       <ul className="flex flex-col border-y border-rule" data-slot="areas-de-administracao">
         {areas.map((a) => (

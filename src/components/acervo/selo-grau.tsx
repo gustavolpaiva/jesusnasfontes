@@ -27,8 +27,27 @@ export const FRASE_DO_GRAU: Record<GrauDoSelo, string> = {
   disputada: "Pesquisadores sérios divergem e não há posição majoritária clara.",
 };
 
-export function SeloGrau({ grau }: { grau: GrauDoSelo }) {
+/** Os três quadrados do selo (decoração: o rótulo em texto acompanha sempre). Também desenham as opções do painel de graus. */
+export function PontosDoGrau({ grau }: { grau: GrauDoSelo }) {
   const cheios = PONTOS_CHEIOS[grau];
+  return (
+    <span aria-hidden="true" className="inline-flex items-center gap-1" data-slot="pontos-do-grau">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          data-ponto={i < cheios ? "cheio" : "vazado"}
+          className={
+            i < cheios
+              ? "box-border inline-block size-2 border border-ink bg-ink forced-colors:border-[CanvasText] forced-colors:bg-[CanvasText]"
+              : "box-border inline-block size-2 border border-ink-muted bg-transparent forced-colors:border-[CanvasText]"
+          }
+        />
+      ))}
+    </span>
+  );
+}
+
+export function SeloGrau({ grau }: { grau: GrauDoSelo }) {
   return (
     // Sem `cn` nem `Badge`: o tailwind-merge toma `text-label` (tamanho) e `text-ink` (cor) por duas cores. O alto
     // contraste forçado (forced-colors) troca o preenchimento por CanvasText: cheio e vazado continuam distintos.
@@ -37,23 +56,7 @@ export function SeloGrau({ grau }: { grau: GrauDoSelo }) {
       data-grau={grau}
       className="text-label inline-flex w-fit shrink-0 items-center gap-2 rounded-sm bg-paper-soft px-2 py-1 whitespace-nowrap text-ink"
     >
-      <span
-        aria-hidden="true"
-        className="inline-flex items-center gap-1"
-        data-slot="pontos-do-grau"
-      >
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            data-ponto={i < cheios ? "cheio" : "vazado"}
-            className={
-              i < cheios
-                ? "box-border inline-block size-2 border border-ink bg-ink forced-colors:border-[CanvasText] forced-colors:bg-[CanvasText]"
-                : "box-border inline-block size-2 border border-ink-muted bg-transparent forced-colors:border-[CanvasText]"
-            }
-          />
-        ))}
-      </span>
+      <PontosDoGrau grau={grau} />
       <Algarismos>{ROTULO_DO_GRAU[grau]}</Algarismos>
     </span>
   );

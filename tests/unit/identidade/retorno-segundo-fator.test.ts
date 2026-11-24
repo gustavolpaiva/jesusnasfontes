@@ -3,6 +3,7 @@ import {
   destinoDepoisDoSegundoFator,
   enderecoDoSegundoFator,
   PREFIXOS_DE_RETORNO,
+  ROTAS_DE_RETORNO,
   retornoSeguro,
 } from "@/modules/identidade/retorno-segundo-fator";
 
@@ -54,6 +55,26 @@ describe("retornoSeguro", () => {
       expect(p.startsWith("/admin/")).toBe(true);
       expect(p.endsWith("/")).toBe(true);
     }
+  });
+});
+
+describe("rotas exatas (plano 02-21)", () => {
+  it("a lista de graus propostos é aceita, e só ela", () => {
+    expect(ROTAS_DE_RETORNO).toEqual(["/admin/acervo/graus"]);
+    expect(retornoSeguro("/admin/acervo/graus")).toBe("/admin/acervo/graus");
+  });
+
+  it.each([
+    ["barra final", "/admin/acervo/graus/"],
+    ["subcaminho", "/admin/acervo/graus/a"],
+    ["consulta", "/admin/acervo/graus?filtro=todas"],
+    ["âncora", "/admin/acervo/graus#x"],
+    ["maiúsculas", "/admin/acervo/GRAUS"],
+    ["prefixo parecido", "/admin/acervo/grausx"],
+    ["externo com o mesmo final", "https://externo.invalid/admin/acervo/graus"],
+    ["barra dupla", "//admin/acervo/graus"],
+  ])("recusa %s", (_nome, valor) => {
+    expect(retornoSeguro(valor)).toBeNull();
   });
 });
 
