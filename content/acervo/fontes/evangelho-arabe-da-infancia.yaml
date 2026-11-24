@@ -1,0 +1,39 @@
+# Fonte do Acervo: Evangelho Árabe da Infância, na edição do volume 8 da coleção Ante-Nicene Fathers (CCEL,
+# ThML). O texto vem do derivado `data/acervo-derivados/evangelho-arabe-da-infancia.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf08` (divisão vii.xi do volume). O resumo auxiliar é escrita
+# automática de busca (D-18) e nunca substitui o texto.
+slug: evangelho-arabe-da-infancia
+titulo: Evangelho Árabe da Infância
+autor: anônimo (compilação que a edição atribui a um compilador oriental)
+epoca: compilação de data incerta — a introdução da própria edição declara não haver dados para datá-la com precisão
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). A introdução registra que o original provavelmente era siríaco
+# e que a tradução do volume segue a versão latina de Sike revista por Fleischer. Nada é atribuído de memória.
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Compilação apócrifa que não pertence ao cânone do Novo Testamento, de data incerta — a própria introdução
+  da edição declara faltarem dados para datá-la. Reúne o nascimento, a fuga ao Egito e a infância de Jesus
+  com episódios próprios de sabor oriental, como a introdução da edição observa; o texto reflete a tradição
+  de quem o compilou e nada mais se afirma sobre o seu valor histórico.
+secoes:
+  - slug: vii-xi
+    titulo: Texto
+    resumo_pt: >-
+      Compilação que abre invocando a Trindade e anunciando o livro dos milagres; no primeiro capítulo,
+      lido no livro de José o sumo sacerdote, o menino fala no berço dizendo ser Jesus, o Filho de Deus, o
+      Logos. Vêm o recenseamento, o nascimento na gruta acesa, a velha curada da paralisia, os magos, a
+      faixa incombustível; na fuga ao Egito, o endemoninhado curado com a roupa de Jesus, mudas e
+      leprosas, aos ladrões Titos e Dumacos Jesus prediz a cruz futura, a fonte de Matarea e
+      três anos em Mênfis; de volta, curas em Belém, crianças viradas cabritos, o tintureiro Salem, o trono real, Judas Iscariotes menino possuído, os mestres vencidos, até os doze anos no templo e o
+      batismo no Jordão aos trinta.
+    palavras_chave_pt: [menino no berço, Logos, gruta, magos, fuga ao Egito, ladrões Titos e Dumacos, Matarea, tintureiro, Judas Iscariotes, batismo no Jordão]

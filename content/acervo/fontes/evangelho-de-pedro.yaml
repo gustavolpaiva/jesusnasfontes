@@ -1,0 +1,40 @@
+# Fonte do Acervo: Evangelho de Pedro, fragmento de Akhmîm descoberto em 1886, na edição do volume 9 da
+# coleção Ante-Nicene Fathers (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/evangelho-de-
+# pedro.json`, gerado por `pnpm acervo:derivar` a partir da origem `ccel-anf09` (divisão iii.ii do volume; a
+# introdução e a tabela sinóptica ficam de fora). O resumo auxiliar é escrita automática de busca (D-18) e
+# nunca substitui o texto.
+slug: evangelho-de-pedro
+titulo: Evangelho de Pedro
+autor: atribuído pela tradição a Pedro (narrado na primeira pessoa pelo "eu" de Pedro)
+epoca: composição discutida entre o início e o fim do século II d.C.; o fragmento foi copiado entre os séculos VIII e XII (como a introdução do volume registra)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf09.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf09
+# O cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da série, e não declara tradutor nem ano.
+# A introdução do próprio volume atribui esta tradução a J. Armitage Robinson (fragmento publicado por
+# Bouriant, 1892). O campo tradutor carrega o nome que o DC.Creator verifica; nada é atribuído de memória.
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara nem a edição impressa nem o ano da tradução; a introdução do volume atribui a tradução a J. Armitage Robinson, sobre o fragmento de Akhmîm publicado em 1892"
+traduzida_por_nos: false
+limites_pt: >-
+  Fragmento de evangelho apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior
+  aos fatos, datada entre o início e o fim do século II d.C. segundo os pesquisadores que a introdução do
+  volume cita; o texto preservado começa no meio da paixão e termina no meio de uma frase. O que relata
+  reflete a tradição de quem o escreveu e nada mais se afirma sobre o seu valor histórico.
+secoes:
+  - slug: iii-ii
+    titulo: Fragmento de Akhmîm
+    resumo_pt: >-
+      O fragmento começa no meio da paixão: nenhum dos judeus lava as mãos, Herodes ordena prender o Senhor
+      e José, amigo de Pilatos e do Senhor, pede o corpo para sepultar. Seguem a zombaria com a púrpura, a
+      crucificação entre dois malfeitores ("como quem não tem dor"), as trevas ao meio-dia, o grito "minha
+      força, minha força, tu me abandonaste" e a morte, com a terra a tremer. Vigias
+      selam o túmulo; na noite do domingo dois jovens brilhantes descem, a pedra se move e da tumba saem
+      três homens e uma cruz que responde aos céus. Maria Madalena acha o túmulo vazio; o relato acaba no
+      meio de uma frase, com Pedro e André pegando as redes e Levi, filho de Alfeu, "a quem o Senhor…".
+    palavras_chave_pt: [Herodes, Pilatos, José, crucificação, trevas, túmulo selado, cruz que fala, Maria Madalena, Akhmîm]

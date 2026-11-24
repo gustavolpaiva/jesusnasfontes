@@ -1,0 +1,62 @@
+# Fonte do Acervo: a carta de Pilato ao imperador e o relatório do procurador em duas formas gregas, na
+# edição do volume 8 da coleção Ante-Nicene Fathers (CCEL, ThML). O texto vem do derivado
+# `data/acervo-derivados/cartas-e-relatorio-de-pilatos.json`, gerado por `pnpm acervo:derivar` a partir da
+# origem `ccel-anf08` (divisões vii.xviii, vii.xix e vii.xx do volume). A entrega de Pilato (vii.xxi) e a
+# morte de Pilato (vii.xxii) são obras distintas e não fazem parte desta Fonte. O resumo auxiliar é escrita
+# automática de busca (D-18) e nunca substitui o texto.
+slug: cartas-e-relatorio-de-pilatos
+titulo: Carta e Relatório de Pilato
+autor: atribuído pela tradição que o transmitiu a Pôncio Pilato (o título da edição o declara; a autoria não é afirmada)
+epoca: data incerta — a introdução da própria edição declara não parecer possível datar o relatório
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Textos apócrifos que não pertencem ao cânone do Novo Testamento, de composição posterior aos fatos e de
+  data incerta, como a introdução da edição declara. São atribuídos pela tradição que os transmitiu a Pôncio
+  Pilato, dirigidos a Tibério César; nada se afirma sobre essa autoria nem sobre o valor histórico do que
+  relatam, que reflete apenas a tradição de quem os escreveu.
+secoes:
+  - slug: vii-xviii
+    titulo: Carta ao imperador
+    resumo_pt: >-
+      Carta curta endereçada a Tibério César: Pilatos reporta que Jesus Cristo, cujo caso já havia
+      exposto, foi afinal castigado pela vontade do povo, com certa relutância e medo seus; declara que
+      homem tão piedoso e rigoroso nenhuma idade teve nem terá; que sinais sobrenaturais apareceram durante
+      a crucificação e, na opinião dos filósofos, ameaçaram o mundo inteiro; e que os discípulos prosperam
+      no nome do mestre. Diz não ter resistido de todo, por temor de uma sedição, ao sangue inocente, e
+      fecha datando de 28 de março.
+    palavras_chave_pt: [carta, Tibério César, Pilatos, sinais, sedição, discípulos]
+  - slug: vii-xix
+    titulo: Relatório (primeira forma grega)
+    resumo_pt: >-
+      Relatório enviado a César em Roma: Pilatos narra que os judeus lhe entregaram Jesus com acusações
+      que não provaram — as curas em sábado e a ressurreição de um morto de quatro dias —, obras que julga
+      maiores que as dos deuses romanos; que Herodes, Arquelau, Filipe, Anás e Caifás com o povo o
+      entregaram, e ele ordenou a crucificação sem achar culpa. Seguem os sinais: trevas ao meio-dia, a lua
+      como sangue, o abismo que tragou judeus e santuário, mortos que apareciam — Abraão, os patriarcas,
+      Moisés e Jó —, homens gloriosos anunciando a ressurreição e a luz de toda a noite, até só restar uma
+      sinagoga em Jerusalém. Fecha entre perplexidade e tremor.
+    palavras_chave_pt: [relatório, César, Lázaro de quatro dias, trevas, lua como sangue, mortos que aparecem, Hades, sinagoga]
+  - slug: vii-xx
+    titulo: Relatório (segunda forma grega)
+    resumo_pt: >-
+      A segunda forma do relatório a Tibério repete a armação — as curas em sábado e o morto de quatro
+      dias que ressuscita cheio de fragrância, a entrega por Herodes, Arquelau, Filipe, Anás e Caifás, a
+      ordem de crucificação sem culpa achada — e descreve os sinais com traços próprios: as estrelas e
+      Órion lamentando a maldade dos judeus, a lua como sangue em noite de lua cheia, os mortos que os
+      judeus dizem ter visto em corpo (Abraão, Isaac, Jacó, os doze patriarcas e Noé), a multidão de anjos
+      clamando glória a Deus e chamando os cativos para fora do Hades, e as fendas de terra que tragam os
+      adversários. Fecha dizendo ter mandado escrever tudo na mesma hora, entre perplexidade e muito
+      tremor.
+    palavras_chave_pt: [segunda forma, Órion, lua cheia, Noé, anjos, Hades, fendas de terra, Tibério]

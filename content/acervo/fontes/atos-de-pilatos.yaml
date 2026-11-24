@@ -1,0 +1,62 @@
+# Fonte do Acervo: Atos de Pilatos, a Parte I do Evangelho de Nicodemos na edição do volume 8 da coleção
+# Ante-Nicene Fathers (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/atos-de-pilatos.json`,
+# gerado por `pnpm acervo:derivar` a partir da origem `ccel-anf08` (divisões vii.xii, vii.xiii e vii.xv do
+# volume: as duas formas gregas e a forma latina que a edição traz). A Parte II (Descida de Cristo ao
+# inferno, vii.xiv e vii.xvi–xvii) é obra distinta e não faz parte desta Fonte. O resumo auxiliar é escrita
+# automática de busca (D-18) e nunca substitui o texto.
+slug: atos-de-pilatos
+titulo: Atos de Pilatos (Evangelho de Nicodemos, Parte I)
+autor: anônimo (a primeira forma se apresenta como tradução de Ananias; a segunda, como escrita por Enéias e traduzida por Nicodemo)
+epoca: composição estimada entre os séculos II e V d.C. (datação debatida que a introdução da edição registra, de Tischendorf no século II a Maury entre 405 e 420)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Escrito apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior aos fatos, com
+  datação debatida entre os séculos II e V d.C. Apresenta-se como ata do processo de Jesus diante de Pilato
+  e reúne três formas do mesmo relato (duas gregas e uma latina); o texto reflete a tradição de quem o
+  escreveu e nada mais se afirma sobre o seu valor histórico.
+secoes:
+  - slug: vii-xii
+    titulo: Primeira forma grega
+    resumo_pt: >-
+      Abre com o prólogo de Ananias, que traduziu do hebraico os memoriais do tempo de Pilatos; o corpo
+      apresenta-se como relato de Nicodemos. No tribunal vêm as acusações, os estandartes que se dobram diante de Jesus, o sonho da mulher de Pilatos, os doze que atestam o noivado, as testemunhas curadas (o paralítico de trinta e oito anos, a hemorrágica), a defesa de Nicodemos, Barrabás, a lavagem das mãos e a crucificação entre Dismas e Gestas. Depois da escuridão, José de Arimateia pede o corpo e é preso, libertado por Jesus; os
+      guardas do túmulo relatam o anjo e recebem dinheiro para calar; três
+      testemunhas relatam a ascensão no monte Mamilch e o Sinédrio delibera, com a
+      bênção do povo no fecho.
+    palavras_chave_pt: [Ananias, Nicodemos, estandartes, Barrabás, Dismas e Gestas, José de Arimateia, prisão selada, monte Mamilch, ascensão]
+  - slug: vii-xiii
+    titulo: Segunda forma grega
+    resumo_pt: >-
+      Apresenta-se como narrativa de Enéias, judeu, vertida por Nicodemo; Jesus é enviado a Herodes, que o
+      veste de branco e dele não obtém resposta. Na subida do
+      calvário, Simão de Cirene carrega a cruz e Maria, com João e as mulheres, lamenta aos pés do
+      madeiro pedindo que a cruz se incline; Verônica é nomeada entre as testemunhas curadas. José e
+      Nicodemos sepultam o corpo; José, preso, desaparece da prisão fechada; os soldados relatam o anjo,
+      são subornados e espalham que o corpo foi roubado. O relato fecha com três testemunhas ouvidas em
+      separado — o sacerdote Finees, o levita Agai e o soldado Adas — declarando ter visto Jesus subir ao
+      céu no monte das Oliveiras diante de uns quinhentos.
+    palavras_chave_pt: [Enéias, Herodes, Simão de Cirene, Maria aos pés da cruz, Verônica, Finees, Agai e Adas, monte das Oliveiras]
+  - slug: vii-xv
+    titulo: Forma latina
+    resumo_pt: >-
+      Traz o prólogo de Enéias, que diz ter traduzido os memoriais hebraicos do tempo de Pilatos. O
+      processo segue de perto a primeira forma grega: acusações,
+      estandartes que se inclinam, o sonho da esposa de Pilatos, os doze que atestam o noivado, as
+      testemunhas curadas — entre elas Verônica, nomeada —, a defesa de Nicodemos, Barrabás e a lavagem
+      das mãos; na cruz, entre Dismas e Gestas, vêm a escuridão, o centurião e a lança de Longino. José de
+      Arimateia, preso e libertado milagrosamente, relata a visita de Jesus na prisão; os guardas
+      subornados calam o anjo; Finees, Addas e Egias relatam a ascensão no monte Mambre, e o conselho
+      encerra bendizendo o nome daquele de quem falam as Escrituras.
+    palavras_chave_pt: [Enéias, Longino, Verônica, Dismas e Gestas, José de Arimateia, monte Mambre, conselho, bênção]

@@ -1,0 +1,39 @@
+# Fonte do Acervo: História de José, o Carpinteiro, na edição do volume 8 da coleção Ante-Nicene Fathers
+# (CCEL, ThML). O texto vem do derivado `data/acervo-derivados/historia-de-jose-o-carpinteiro.json`, gerado
+# por `pnpm acervo:derivar` a partir da origem `ccel-anf08` (divisão vii.vii do volume). O resumo auxiliar é
+# escrita automática de busca (D-18) e nunca substitui o texto.
+slug: historia-de-jose-o-carpinteiro
+titulo: História de José, o Carpinteiro
+autor: anônimo (o relato se apresenta como discurso de Jesus sobre a morte de José)
+epoca: século IV d.C. (estimativa de Tischendorf que a introdução da edição registra); original copta, transmitido em árabe
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Escrito apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior aos fatos,
+  estimada no século IV d.C. segundo a introdução da edição, e transmitido do copta pelo árabe. Narra, como
+  discurso de Jesus no Monte das Oliveiras, a vida e a morte de José; o texto reflete a tradição de quem o
+  escreveu e nada mais se afirma sobre o seu valor histórico.
+secoes:
+  - slug: vii-vii
+    titulo: Texto
+    resumo_pt: >-
+      Discurso de Jesus aos apóstolos no monte das Oliveiras sobre a morte de José: velho
+      viúvo com quatro filhos e duas filhas, recebeu Maria aos doze anos; seguem o nascimento em Belém, a
+      fuga ao Egito e a vida em Nazaré. Adoecido aos cento e onze anos, José teme a morte e reza pedindo o
+      arcanjo Miguel; Jesus e Maria o acompanham, Jesus vê a Morte chegar com o inferno e a repele, e
+      Miguel e Gabriel levam a alma numa veste brilhante. O corpo é sepultado junto de Jacó, declarado
+      incorruptível até o banquete dos mil anos, com bênçãos a quem celebrar a sua memória. No fecho, sobre
+      Enoque e Elias, que não morreram, Jesus diz que hão de voltar no fim dos tempos e morrer às mãos do
+      Anticristo.
+    palavras_chave_pt: [José o carpinteiro, monte das Oliveiras, cento e onze anos, arcanjo Miguel, Morte repelida, banquete dos mil anos, Enoque e Elias, Anticristo]
