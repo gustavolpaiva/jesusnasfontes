@@ -1,0 +1,37 @@
+# Fonte do Acervo: Carta de Mara bar Serapião, na edição do volume 8 da coleção Ante-Nicene Fathers (CCEL,
+# ThML). O texto vem do derivado `data/acervo-derivados/mara-bar-serapiao.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf08` (data/acervo-origens.yaml): esta Fonte é a divisão ix.xvii
+# do volume, lida de ponta a ponta pelo tracer do plano 02-08. O resumo auxiliar é escrita automática de
+# busca (D-18) e nunca substitui o texto.
+slug: mara-bar-serapiao
+titulo: Carta de Mara bar Serapião
+autor: Mara, filho de Serapião
+epoca: entre o fim do século I e o século II d.C. (datação debatida)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Carta escrita em siríaco por um autor pagão, dirigida ao filho e escrita da prisão, de datação debatida.
+  Preservada em um manuscrito do século VI. O texto lido é a tradução inglesa do volume 8 da coleção
+  Ante-Nicene Fathers, que a edita entre os documentos siríacos antigos.
+secoes:
+  - slug: ix-xvii
+    titulo: Texto
+    resumo_pt: >-
+      Carta de consolo de um pai preso ao filho: Mara, filho de Serapião, exorta Serapião, ainda menino, a
+      seguir a sabedoria em vez das riquezas e a suportar com fortaleza as desgraças do tempo. No meio da
+      consolação, lembra os sábios perseguidos que sobreviveram nos discípulos — Sócrates por causa de
+      Platão, Pitágoras e o rei sábio por causa das novas leis que estabeleceu — e os judeus levados à
+      desolação e expulsos do seu reino para toda terra. Fecha com o pedido de domínio de si, a vontade de
+      deixar recordações por escrito e a anedota de Mara rindo do Tempo estando acorrentado.
+    palavras_chave_pt: [rei sábio, judeus, sabedoria, consolo, prisão, Sócrates, Pitágoras]
