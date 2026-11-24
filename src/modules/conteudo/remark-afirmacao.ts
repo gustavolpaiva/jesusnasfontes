@@ -20,7 +20,9 @@ type No = {
   position?: { start: { offset?: number }; end: { offset?: number } };
 };
 
-const marcador = (ordinal: number | null): No => ({
+// O marcador leva o id da Afirmação (`data-afirmacao-id`) além do ordinal: é por ele que o corpo do Estudo decide, por
+// Afirmação, entre o chip "Fonte em preparação" e o botão da Citação aprovada (Fase 2).
+const marcador = (ordinal: number | null, afirmacaoId: string): No => ({
   type: "textDirective",
   name: "chip",
   attributes: {},
@@ -29,6 +31,7 @@ const marcador = (ordinal: number | null): No => ({
     hName: "span",
     hProperties: {
       dataChipFonte: "1",
+      dataAfirmacaoId: afirmacaoId,
       ...(ordinal !== null ? { dataOrdinal: String(ordinal) } : {}),
     },
   },
@@ -76,8 +79,11 @@ export function remarkAfirmacao() {
           a.data = { hName: "span", hProperties: { dataAfirmacaoId: a.attributes?.id ?? "" } };
           if (doBloco.length > 1) a.children = [...(a.children ?? []), ordinalSobrescrito(i + 1)];
         });
-        doBloco.forEach((_, i) => {
-          no.children = [...(no.children ?? []), marcador(doBloco.length > 1 ? i + 1 : null)];
+        doBloco.forEach((a, i) => {
+          no.children = [
+            ...(no.children ?? []),
+            marcador(doBloco.length > 1 ? i + 1 : null, a.attributes?.id ?? ""),
+          ];
         });
         return;
       }

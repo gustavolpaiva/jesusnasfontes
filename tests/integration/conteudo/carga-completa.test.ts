@@ -193,7 +193,7 @@ describe.skipIf(emNeon())(
           "insert into acervo.fonte_paragrafo (id, secao_id, ordem, texto, ref) values ('teste-p1', 'teste-s1', 1, 'x', 'p1') on conflict do nothing",
         );
         await c.query(
-          "insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id) values ($1, 'teste-p1')",
+          "insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id, ordem) values ($1, 'teste-p1', 1)",
           [ID],
         );
       });

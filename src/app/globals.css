@@ -245,3 +245,14 @@
 :root {
   --largura-ampla: 44rem;
 }
+
+/* Painel da Citação (UI-SPEC tela 8): abre em 200 ms em --ease-leitura, só por opacidade (a altura do painel não é
+   animada: um painel de altura animada com `overflow: hidden` cortaria o texto no meio do movimento). Sob
+   `prefers-reduced-motion` a regra global de movimento cai a duração a 0,01 ms. */
+@keyframes citacao-abrir {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+[data-slot="citacao-painel"][data-state="open"] {
+  animation: citacao-abrir var(--duration-base) var(--ease-leitura);
+}

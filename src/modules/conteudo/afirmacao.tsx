@@ -67,3 +67,29 @@ export function ResumoFonteEmPreparacao() {
     </Collapsible>
   );
 }
+
+/** O resumo recolhido que vem antes da primeira seção com Citação aprovada, uma vez por Estudo (UI-SPEC tela 8). */
+export function ResumoCitacao() {
+  return (
+    <Collapsible className="flex flex-col gap-1" data-slot="resumo-citacao">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" className="group -ml-4 self-start">
+          O que são os dois selos?
+          <ChevronDown
+            aria-hidden="true"
+            strokeWidth={1.5}
+            className="transition-transform group-data-[state=open]:rotate-180"
+          />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <p className="text-leitura">
+          Cada frase que afirma um fato histórico traz dois selos. O primeiro diz de que tipo é a
+          Fonte: Fonte primária (texto antigo), Pesquisa acadêmica (obra de estudioso) ou Leitura
+          confessional (uma tradição cristã, sempre nomeada). O segundo diz o Grau de certeza:
+          quanto os pesquisadores aceitam o fato. Toque nos selos para ler o trecho.
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}

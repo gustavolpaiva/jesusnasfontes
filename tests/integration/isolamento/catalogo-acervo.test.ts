@@ -23,8 +23,6 @@ const PUBLICAS = [
   "texto_versiculo",
   "correspondencia_versificacao",
   "afirmacao",
-  // Do plano 19 em diante, a Citação só é visível quando aprovada (RLS): passa à lista abaixo.
-  "citacao",
 ] as const;
 
 // Conteúdo que depende de estado (publicada, verificada, sessão de Admin): RLS ligada e política.
@@ -36,10 +34,15 @@ const PROTEGIDAS = [
   "ficha_item",
   "conferencia_item",
   "verificacao_ficha",
+  // Plano 19 (migração 0028): a Citação só é visível quando a aprovação vale; a aprovação e a proposta de grau
+  // têm RLS própria.
+  "citacao",
+  "aprovacao_afirmacao",
+  "proposta_grau",
 ] as const;
 
-// Evidência: ninguém da aplicação escreve; só as funções do banco (plano 05).
-const EVIDENCIAS = ["conferencia_item", "verificacao_ficha"] as const;
+// Evidência: ninguém da aplicação escreve; só as funções do banco (plano 05; a aprovação do Grau, plano 19).
+const EVIDENCIAS = ["conferencia_item", "verificacao_ficha", "aprovacao_afirmacao"] as const;
 const PAPEIS = ["jnf_carga", "jnf_app", "jnf_assistente"] as const;
 
 // As únicas funções que gravam evidência (plano 05, migração 0020; versões "uma vez" do painel, migração 0026).
@@ -49,6 +52,9 @@ const FUNCOES_DE_EVIDENCIA = [
   "acervo.conferir_item_uma_vez(uuid, text, text)",
   "acervo.verificar_ficha_uma_vez(uuid, uuid, text)",
 ] as const;
+
+// A única porta que grava a aprovação do Grau de certeza e da Citação (plano 19, migração 0028): só o aplicativo executa.
+const FUNCOES_DE_APROVACAO = ["acervo.aprovar_afirmacao(uuid, text, text, text, text)"] as const;
 
 // As quatro funções de escrita do painel de Fontes (plano 17, migração 0022): só o aplicativo executa.
 const FUNCOES_DO_PAINEL = [
@@ -133,7 +139,15 @@ describe("catálogo: toda tabela do Acervo está classificada", () => {
     );
     const comPolitica = r.rows.map((l) => String(l.tabela)).sort();
     expect(comPolitica).toEqual(
-      ["fonte", "fonte_secao", "fonte_paragrafo", "ficha", "ficha_item"].sort(),
+      [
+        "fonte",
+        "fonte_secao",
+        "fonte_paragrafo",
+        "ficha",
+        "ficha_item",
+        "citacao",
+        "proposta_grau",
+      ].sort(),
     );
   });
 
@@ -180,7 +194,7 @@ describe("catálogo: toda tabela do Acervo está classificada", () => {
   });
 
   it("as funções que gravam evidência existem com execute só para jnf_app (nunca carga, assistente nem o público) e o registro interno tem RLS", async () => {
-    for (const assinatura of FUNCOES_DE_EVIDENCIA) {
+    for (const assinatura of [...FUNCOES_DE_EVIDENCIA, ...FUNCOES_DE_APROVACAO]) {
       const r = await consultarNoPool(
         `select p as papel, has_function_privilege(p, $1::regprocedure, 'execute') as pode
            from unnest($2::text[]) as p`,

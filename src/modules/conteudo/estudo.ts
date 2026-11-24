@@ -3,6 +3,13 @@ import { comAcervo } from "@/db/com-acervo";
 import { estudo, estudoPassagem, trilha } from "@/db/schema/conteudo";
 import { divergencia, divergenciaLeitura, perguntaVolta } from "@/db/schema/divergencia";
 import { afirmacao } from "@/db/schema/texto";
+import { registrarErro } from "@/lib/registro";
+import {
+  type CitacaoDaAfirmacao,
+  type CitacoesPorAfirmacao,
+  lerCitacoesAprovadas,
+  resolverPassagens,
+} from "@/modules/acervo/citacoes";
 import type { IntervaloDeChave } from "@/modules/texto/passagem";
 
 export type GrauDeCerteza = {
@@ -38,14 +45,28 @@ export type EstudoCompleto = {
   grauDeCerteza: GrauDeCerteza | null;
   /** Passagens como intervalos de chave, na ordem em que o Estudo as lista; `lerPassagem` as lê. */
   passagens: (IntervaloDeChave & { ordem: number; referenciaTexto: string })[];
-  /** Afirmações do Estudo (TRIL-07), na ordem do texto. Sem Citação na Fase 1. */
-  afirmacoes: { id: string; texto: string; ordem: number }[];
+  /**
+   * Afirmações do Estudo (TRIL-07), na ordem do texto. `citacao` só existe com a aprovação do dono valendo (grau e
+   * Citações com o hash atual, migração 0028); `null` mantém o chip "Fonte em preparação" (D-12), inclusive quando a
+   * leitura das Citações falha: erro de Citação nunca derruba o Estudo.
+   */
+  afirmacoes: { id: string; texto: string; ordem: number; citacao: CitacaoDaAfirmacao | null }[];
   divergencias: DivergenciaDoEstudo[];
   /** Os três conjuntos de três perguntas, só na Leitura contínua (vazio nas outras Trilhas). */
   perguntas: string[][];
 };
 
 export async function lerEstudoPorSlug(slug: string): Promise<EstudoCompleto | null> {
+  const lido = await lerEstudoSemPassagens(slug);
+  if (!lido) return null;
+  // O texto das Passagens citadas vem da leitura de Passagem do produto (outra transação); falha ali não derruba o Estudo.
+  await resolverPassagens(lido.citacoes);
+  return lido.estudo;
+}
+
+async function lerEstudoSemPassagens(
+  slug: string,
+): Promise<{ estudo: EstudoCompleto; citacoes: CitacoesPorAfirmacao } | null> {
   return comAcervo(async (tx) => {
     const linhas = await tx
       .select({ estudo, trilha })
@@ -96,8 +117,21 @@ export async function lerEstudoPorSlug(slug: string): Promise<EstudoCompleto | n
       // Só vale se os três conjuntos chegaram inteiros; faltando um, a seção não é mostrada.
       if (perguntas.length !== 3 || perguntas.some((c) => c?.length !== 3)) perguntas = [];
     }
+    // Por último e num ponto de salvamento: uma falha aqui não aborta a transação nem derruba o Estudo (T-02-53). O
+    // registro leva só o contexto e o código, nunca o texto do banco.
+    let citacoes: CitacoesPorAfirmacao = new Map();
+    try {
+      citacoes = await tx.transaction((ponto) =>
+        lerCitacoesAprovadas(
+          ponto as unknown as typeof tx,
+          afirmacoes.map((a) => a.id),
+        ),
+      );
+    } catch (erro) {
+      registrarErro("citacoes-do-estudo", erro);
+    }
     const temGrau = e.grauCertezaValor !== null || e.grauCertezaTexto !== null;
-    return {
+    const estudoLido: EstudoCompleto = {
       id: e.id,
       slug: e.slug,
       trilha: { id: achado.trilha.id, nome: achado.trilha.nome, ordem: achado.trilha.ordem },
@@ -120,7 +154,12 @@ export async function lerEstudoPorSlug(slug: string): Promise<EstudoCompleto | n
         fim: p.versiculoFim,
         referenciaTexto: p.referenciaTexto,
       })),
-      afirmacoes: afirmacoes.map((a) => ({ id: a.id, texto: a.texto, ordem: a.ordem ?? 0 })),
+      afirmacoes: afirmacoes.map((a) => ({
+        id: a.id,
+        texto: a.texto,
+        ordem: a.ordem ?? 0,
+        citacao: citacoes.get(a.id) ?? null,
+      })),
       divergencias: divergenciasLinhas.map((d) => ({
         tema: d.tema,
         leituras: ORDEM_DAS_TRADICOES.flatMap((t) => {
@@ -130,6 +169,7 @@ export async function lerEstudoPorSlug(slug: string): Promise<EstudoCompleto | n
       })),
       perguntas,
     };
+    return { estudo: estudoLido, citacoes };
   });
 }
 

@@ -608,7 +608,7 @@ describe.skipIf(emNeon())("seções e parágrafos de uma Fonte do painel", () =>
       [`af-${slug}`, hash],
     );
     await superusuario.query(
-      "insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id) values ($1, $2)",
+      "insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id, ordem) values ($1, $2, 1)",
       [`af-${slug}`, `${slug}/2`],
     );
     // Reduzir a seção a um parágrafo apagaria o segundo, que tem Citação: a chave estrangeira recusa.

@@ -187,15 +187,42 @@ export const afirmacao = acervo.table("afirmacao", {
   grauDeCerteza: text("grau_de_certeza"),
 });
 
+// 0028: a Citação aponta para exatamente UM alvo (parágrafo de Fonte, item de ficha ou Passagem bíblica, D-16). Quem a
+// lê é a política de linha: só com a aprovação do Grau valendo (hash do texto e do conjunto de Citações).
 export const citacao = acervo.table("citacao", {
   id: uuid("id").primaryKey().defaultRandom(),
   afirmacaoId: text("afirmacao_id")
     .notNull()
     .references(() => afirmacao.id),
-  fonteParagrafoId: text("fonte_paragrafo_id")
-    .notNull()
-    .references(() => fonteParagrafo.id),
+  fonteParagrafoId: text("fonte_paragrafo_id").references(() => fonteParagrafo.id),
+  /** Item de ficha (`acervo.ficha_item.id`); a referência vive no banco (a tabela é de outro arquivo). */
+  fichaItemId: text("ficha_item_id"),
+  versiculoInicio: integer("versiculo_inicio").references(() => versiculo.id),
+  versiculoFim: integer("versiculo_fim").references(() => versiculo.id),
+  ordem: smallint("ordem").notNull(),
   trecho: text("trecho"),
   idioma: text("idioma"),
   criadaEm: timestamp("criada_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** A aprovação do dono (D-04): só a função `acervo.aprovar_afirmacao` escreve. Vale enquanto os dois hashes batem. */
+export const aprovacaoAfirmacao = acervo.table("aprovacao_afirmacao", {
+  afirmacaoId: text("afirmacao_id")
+    .primaryKey()
+    .references(() => afirmacao.id),
+  textoHash: text("texto_hash").notNull(),
+  grau: text("grau").notNull(),
+  citacoesHash: text("citacoes_hash").notNull(),
+  aprovadaEm: timestamp("aprovada_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** O Grau proposto pelo agente, com a justificativa; só o Admin com segundo fator lê (plano 20 carrega, plano 21 lista). */
+export const propostaGrau = acervo.table("proposta_grau", {
+  afirmacaoId: text("afirmacao_id")
+    .primaryKey()
+    .references(() => afirmacao.id),
+  grauProposto: text("grau_proposto").notNull(),
+  justificativa: text("justificativa").notNull(),
+  textoHash: text("texto_hash").notNull(),
+  propostaEm: timestamp("proposta_em", { withTimezone: true }).notNull().defaultNow(),
 });

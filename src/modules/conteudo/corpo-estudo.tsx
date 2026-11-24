@@ -3,7 +3,9 @@ import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
 import { Algarismos } from "@/components/ui/algarismos";
 import { cn } from "@/lib/utils";
-import { Afirmacao, ChipFonte, ResumoFonteEmPreparacao } from "./afirmacao";
+import type { CitacaoDaAfirmacao } from "@/modules/acervo/citacoes-tipos";
+import { Afirmacao, ChipFonte, ResumoCitacao, ResumoFonteEmPreparacao } from "./afirmacao";
+import { CitacaoAfirmacao } from "./citacao-afirmacao";
 import { Divergencia } from "./divergencia";
 import type { EstudoCompleto } from "./estudo";
 import { GrauDeCerteza } from "./grau-de-certeza";
@@ -37,7 +39,11 @@ const ELEMENTOS = [
   "sup",
 ];
 
-const componentes: Components = {
+// Os componentes dependem das Citações aprovadas do Estudo (Fase 2): o marcador do fim do bloco vira o botão da Citação
+// quando a Afirmação tem Citação aprovada e continua sendo o chip "Fonte em preparação", sem mudança, quando não tem (D-12).
+type CitacoesPorId = ReadonlyMap<string, CitacaoDaAfirmacao>;
+
+const componentes = (citacoes: CitacoesPorId): Components => ({
   // Título de seção em Rótulo (versalete); `h1` do Markdown não existe: a tela tem um só `h1`.
   h1: ({ children }) => (
     <h2 className="text-label mt-2 text-ink-muted">
@@ -71,9 +77,12 @@ const componentes: Components = {
     const p = props as Record<string, unknown>;
     if (p["data-chip-fonte"] !== undefined) {
       const ordinal = Number(p["data-ordinal"]);
-      return (
-        <ChipFonte variante="preparacao" ordinal={Number.isInteger(ordinal) ? ordinal : null} />
-      );
+      const ordinalValido = Number.isInteger(ordinal) ? ordinal : null;
+      const id = p["data-afirmacao-id"];
+      const citacao = typeof id === "string" ? citacoes.get(id) : undefined;
+      if (citacao && typeof id === "string")
+        return <CitacaoAfirmacao afirmacaoId={id} citacao={citacao} ordinal={ordinalValido} />;
+      return <ChipFonte variante="preparacao" ordinal={ordinalValido} />;
     }
     const id = p["data-afirmacao-id"];
     if (typeof id === "string" && id !== "") return <Afirmacao id={id}>{props.children}</Afirmacao>;
@@ -84,7 +93,14 @@ const componentes: Components = {
       {children}
     </sup>
   ),
-};
+});
+
+const AFIRMACAO_NO_MD = /:afirmacao\[[^\]]*\]\{#([a-z0-9]+(?:-[a-z0-9]+)*)\}/g;
+
+/** Os ids das Afirmações que a seção marca, na ordem do texto. */
+function idsDaSecao(md: string): string[] {
+  return [...md.matchAll(AFIRMACAO_NO_MD)].flatMap((m) => (m[1] ? [m[1]] : []));
+}
 
 type Secao = { titulo: string | null; md: string };
 
@@ -148,8 +164,19 @@ const TRILHA_DAS_PERGUNTAS = "leitura-continua";
 
 export function CorpoEstudo({ estudo, volta = 1 }: { estudo: EstudoCompleto; volta?: number }) {
   const secoes = dividirEmSecoes(estudo.corpoMd);
-  // O resumo recolhido vem antes da primeira seção que tem Afirmação, só uma vez por Estudo.
-  const primeiraComAfirmacao = secoes.findIndex((s) => s.md.includes(":afirmacao["));
+  const citacoes: CitacoesPorId = new Map(
+    estudo.afirmacoes.flatMap((a) => (a.citacao ? [[a.id, a.citacao] as const] : [])),
+  );
+  const componentesDoEstudo = componentes(citacoes);
+  // Os resumos recolhidos vêm antes da primeira seção que tem o que explicar, uma vez por Estudo cada um: o de "Fonte
+  // em preparação" antes da primeira seção com Afirmação SEM Citação aprovada; o dos dois selos antes da primeira com
+  // Citação. Os dois podem aparecer, um depois do outro.
+  const primeiraComAfirmacao = secoes.findIndex((s) =>
+    idsDaSecao(s.md).some((id) => !citacoes.has(id)),
+  );
+  const primeiraComCitacao = secoes.findIndex((s) =>
+    idsDaSecao(s.md).some((id) => citacoes.has(id)),
+  );
   // Na Leitura contínua o conjunto de perguntas gira a cada volta: (volta - 1) mod 3.
   const conjunto = (((Math.max(1, volta) - 1) % 3) + 3) % 3;
   const perguntas =
@@ -172,13 +199,14 @@ export function CorpoEstudo({ estudo, volta = 1 }: { estudo: EstudoCompleto; vol
     >
       {secoes.map((secao, indice) => (
         <div key={secao.titulo ?? "abertura"} className="flex flex-col gap-4" data-secao>
+          {indice === primeiraComCitacao ? <ResumoCitacao /> : null}
           {indice === primeiraComAfirmacao ? <ResumoFonteEmPreparacao /> : null}
           {indice === antesDeParaHoje ? blocoDoGrau : null}
           <Markdown
             remarkPlugins={[remarkGfm, remarkDirective, remarkAfirmacao]}
             allowedElements={ELEMENTOS}
             unwrapDisallowed
-            components={componentes}
+            components={componentesDoEstudo}
           >
             {secao.md}
           </Markdown>

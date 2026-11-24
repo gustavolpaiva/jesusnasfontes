@@ -175,8 +175,8 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
       `insert into acervo.afirmacao (id, texto, texto_hash) values ('teste-a1', 'Frase de teste.', repeat('a', 64))`,
     );
     await dono.query(
-      `insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id)
-       values ('teste-a1', 'josefo-antiguidades/18.65')`,
+      `insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id, ordem)
+       values ('teste-a1', 'josefo-antiguidades/18.65', 1)`,
     );
     const antes = await contar("select count(*) as n from acervo.fonte_paragrafo");
 
