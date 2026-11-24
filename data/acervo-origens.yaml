@@ -145,3 +145,240 @@ perseus-greeklit-luciano:
         contem: ["Christian communities", "worship the crucified sage"]
         nao_contem: ["v.4.p.83"]
     notas_fora_do_texto: true
+
+# ═════════════════════════ Origens fora do Perseus (plano 02-27) ═════════════════════════
+# Campos que só estas origens usam:
+#   charset            como o bruto decodifica (padrão utf-8); o Gutenberg #2811 declara ISO-8859-1 no cabeçalho.
+#   estrutura, secoes  formato `gutenberg`: a estrutura da obra dentro do arquivo e o slug de cada parte, na ordem.
+#   rotulo_unidade     formato `html`: a palavra que abre o cabeçalho de cada unidade ("Saying 1: …").
+#   correspondencia_refs  tabela `<slug da parte>.<rótulo no arquivo>` → referência moderna; o que não está nela
+#                      fica com a numeração da origem e o `acervo:verify` relata.
+#   esperado.ausentes  unidades que a ORIGEM não traz (defeito do arquivo): só passa declarado.
+#   esperado.paragrafos_total  total de parágrafos do documento (os 114 ditos de Tomé).
+
+# ───────────────────────── Gutenberg: só pelo espelho ─────────────────────────
+# O endereço principal (gutenberg.org) bloqueia cliente automatizado e fica FORA da lista de hosts do baixador:
+# do Gutenberg só se baixa pelo espelho gutenberg.pglaf.org. A origem não versiona, então `commit` guarda o
+# sha256 do arquivo bruto (o mesmo que o lock do bruto) e `data_versao` é o dia da leitura. A licença é lida nas
+# DUAS BORDAS do próprio arquivo, nunca inferida da idade da obra.
+
+gutenberg-plinio-2811:
+  nome: Project Gutenberg, eBook 2811 (Letters of Pliny, de Plínio, o Jovem), pelo espelho gutenberg.pglaf.org
+  autores:
+    - William Melmoth (tradução)
+    - F. C. T. Bosanquet (revisão)
+    - Project Gutenberg (edição digital; arquivo produzido por David Reed e David Widger)
+  # Lida na cauda do próprio arquivo (2811-8.txt, linhas 9794-9797): "Creating the works from public domain
+  # print editions means that no one owns a United States copyright in these works". É declaração de domínio
+  # público nos Estados Unidos. O cabeçalho diz "Release Date: September, 2001 [Etext #2811]" e não traz o ano
+  # da tradução.
+  licenca: >-
+    Domínio público: obra vinda de edição impressa em domínio público, pela declaração do Project Gutenberg na
+    cauda do próprio arquivo ("Creating the works from public domain print editions means that no one owns a
+    United States copyright in these works")
+  url_licenca: https://gutenberg.pglaf.org/2/8/1/2811/2811-8.txt
+  fonte: https://gutenberg.pglaf.org/2/8/1/2811/
+  commit: 4fef83b94156718285e4ec46157fa29a783d3c9546c533cf52441ce331d0375b
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Cabeçalho e licença do Project Gutenberg, introdução e índice dos produtores, cabeçalhos das cartas
+    (destinatário) e notas do tradutor removidos do texto; marcadores de nota e etiquetas HTML deixadas pela
+    conversão retirados. As linhas de cada carta foram unidas e os blocos internos (citações, editais) unidos por
+    um espaço; o texto das palavras não foi reescrito. A numeração de Melmoth foi mantida (`cartas.I` a
+    `cartas.CX` e `trajano.I` a `trajano.CXXII`), exceto nas duas cartas da tabela de correspondência.
+  formato: gutenberg
+  publicavel: true
+  motivo: >-
+    tradução de Melmoth com revisão de Bosanquet, de edição impressa em domínio público pela declaração do
+    Project Gutenberg lida na cauda do próprio arquivo
+  # Da numeração de Melmoth para a moderna, só o que a pesquisa conferiu no texto: a carta aos cristãos (XCVII da
+  # "Correspondence with the Emperor Trajan") é Epistulae 10.96, e a resposta de Trajano (XCVIII) é 10.97. As
+  # outras 229 cartas ficam com a numeração de Melmoth.
+  correspondencia_refs:
+    "trajano.XCVII": "10.96"
+    "trajano.XCVIII": "10.97"
+  arquivos:
+    - id: 2811-8.txt
+      url: https://gutenberg.pglaf.org/2/8/1/2811/2811-8.txt
+      slug: plinio-cartas
+      idioma: en
+      # o cabeçalho do arquivo declara "Character set encoding: ISO-8859-1" (os bytes não são UTF-8 válido)
+      charset: iso-8859-1
+      limite_bytes: 2097152
+      # as duas partes do arquivo, cada uma com a sua numeração: a "Correspondence" recomeça em I
+      estrutura: cartas
+      secoes: [cartas, trajano]
+  verificador:
+    tradutores:
+      - William Melmoth
+      - F. C. T. Bosanquet
+    licenca: >-
+      Creating the works from public domain print editions means that no one owns a United States copyright in
+      these works
+  esperado:
+    secoes: 2
+    paragrafos_total: 231
+    paragrafos:
+      - ref: "10.96"
+        contem:
+          - "Christians is this: I asked them whether they were Christians"
+          - "extravagant superstition"
+        nao_contem: ["[1066]", "[1067]", "Project Gutenberg", "Creating the works"]
+      - ref: "10.97"
+        contem: ["investigating the charges against the Christians"]
+        nao_contem: ["[1069]", "TRAJAN TO PLINY"]
+      - ref: "cartas.I"
+        contem: ["YOU have frequently pressed me to make a select collection"]
+      # o fim da carta XLIV vem colado ao texto desta: ver `ausentes`
+      - ref: "cartas.XLIII"
+        contem: ["she drew herself back with horror"]
+      - ref: "cartas.CX"
+        contem: ["You are much pleased, I find, with the account I gave you in my former"]
+      - ref: "trajano.I"
+        contem: ["THE pious affection you bore, most sacred Emperor"]
+      # no arquivo estes numerais vêm com um espaço no meio (LX VII, LXX VII, LXXX VIII, XXX VII, LX VIII, LXX IV)
+      - ref: "cartas.LXVII"
+      - ref: "cartas.LXXVII"
+      - ref: "cartas.LXXXVIII"
+      - ref: "trajano.XXXVII"
+      - ref: "trajano.LXVIII"
+      - ref: "trajano.LXXIV"
+      - ref: "trajano.CXXII"
+    # Defeito da ORIGEM, declarado para o derivado não fingir que não existe: no arquivo não há cabeçalho da
+    # carta XLIV nem começo do texto dela; o fim da XLIV (linhas 2900-2907) vem colado ao texto da XLIII, sem
+    # linha em branco. O derivado conserva o arquivo como está.
+    ausentes: ["cartas.XLIV"]
+    notas_fora_do_texto: true
+
+gutenberg-suetonio-6400:
+  nome: Project Gutenberg, eBook 6400 (The Lives of the Twelve Caesars, de Suetônio), pelo espelho gutenberg.pglaf.org
+  autores:
+    - Alexander Thomson, M.D. (tradução)
+    - T. Forester (revisão, prefácio e notas)
+    - Project Gutenberg (edição digital)
+  # LIDO NO ARQUIVO (6400-0.txt): o marcador de início é a primeira linha e o de fim é a última. Não há
+  # cabeçalho do Project Gutenberg, nem a permissão de cópia, nem a licença, nem a declaração de edição impressa
+  # em domínio público. A idade da obra (o prefácio diz que a tradução de Thomson é de 1796) não é prova:
+  # aceitar por data é decisão do dono (D-06). Pendência no handoff.
+  licenca: "Não provada: o arquivo não traz declaração de licença em nenhuma das duas bordas"
+  url_licenca: https://gutenberg.pglaf.org/6/4/0/6400/6400-0.txt
+  fonte: https://gutenberg.pglaf.org/6/4/0/6400/
+  commit: 2d61cc9e40ecafc54634dfe0540168e5583f6137c88c2896ce0e040ca3f4025f
+  data_versao: "2026-11-24"
+  alteracoes: "Nenhum texto derivado: a origem não é publicável e o derivador a recusa."
+  formato: gutenberg
+  publicavel: false
+  motivo: "licença não provada na origem"
+  arquivos:
+    - id: 6400-0.txt
+      url: https://gutenberg.pglaf.org/6/4/0/6400/6400-0.txt
+      slug: suetonio-doze-cesares
+      idioma: en
+      charset: utf-8
+      limite_bytes: 4194304
+      # sem `estrutura` e `secoes`: este pipeline não tem parser para as "vidas" (capítulos numerados) nem
+      # fixture do corpo, porque texto de origem sem licença provada não entra no repositório
+  verificador:
+    # o que o arquivo teria de trazer para a origem ficar publicável: a declaração do Project Gutenberg em uma
+    # das bordas e os nomes da página de rosto
+    tradutores:
+      - Alexander Thomson
+      - T.Forester
+    licenca: >-
+      Creating the works from public domain print editions means that no one owns a United States copyright in
+      these works
+  esperado:
+    # Doze vidas (Julius Caesar a Domitian), lidas no índice do arquivo. Enquanto a origem estiver barrada a
+    # licença é recusada antes do corpo e o pipeline NÃO confere este fato.
+    secoes: 12
+
+# ───────────────────────── gospels.net: a página do tradutor ─────────────────────────
+gospels-net-tome-mattison:
+  nome: gospels.net (The Gospel of Thomas, do copta de Nag Hammadi Códice II, 2)
+  autores:
+    - Mark M. Mattison (tradução)
+  # D-24: dedicação ao domínio público feita pelo próprio tradutor, lida na página. Não é decorrência de prazo;
+  # o ano da tradução não consta na página.
+  licenca: >-
+    Domínio público, dedicado pelo tradutor na página: "The following translation has been committed to the
+    public domain and may be freely copied and used, changed or unchanged, for any purpose."
+  url_licenca: https://www.gospels.net/thomas
+  fonte: https://www.gospels.net/thomas
+  # O bruto é HTML e fica em data/raw/acervo/gospels-net-tome-mattison/thomas.html (fora do git). Atenção: o
+  # `pnpm lint` (biome check .) também lê a pasta data/raw, que ele não ignora, e reprova o lint com esse cache
+  # presente. Depois de conferir, apague o cache; para trazê-lo de volta, `pnpm acervo:baixar
+  # gospels-net-tome-mattison` (o hash tem de bater com o lock).
+  commit: 63d5c8bb67f435059341ad52dc193384fd6947186c55db24e9e59c428c727b7b
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Texto da página extraído sem a navegação do site. Vêm só os 114 ditos: ficam fora os títulos que o tradutor
+    deu a cada dito, a legenda de símbolos, o Prólogo e as "Notes on Translation". Os parágrafos de corpo de um
+    mesmo dito foram unidos por um espaço; o texto das palavras não foi reescrito.
+  formato: html
+  publicavel: true
+  motivo: "dedicação ao domínio público feita pelo próprio tradutor, lida na página (D-24)"
+  arquivos:
+    - id: thomas.html
+      url: https://www.gospels.net/thomas
+      slug: evangelho-de-tome
+      idioma: en
+      charset: utf-8
+      limite_bytes: 1048576
+      rotulo_unidade: Saying
+  verificador:
+    tradutores:
+      - Mark M. Mattison
+    licenca: >-
+      The following translation has been committed to the public domain and may be freely copied and used,
+      changed or unchanged, for any purpose.
+  esperado:
+    secoes: 1
+    paragrafos_total: 114
+    paragrafos:
+      - ref: "1"
+        contem:
+          - 'And he said, "Whoever discovers the meaning of these sayings'
+        nao_contem: ["True Meaning", "committed to the public domain"]
+      - ref: "47"
+        contem: ["mount two horses", "A new patch of cloth"]
+        nao_contem: ["The Parables of Divided Loyalties"]
+      - ref: "114"
+        contem: ["Simon Peter said", "Mary should leave us"]
+        nao_contem: ["Notes on Translation", "Peter and Mary"]
+    notas_fora_do_texto: true
+
+# ───────────────────────── Internet Archive: James 1924 (só registrado) ─────────────────────────
+# Formato `texto-ocr`: está no registro, mas ainda não tem verificador de licença nem parser neste pipeline.
+# Nenhum derivado sai dele e o baixador não aceita o host.
+internet-archive-james-1924:
+  nome: Internet Archive, item JAMESApocryphalNewTestament1924 (The Apocryphal New Testament, de M. R. James, 1924; OCR)
+  autores:
+    - Montague Rhodes James (tradução, 1924)
+    - Internet Archive (digitalização e OCR)
+  # LIDO NOS METADADOS DO ITEM (archive.org/metadata/JAMESApocryphalNewTestament1924, 2026-11-24): o campo
+  # `licenseurl` declara CC BY-NC-ND 4.0, que não é domínio público nem licença aberta; nenhum campo declara
+  # domínio público ou "not in copyright". O texto OCR não foi baixado. Aceitar por data de publicação é decisão
+  # do dono (D-06). Pendência no handoff.
+  licenca: "Não provada: o item declara CC BY-NC-ND 4.0 (não é domínio público nem licença aberta)"
+  url_licenca: https://archive.org/metadata/JAMESApocryphalNewTestament1924
+  fonte: https://archive.org/details/JAMESApocryphalNewTestament1924
+  # o item não versiona: vale o sha1 do arquivo djvu.txt que os próprios metadados do item listam
+  commit: sha1 39c7a8f9434f381f0c477d5e30b3a827f5b31db4 (djvu.txt, lido nos metadados do item)
+  data_versao: "2026-11-24"
+  alteracoes: "Nenhum texto derivado: a origem não é publicável e o derivador a recusa."
+  formato: texto-ocr
+  publicavel: false
+  motivo: "licença não provada na origem"
+  arquivos:
+    - id: JAMES_Apocryphal_New_Testament_1924_djvu.txt
+      url: https://archive.org/download/JAMESApocryphalNewTestament1924/JAMES_Apocryphal_New_Testament_1924_djvu.txt
+      slug: evangelhos-perdidos-fragmentos
+      idioma: en
+      limite_bytes: 4194304
+  verificador:
+    # o que os metadados do item teriam de declarar para a origem ficar publicável
+    tradutores:
+      - Montague Rhodes James
+    licenca: Public Domain
+  esperado:
+    secoes: 1
