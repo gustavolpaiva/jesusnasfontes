@@ -37,6 +37,8 @@ export type ListaDoAcervo = {
   nivelSemFonte: boolean;
   /** Total de Fontes no que está sendo mostrado (do filtro, ou todas). */
   totalMostrado: number;
+  /** Há ao menos uma ficha verificada no Acervo (com ou sem filtro): condição do link da carta de neutralidade. */
+  haFicha: boolean;
 };
 
 const porTitulo = (a: LinhaDaLista, b: LinhaDaLista) => a.titulo.localeCompare(b.titulo, "pt-BR");
@@ -67,6 +69,7 @@ export function organizarLista(
     nivelAplicado: escolhido ? escolhido.nivel : null,
     nivelSemFonte: nivelPedido !== null && !escolhido,
     totalMostrado: escolhido ? escolhido.fontes.length : total,
+    haFicha: linhas.some((l) => l.tipo === "ficha"),
   };
 }
 

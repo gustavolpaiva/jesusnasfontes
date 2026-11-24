@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/estado/empty-state";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
+import { lerCarta } from "@/modules/acervo/carta";
 import { type ListaDoAcervo, listarFontesPorNivel } from "@/modules/acervo/consultas-lista";
 import {
   contagemEmTexto,
@@ -67,6 +68,9 @@ export default async function PaginaDoAcervo({
   }
 
   const aviso = parametroInvalido || lista.nivelSemFonte;
+  // O link da carta só existe quando o dono a publicou E há ficha verificada a que ela se aplica (D-08): nunca leva
+  // a uma página vazia.
+  const linkDaCarta = lista.haFicha && lerCarta() !== null;
 
   return (
     <div className="coluna-leitura flex flex-col gap-6">
@@ -105,6 +109,16 @@ export default async function PaginaDoAcervo({
           );
         })}
       </div>
+      {linkDaCarta ? (
+        <p data-slot="link-da-carta" className="border-t border-rule pt-4">
+          <Link
+            href="/acervo/carta-de-neutralidade"
+            className="text-ui inline-flex min-h-11 items-center text-rubric underline"
+          >
+            Por que estas obras? Leia a carta de neutralidade.
+          </Link>
+        </p>
+      ) : null}
     </div>
   );
 }

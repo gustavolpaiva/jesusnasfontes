@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { falharFala, instalarFalaFalsa, VOZ_PT_BR } from "../../support/fala-falsa";
@@ -40,6 +42,13 @@ function fichaVerificadaDaVarredura(): Promise<string> {
   fichaDaVarredura ??= semearFichas(`varredura-${process.pid}`).then((s) => s.slugs.completa);
   return fichaDaVarredura;
 }
+
+// A carta de neutralidade só tem tela quando o dono a publica (D-08): sem o arquivo a rota é 404 e a tela não entra na
+// varredura. `CARTA_DIR_PARA_TESTE` aponta para a fixture na conferência com carta (ignorada em produção).
+const HA_CARTA = Boolean(
+  process.env.CARTA_DIR_PARA_TESTE ||
+    existsSync(path.join(process.cwd(), "content", "acervo", "carta-de-neutralidade.md")),
+);
 
 const ESTUDO_COM_PASSAGEM = "batismo-e-tentacao";
 const ESTUDO_COM_DIVERGENCIA = "nicodemos-nascer-de-novo";
@@ -455,6 +464,21 @@ export const TELAS: Tela[] = [
       await expect(page.locator('[data-slot="item-de-ficha"]').first()).toBeVisible();
     },
   },
+  // Acervo: carta de neutralidade (plano 02-16), só quando publicada
+  ...(HA_CARTA
+    ? [
+        {
+          id: "acervo-carta",
+          quem: "estudante" as const,
+          cinza: true,
+          abrir: async (page: Page) => {
+            await page.goto("/acervo/carta-de-neutralidade");
+            await h1(page, "Carta de neutralidade");
+            await expect(page.locator('[data-slot="versao-da-carta"]')).toBeVisible();
+          },
+        },
+      ]
+    : []),
   // Caderno
   {
     id: "caderno-vazio",

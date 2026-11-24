@@ -12,6 +12,7 @@ import { RolarAteAncora } from "@/components/acervo/rolar-ate-ancora";
 import { SeloNivel } from "@/components/acervo/selo-nivel";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
+import { lerCarta } from "@/modules/acervo/carta";
 import { type FonteLida, lerFonte } from "@/modules/acervo/consultas";
 import { type FichaLida, lerFicha } from "@/modules/acervo/consultas-ficha";
 import { exigirSessao } from "@/modules/identidade/sessao";
@@ -44,7 +45,7 @@ export default async function PaginaDaFonte({ params }: { params: Promise<{ slug
       </div>
     );
   }
-  if (ficha) return <PaginaDaFicha ficha={ficha} />;
+  if (ficha) return <PaginaDaFicha ficha={ficha} linkDaCarta={lerCarta() !== null} />;
   if (!lida) notFound();
   const { fonte, secoes, unica } = lida;
   const meta = [fonte.autor, fonte.epoca].filter(Boolean).join(" · ");

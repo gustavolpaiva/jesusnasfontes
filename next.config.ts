@@ -18,6 +18,14 @@ const config: NextConfig = {
   logging: { serverFunctions: false },
   // O `next dev` gravaria um AGENTS.md na raiz; esse caminho é proibido no repositório público.
   agentRules: false,
+  // O texto da carta de neutralidade é um arquivo lido do disco pelo servidor (`fs`): sem isto o rastreamento do build
+  // não o enxerga e a função da Vercel iria sem ele. Vale para a rota da carta e para as duas telas que decidem se o
+  // link existe. O arquivo só existe depois que o dono o publica; o padrão sem arquivo não casa nada e não é erro.
+  outputFileTracingIncludes: {
+    "/acervo": ["./content/acervo/carta-de-neutralidade.md"],
+    "/acervo/[slug]": ["./content/acervo/carta-de-neutralidade.md"],
+    "/acervo/carta-de-neutralidade": ["./content/acervo/carta-de-neutralidade.md"],
+  },
   async headers() {
     const cabecalhos = [
       { key: "Referrer-Policy", value: "no-referrer" },
