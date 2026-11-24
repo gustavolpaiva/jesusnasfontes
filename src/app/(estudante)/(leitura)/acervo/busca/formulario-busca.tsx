@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useRef, useState, useTransition } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import {
   type EscolhaDeNivel,
   FiltroNivelRadio,
@@ -53,11 +53,20 @@ export function FormularioBusca({ oferecidos }: Props) {
   const [nivel, setNivel] = useState<EscolhaDeNivel>(TODOS_OS_NIVEIS);
   const [visao, setVisao] = useState<Visao | null>(null);
   const [aviso, setAviso] = useState<Aviso>(null);
-  const [buscando, iniciarBusca] = useTransition();
-  const [carregandoMais, iniciarMais] = useTransition();
+  // Estados de espera próprios, e não `useTransition`: as ações assíncronas de um mesmo `useTransition` entram numa
+  // fila (a segunda só começa quando a primeira responde), e a busca refeita com outro Nível ou termo tem de sair
+  // na hora, deixando a resposta da anterior ser descartada pela geração.
+  const [buscando, setBuscando] = useState(false);
+  const [carregandoMais, setCarregandoMais] = useState(false);
   const entrada = useRef<HTMLInputElement>(null);
   // Muda a cada busca e a cada "Limpar busca": a resposta de um pedido de uma geração que já passou não muda a tela.
   const geracao = useRef(0);
+  // A última busca PEDIDA (o termo já limpo e o Nível), mesmo que ainda não tenha respondido ou tenha falhado:
+  // trocar o Nível repete ESTA busca, e não a que está na tela. Nulo quando não há busca (aberta ou limpa).
+  const pedida = useRef<{ termo: string; escolha: EscolhaDeNivel } | null>(null);
+  // O que "Tentar de novo" repete: a tentativa que falhou, com os parâmetros dela (a primeira página de uma busca, ou
+  // a página seguinte de "Mostrar mais"), nunca a que por acaso está na tela.
+  const repetir = useRef<(() => void) | null>(null);
 
   const semConexao = () => typeof navigator !== "undefined" && !navigator.onLine;
 
@@ -76,23 +85,31 @@ export function FormularioBusca({ oferecidos }: Props) {
 
   function buscar(termoBruto: string, escolha: EscolhaDeNivel) {
     const termo = termoBruto.trim();
+    // Toda chamada abre uma geração nova: a resposta de qualquer pedido anterior, ainda em voo, deixa de valer.
+    geracao.current += 1;
+    const nascida = geracao.current;
+    setBuscando(false);
+    setCarregandoMais(false);
     if (termo === "") {
-      geracao.current += 1;
+      pedida.current = null;
+      repetir.current = null;
       setVisao(null);
       setAviso(null);
       entrada.current?.focus();
       return;
     }
+    pedida.current = { termo, escolha };
+    repetir.current = () => buscar(termo, escolha);
     if (semConexao()) {
       setAviso("offline");
       return;
     }
     const niveis: Nivel[] = escolha === TODOS_OS_NIVEIS ? [] : [escolha];
-    geracao.current += 1;
-    const nascida = geracao.current;
-    iniciarBusca(async () => {
+    setBuscando(true);
+    void (async () => {
       const r = await chamar(termo, niveis, 0);
       if (nascida !== geracao.current) return;
+      setBuscando(false);
       if (!r) {
         setAviso(semConexao() ? "offline" : "falha");
         return;
@@ -110,7 +127,7 @@ export function FormularioBusca({ oferecidos }: Props) {
         restante: r.restante,
         proximo: r.proximo,
       });
-    });
+    })();
   }
 
   // Foco no campo ao abrir; e, se a lista deixou um termo na aba, busca por ele (uma vez, apagando-o antes).
@@ -137,12 +154,17 @@ export function FormularioBusca({ oferecidos }: Props) {
 
   function trocarNivel(escolha: EscolhaDeNivel) {
     setNivel(escolha);
-    // Com uma busca na tela, o filtro vale já: um filtro que só valesse no próximo envio pareceria quebrado.
-    if (visao) buscar(visao.termo, escolha);
+    // Com uma busca pedida, o filtro vale já: um filtro que só valesse no próximo envio pareceria quebrado.
+    // Vale também para uma busca ainda sem resposta: ela é refeita com o Nível novo e a resposta da anterior é descartada.
+    if (pedida.current) buscar(pedida.current.termo, escolha);
   }
 
   function limpar() {
     geracao.current += 1;
+    pedida.current = null;
+    repetir.current = null;
+    setBuscando(false);
+    setCarregandoMais(false);
     setCampo("");
     setVisao(null);
     setAviso(null);
@@ -151,15 +173,21 @@ export function FormularioBusca({ oferecidos }: Props) {
 
   function mostrarMais() {
     if (!visao || visao.proximo === null) return;
+    carregarMais(visao.termo, visao.niveis, visao.proximo);
+  }
+
+  function carregarMais(termo: string, niveis: Nivel[], proximo: number) {
+    repetir.current = () => carregarMais(termo, niveis, proximo);
     if (semConexao()) {
       setAviso("offline");
       return;
     }
-    const { termo, niveis, proximo } = visao;
     const nascida = geracao.current;
-    iniciarMais(async () => {
+    setCarregandoMais(true);
+    void (async () => {
       const r = await chamar(termo, niveis, proximo);
       if (nascida !== geracao.current) return;
+      setCarregandoMais(false);
       if (!r?.ok) {
         setAviso(r === null && semConexao() ? "offline" : "falha");
         return;
@@ -176,7 +204,7 @@ export function FormularioBusca({ oferecidos }: Props) {
           proximo: r.proximo,
         };
       });
-    });
+    })();
   }
 
   return (
@@ -220,7 +248,7 @@ export function FormularioBusca({ oferecidos }: Props) {
         <StatusMessage
           tipo="erro"
           acao={
-            <Button variant="secondary" onClick={() => buscar(visao?.termo ?? campo, nivel)}>
+            <Button variant="secondary" onClick={() => repetir.current?.()}>
               Tentar de novo
             </Button>
           }

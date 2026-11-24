@@ -97,6 +97,9 @@ export function consultaDaBusca({
           sql`, `,
         )}]::text[]`
       : sql`null::text[]`;
+  // O trecho do acerto em português sai de TODOS os campos que o índice da seção cobre (resumo, palavras-chave e
+  // título), não só do resumo: o acerto pode estar só nas palavras-chave ou no título, e um resultado devolvido
+  // sempre mostra e marca o que casou.
   // Os candidatos (só identificadores, já na página pedida) vêm pela porta da migração 0021, que usa o índice GIN;
   // o que aparece na tela é lido por junção, como `jnf_app`, então a política de linha vale de novo (as junções
   // internas e o `where` de baixo derrubam o que a política esconde).
@@ -111,10 +114,7 @@ export function consultaDaBusca({
     select c.total, c.tipo, c.modo, f.slug as fonte_slug, f.titulo as fonte_titulo, f.nivel,
            s.slug as secao_slug, s.titulo as secao_titulo, par.ref, par.idioma,
            case c.modo
-             when 'resumo-pt' then ts_headline('public.pt_unaccent',
-               translate(coalesce(nullif(s.resumo_pt, ''), nullif(acervo.juntar_palavras(s.palavras_chave_pt), ''), s.titulo, ''),
-                         ${MARCAS}, ''),
-               q.pt, ${OPCOES_DO_TRECHO})
+             when 'resumo-pt' then ts_headline('public.pt_unaccent', translate(ct.texto, ${MARCAS}, ''), q.pt, ${OPCOES_DO_TRECHO})
              when 'texto-en' then ts_headline('english', translate(par.texto, ${MARCAS}, ''), q.en, ${OPCOES_DO_TRECHO})
              else ts_headline('public.pt_unaccent',
                translate(coalesce(it.texto_pt, fch.tese_pt, ''), ${MARCAS}, ''), q.pt, ${OPCOES_DO_TRECHO})
@@ -126,6 +126,20 @@ export function consultaDaBusca({
       left join acervo.ficha_item it on it.id = c.item_id
       left join acervo.ficha fch on fch.fonte_id = c.fonte_id and c.tipo = 'ficha'
       cross join q
+      -- O campo que casou: resumo, depois palavras-chave, depois título; se a consulta só casa com os campos juntos
+      -- (uma palavra em cada), os três juntos.
+      cross join lateral (
+        select case
+                 when to_tsvector('public.pt_unaccent', coalesce(s.resumo_pt, '')) @@ q.pt then s.resumo_pt
+                 when to_tsvector('public.pt_unaccent', coalesce(acervo.juntar_palavras(s.palavras_chave_pt), '')) @@ q.pt
+                   then 'Palavras-chave: ' || array_to_string(s.palavras_chave_pt, ', ')
+                 when to_tsvector('public.pt_unaccent', coalesce(s.titulo, '')) @@ q.pt then s.titulo
+                 else concat_ws(E'\n', nullif(s.resumo_pt, ''),
+                                case when cardinality(s.palavras_chave_pt) > 0
+                                     then 'Palavras-chave: ' || array_to_string(s.palavras_chave_pt, ', ') end,
+                                nullif(s.titulo, ''))
+               end as texto
+      ) ct
      where (c.tipo = 'ficha' or s.id is not null)
        and (c.modo <> 'texto-en' or par.id is not null)
        and (c.tipo = 'secao' or fch.fonte_id is not null)

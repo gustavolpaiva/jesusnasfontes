@@ -141,7 +141,118 @@ test("termo inexistente: nenhum resultado, o estado vazio com a dica e o botão 
   await expect(campo(page)).toBeFocused();
 });
 
+// Pedidos da Server Action da busca (POST com o cabeçalho `next-action`), vistos pelo corpo da requisição.
+const ehAcao = (r: { method(): string; headers(): Record<string, string> }) =>
+  r.method() === "POST" && r.headers()["next-action"] !== undefined;
+
+test("trocar o Nível com a busca ainda sem resposta refaz a busca com o Nível novo", async ({
+  page,
+}) => {
+  await entrar(page);
+  await abrirBusca(page);
+  const pedidos: string[] = [];
+  let liberar: () => void = () => undefined;
+  const segurada = new Promise<void>((r) => {
+    liberar = r;
+  });
+  let primeira = true;
+  await page.route("**/acervo/busca", async (rota) => {
+    if (!ehAcao(rota.request())) return rota.continue();
+    pedidos.push(rota.request().postData() ?? "");
+    if (primeira) {
+      primeira = false;
+      await segurada;
+    }
+    return rota.continue();
+  });
+  await campo(page).fill("pilatos");
+  await buscar(page).click();
+  await expect.poll(() => pedidos.length).toBe(1);
+  // Ainda sem resposta (visao nula): o Nível muda. O cliente de Server Actions do Next as enfileira, então o segundo
+  // pedido só sai quando o primeiro responde; o que se exige é que ele saia, com o Nível novo, e que a resposta do
+  // primeiro não fique na tela.
+  await page
+    .getByRole("radiogroup", { name: "Nível de fonte" })
+    .getByRole("radio", { name: /^Fonte primária/ })
+    .click();
+  liberar();
+  await expect.poll(() => pedidos.length).toBe(2);
+  expect(pedidos[0]).not.toContain("primaria");
+  expect(pedidos[1]).toContain("primaria");
+  expect(pedidos[1]).toContain("pilatos");
+  await expect(
+    page.getByRole("status").filter({ hasText: /resultados? para “pilatos”/ }),
+  ).toBeVisible();
+  await expect(doLivro18(page).first()).toBeVisible();
+  // Só duas buscas saíram: a resposta da primeira foi descartada, não refeita.
+  expect(pedidos).toHaveLength(2);
+});
+
+test("sem conexão ao trocar o Nível, a resposta da busca em voo não aparece sob o filtro novo", async ({
+  page,
+}) => {
+  await entrar(page);
+  await abrirBusca(page);
+  let liberar: () => void = () => undefined;
+  const segurada = new Promise<void>((r) => {
+    liberar = r;
+  });
+  await page.route("**/acervo/busca", async (rota) => {
+    if (!ehAcao(rota.request())) return rota.continue();
+    await segurada;
+    return rota.continue();
+  });
+  await campo(page).fill("pilatos");
+  await buscar(page).click();
+  await page.evaluate(() =>
+    Object.defineProperty(navigator, "onLine", { get: () => false, configurable: true }),
+  );
+  await page
+    .getByRole("radiogroup", { name: "Nível de fonte" })
+    .getByRole("radio", { name: /^Fonte primária/ })
+    .click();
+  await expect(page.getByText("Sem conexão. A busca precisa de internet.")).toBeVisible();
+  liberar();
+  await page.waitForTimeout(500);
+  await expect(resultados(page)).toHaveCount(0);
+});
+
+test("Tentar de novo repete a tentativa que falhou, não a busca que está na tela", async ({
+  page,
+}) => {
+  await entrar(page);
+  await abrirBusca(page);
+  const pedidos: string[] = [];
+  let falhou = false;
+  await page.route("**/acervo/busca", async (rota) => {
+    if (!ehAcao(rota.request())) return rota.continue();
+    const corpo = rota.request().postData() ?? "";
+    pedidos.push(corpo);
+    if (corpo.includes("tiago") && !falhou) {
+      falhou = true;
+      return rota.abort();
+    }
+    return rota.continue();
+  });
+  await campo(page).fill("pilatos");
+  await buscar(page).click();
+  await expect(doLivro18(page).first()).toBeVisible();
+  await campo(page).fill("tiago");
+  await buscar(page).click();
+  await expect(page.getByText("Não conseguimos buscar agora. Tente de novo.")).toBeVisible();
+  await page.getByRole("button", { name: "Tentar de novo" }).click();
+  // O pedido repetido é o de "tiago" (não o de "pilatos", que é a busca que ficou na tela).
+  await expect.poll(() => pedidos.length).toBe(3);
+  expect(pedidos[2]).toContain("tiago");
+  expect(pedidos[2]).not.toContain("pilatos");
+  await expect(
+    page.getByRole("status").filter({ hasText: /resultados? para “tiago”/ }),
+  ).toBeVisible();
+});
+
 test.describe("mostrar mais resultados", () => {
+  // Em série: a Fonte do lote é semeada uma vez por projeto e os dois testes a usam.
+  test.describe.configure({ mode: "serial" });
   let sufixo = "";
   let palavra = "";
 
@@ -190,5 +301,35 @@ test.describe("mostrar mais resultados", () => {
       .locator("h2 a")
       .evaluateAll((as) => as.map((a) => a.getAttribute("href")));
     expect(new Set(hrefs).size).toBe(25);
+  });
+
+  test("Tentar de novo depois de uma falha em Mostrar mais repete a página seguinte, não a primeira", async ({
+    page,
+  }) => {
+    await entrar(page);
+    await abrirBusca(page);
+    const pedidos: string[] = [];
+    let falhou = false;
+    await page.route("**/acervo/busca", async (rota) => {
+      if (!ehAcao(rota.request())) return rota.continue();
+      const corpo = rota.request().postData() ?? "";
+      pedidos.push(corpo);
+      if (corpo.includes("deslocamento") && !falhou) {
+        falhou = true;
+        return rota.abort();
+      }
+      return rota.continue();
+    });
+    await campo(page).fill(palavra);
+    await buscar(page).click();
+    await expect(resultados(page)).toHaveCount(20);
+    await page.getByRole("button", { name: "Mostrar mais resultados" }).click();
+    await expect(page.getByText("Não conseguimos buscar agora. Tente de novo.")).toBeVisible();
+    await page.getByRole("button", { name: "Tentar de novo" }).click();
+    await expect(resultados(page)).toHaveCount(25);
+    // Os três pedidos: a primeira página, a segunda (que falhou) e a segunda de novo, com o mesmo deslocamento.
+    expect(pedidos).toHaveLength(3);
+    expect(pedidos[1]).toContain("deslocamento");
+    expect(pedidos[2]).toContain("deslocamento");
   });
 });

@@ -473,6 +473,70 @@ describe.skipIf(emNeon())("busca bilíngue", () => {
     );
     expect(definer.rows[0]).toEqual({ definer: true, dono: "jnf_migra" });
   });
+  it("o trecho mostra e marca o acerto onde ele estiver: só nas palavras-chave, só no título, ou em campos diferentes", async () => {
+    await carregarFonte({
+      slug: "campos-de-teste",
+      titulo: "Obra dos campos",
+      nivel: "primaria",
+      secoes: [
+        {
+          slug: "pc",
+          titulo: "Capítulo sem a palavra",
+          resumo:
+            "Resumo comprido do capítulo que fala de outra coisa inteira, sem o nome buscado em lugar nenhum do texto do resumo.",
+          palavras: ["Albinoide", "Tiago"],
+          paragrafos: [{ ref: "9.1", texto: "Plain text without anything relevant." }],
+        },
+        {
+          slug: "ti",
+          titulo: "Zenobiano e o seu tempo",
+          resumo: "Resumo comum, que não cita o nome do título.",
+          palavras: ["outro"],
+          paragrafos: [{ ref: "9.2", texto: "Plain text without anything relevant." }],
+        },
+        {
+          slug: "dois",
+          titulo: "Capítulo dois",
+          resumo: "O resumo cita Quimeronte e só isso.",
+          palavras: ["Ostrogodo"],
+          paragrafos: [{ ref: "9.3", texto: "Plain text without anything relevant." }],
+        },
+      ],
+    });
+    try {
+      // Só nas palavras-chave: o resultado volta (a seção casou) e o trecho mostra e marca a palavra.
+      const pc = await buscarNoAcervo({ termo: "albinoide" });
+      expect(pc.resultados.map((r) => r.secaoSlug)).toEqual(["pc"]);
+      expect(achados(pc.resultados[0]?.trecho ?? "")).toEqual(["Albinoide"]);
+      // Só no título.
+      const ti = await buscarNoAcervo({ termo: "zenobiano" });
+      expect(ti.resultados.map((r) => r.secaoSlug)).toEqual(["ti"]);
+      expect(achados(ti.resultados[0]?.trecho ?? "")).toEqual(["Zenobiano"]);
+      // Em campos diferentes (resumo e palavras-chave) na mesma consulta: as duas palavras marcadas.
+      const dois = await buscarNoAcervo({ termo: "quimeronte ostrogodo" });
+      expect(dois.resultados.map((r) => r.secaoSlug)).toEqual(["dois"]);
+      expect(achados(dois.resultados[0]?.trecho ?? "").sort()).toEqual(["Ostrogodo", "Quimeronte"]);
+      // Controle: o acerto no resumo continua marcando o resumo (o trecho não vira só lista de palavras-chave).
+      const resumo = await buscarNoAcervo({ termo: "quimeronte" });
+      expect(achados(resumo.resultados[0]?.trecho ?? "")).toEqual(["Quimeronte"]);
+      expect(resumo.resultados[0]?.trecho).toContain("resumo cita");
+      // Controle negativo: sem acerto em nenhum campo, nenhum resultado (e nenhum trecho sem marca).
+      expect((await buscarNoAcervo({ termo: "inexistentissimo" })).total).toBe(0);
+      // Propriedade: todo resultado devolvido nestas consultas traz ao menos uma palavra marcada.
+      for (const termo of ["albinoide", "zenobiano", "quimeronte", "ostrogodo", "tiago"]) {
+        const r = await buscarNoAcervo({ termo });
+        expect(r.resultados.length, termo).toBeGreaterThan(0);
+        for (const x of r.resultados)
+          expect(achados(x.trecho).length, `${termo}: ${x.secaoSlug}`).toBeGreaterThan(0);
+      }
+    } finally {
+      await migra.query(
+        "delete from acervo.fonte_paragrafo where secao_id like 'campos-de-teste/%'",
+      );
+      await migra.query("delete from acervo.fonte_secao where id like 'campos-de-teste/%'");
+      await migra.query("delete from acervo.fonte where slug = 'campos-de-teste'");
+    }
+  });
 });
 
 describe.skipIf(emNeon())("busca na ficha", () => {
