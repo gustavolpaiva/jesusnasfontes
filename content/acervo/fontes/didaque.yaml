@@ -23,14 +23,16 @@ edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpre
 limites_pt: >-
   Manual cristão anônimo, escrito em grego e datado pela maior parte dos estudiosos entre o fim do século I e
   o começo do II. Prescreve conduta, ritos e normas de comunidade em nome do ensino dos doze apóstolos. O
-  texto grego completo só se tornou conhecido em 1873, com a descoberta do manuscrito copiado em 1056; trechos
+  texto grego completo vem de um manuscrito copiado em 1056, descoberto em 1873 e publicado em 1883; trechos
   já circulavam por versões antigas.
 secoes:
   - slug: ii-xii
     titulo: Texto
     resumo_pt: >-
-      Manual que abre com o ensino das duas vias, a da vida e a da morte, e enumera os preceitos de conduta de
-      cada uma. Prescreve o batismo em água viva com jejum prévio, a oração, a ceia de ação de graças reservada
-      aos batizados e as esmolas, e fixa normas para examinar e receber apóstolos, profetas, mestres e
-      viajantes. Termina com um apelo à vigilância diante da vinda do Senhor.
-    palavras_chave_pt: [duas vias, batismo, eucaristia, jejum, profetas, viajantes, vigilância]
+      Manual que abre com o ensino das duas vias, a da vida e a da morte: a primeira com preceitos de
+      conduta, a segunda com o rol de vícios a evitar. Prescreve o batismo em água viva com jejum prévio,
+      a oração do Senhor, as ações de graças sobre o cálice e o pão, reservadas aos batizados, e normas
+      para examinar e receber apóstolos, profetas, mestres e viajantes e para a reunião no dia do Senhor.
+      Termina com o apelo à vigilância e o anúncio dos últimos dias: falsos profetas, o enganador do
+      mundo, a prova pelo fogo e a vinda do Senhor sobre as nuvens do céu.
+    palavras_chave_pt: [duas vias, batismo, eucaristia, jejum, profetas, viajantes, vigilância, últimos dias]

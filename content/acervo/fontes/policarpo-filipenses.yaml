@@ -23,13 +23,16 @@ limites_pt: >-
   Carta escrita em grego por Policarpo, bispo de Esmirna, à comunidade de Filipos, e datada pela maior parte
   dos estudiosos na primeira metade do século II. Responde a um pedido dos filipenses com exortações de
   conduta e com a remessa das cartas de Inácio que tinha consigo. O texto chegou junto com as cartas de
-  Inácio, na mesma tradição manuscrita.
+  Inácio, na mesma tradição manuscrita; os manuscritos gregos conservam a carta só até o capítulo 9, e o
+  restante chegou por uma antiga tradução latina.
 secoes:
   - slug: ii-x
     titulo: Texto
     resumo_pt: >-
       Carta de exortação a permanecer na fé e na conduta ensinadas desde o princípio, com instruções para
-      viúvas, diáconos, presbíteros e jovens, e o aviso de que o amor ao dinheiro é o começo de todos os
-      males. Lamenta o desvio de Valens, que foi presbítero entre eles, e pede a sua correção. Fecha com a
-      remessa das cartas de Inácio que a comunidade pedira e com orações pelos presos e perseguidos.
+      esposas, viúvas, diáconos, jovens e presbíteros, e o aviso de que o amor ao dinheiro é o começo de
+      todos os males. Lamenta o desvio de Valens, que foi presbítero entre eles, e pede que ele e a mulher
+      sejam reconduzidos, não tratados como inimigos. Pede orações pelos santos, pelos governantes e pelos
+      perseguidores, promete levar à Síria a carta dos filipenses, envia as cartas de Inácio que pediram,
+      pede notícias dele e recomenda Crescente, portador da carta.
     palavras_chave_pt: [Filipos, Policarpo, viúvas, presbíteros, amor ao dinheiro, Valens, cartas de Inácio]

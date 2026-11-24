@@ -26,55 +26,72 @@ limites_pt: >-
   Síria a Roma para ser lançado às feras; a maior parte dos estudiosos as data nos primeiros anos do século
   II. Dirigem-se às comunidades de Éfeso, Magnésia, Trales, Roma, Filadélfia e Esmirna, e a Policarpo, bispo
   de Esmirna. Foram transmitidas pelo mesmo conjunto manuscrito que conserva a carta de Policarpo aos
-  Filipenses.
+  Filipenses, salvo a carta aos Romanos, que chegou por outra tradição, junto com o relato do martírio de
+  Inácio.
 secoes:
   - slug: ii-iii
     titulo: Aos Efésios
     resumo_pt: >-
-      Carta que exorta a igreja de Éfeso a permanecer unida ao bispo, aos presbíteros e aos diáconos, e a não
-      se ausentar das assembleias da congregação. Agradece os mensageiros recebidos no caminho e pede orações
-      pela igreja da Síria, de onde o autor escreve como prisioneiro a caminho de Roma.
-    palavras_chave_pt: [Éfeso, bispo, unidade, presbíteros, diáconos, prisioneiro]
+      Carta que exorta a igreja de Éfeso a permanecer unida ao bispo Onésimo, aos presbíteros e aos
+      diáconos, e a não se ausentar das assembleias. Agradece a visita dos enviados efésios, previne
+      contra os que trazem má doutrina e expõe o mistério da encarnação de Jesus Cristo, com a estrela que
+      anunciou o seu nascimento. Promete um segundo escrito e, escrevendo de Esmirna, pede orações pela
+      igreja da Síria, de onde é levado preso a Roma.
+    palavras_chave_pt: [Éfeso, bispo, unidade, presbíteros, diáconos, prisioneiro, encarnação]
   - slug: ii-iv
     titulo: Aos Magnésios
     resumo_pt: >-
-      Carta à igreja de Magnésia que pede reverência ao bispo, ainda que jovem, e concórdia entre a comunidade
-      e os presbíteros. Adverte contra doutrinas estranhas e fábula antigas, e contra viver segundo o modo
-      judaico, exortando a viver em Cristo.
-    palavras_chave_pt: [Magnésia, bispo, juventude do bispo, doutrinas estranhas, modo judaico]
+      Carta à igreja de Magnésia que pede reverência ao bispo, ainda que jovem, e concórdia entre a
+      comunidade e os presbíteros. Adverte contra doutrinas estranhas e fábulas antigas e contra viver
+      segundo o modo judaico, lembrando que os de práticas antigas passaram a viver segundo o dia do
+      Senhor, e pede firmeza no nascimento, na paixão e na ressurreição sob Pôncio Pilatos. Fecha pedindo
+      orações pela igreja da Síria, com saudações dos efésios que estão com ele em Esmirna.
+    palavras_chave_pt: [Magnésia, bispo, juventude do bispo, doutrinas estranhas, modo judaico, dia do Senhor]
   - slug: ii-v
     titulo: Aos Tralianos
     resumo_pt: >-
       Carta à igreja de Trales que manda nada fazer sem o bispo e ser obediente aos presbíteros como aos
-      apóstolos, e aos diáconos como ao serviço de Deus. O autor reconhece a própria condição de preso e
-      ainda aprendiz, adverte contra quem ensina outra coisa e fecha pedindo orações, pois segue em perigo.
-    palavras_chave_pt: [Trales, bispo, presbíteros, obediência, doutrinas estranhas]
+      apóstolos de Jesus Cristo, e respeitar os diáconos, servos da igreja de Deus, como a Jesus Cristo. O
+      autor reconhece a própria condição de preso e ainda aprendiz, adverte contra a heresia, comparada a
+      veneno misturado a Jesus Cristo, e contra os que dizem que Cristo só sofreu em aparência, e fecha
+      com saudações de Esmirna e pedido de orações pela igreja da Síria, pois segue em perigo.
+    palavras_chave_pt: [Trales, bispo, presbíteros, obediência, doutrinas estranhas, paixão verdadeira]
   - slug: ii-vi
     titulo: Aos Romanos
     resumo_pt: >-
       Carta à igreja de Roma pedindo que ninguém impeça o caminho do autor ao martírio: quer ser derramado
-      como libação a Deus, antes de um altar que já não o achará, e diz morrer por Deus de própria vontade.
-      Pede apenas que a comunidade ore para que ele alcance a Deus e despede-se com a data da carta.
-    palavras_chave_pt: [Roma, martírio, feras, libação, livre vontade]
+      como libação a Deus enquanto ainda há um altar preparado, ser moído pelos dentes das feras como
+      trigo de Deus e diz morrer por Deus de própria vontade. Pede que a comunidade ore para que ele
+      alcance a Deus e que a igreja da Síria seja lembrada. Escreve de Esmirna, pelas mãos dos efésios, e
+      se despede com a data da carta.
+    palavras_chave_pt: [Roma, martírio, feras, libação, livre vontade, trigo de Deus]
   - slug: ii-vii
     titulo: Aos Filadélfios
     resumo_pt: >-
-      Carta à igreja da Filadélfia que exorta à união, para que os lobos enganadores, que arrebatam os que
-      correm a carreira de Deus, não achem lugar. Pede fugir das artes e ciladas do príncipe deste mundo e
-      reunir-se em assembleia, e saúda os irmãos de Trôade, de onde escreve pela mão de Burro.
-    palavras_chave_pt: [Filadélfia, união, lobos enganadores, assembleia, Trôade]
+      Carta à igreja da Filadélfia que exorta à união em torno do bispo, para que os lobos enganadores,
+      que arrebatam os que correm a carreira de Deus, não achem lugar. Pede uma só eucaristia e um só
+      altar, adverte contra o judaísmo e contra os que só creem no que acham nos documentos antigos, e põe
+      o Evangelho acima deles, pois o Sumo Sacerdote é Cristo. Pede que enviem um diácono a Antioquia da
+      Síria, que está em paz, agradece a acolhida a Fílon e a Reio Agátopo e transmite a saudação dos irmãos de Trôade,
+      de onde escreve pela mão de Burro.
+    palavras_chave_pt: [Filadélfia, união, lobos enganadores, assembleia, Trôade, eucaristia, Antioquia]
   - slug: ii-viii
     titulo: Aos Esmirniotas
     resumo_pt: >-
       Carta à igreja de Esmirna que afirma conhecer e crer que Cristo esteve na carne também depois da
-      ressurreição, contra os que negam a realidade da sua paixão. Manda vigiar os que sustentam doutrina
-      estranha e não têm caridade, e saúda as casas e as pessoas da comunidade pelo nome.
-    palavras_chave_pt: [Esmirna, carne de Cristo, paixão, ressurreição, doutrina estranha]
+      ressurreição, contra os que negam a realidade da sua paixão. Manda evitar os que sustentam doutrina
+      estranha, não têm caridade e se afastam da eucaristia, e manda seguir o bispo: sem ele não se batiza
+      nem se faz o ágape. Pede que enviem um mensageiro à Síria, onde a igreja está em paz, agradece a
+      acolhida a Fílon e a Reio Agátopo, transmite a saudação de Trôade e saúda as casas e as pessoas da
+      comunidade pelo nome.
+    palavras_chave_pt: [Esmirna, carne de Cristo, paixão, ressurreição, doutrina estranha, bispo, eucaristia]
   - slug: ii-ix
     titulo: A Policarpo
     resumo_pt: >-
       Carta pessoal a Policarpo, bispo de Esmirna, com conselhos pastorais: atrair pela mansidão os mais
-      rebeldes, não descuidar das viúvas, nada fazer sem o consentimento da comunidade e não desprezar
-      escravos e escravas. Recomenda constância na oração e pede vigilância contra o adversário, despedindo-se
-      na unidade de Deus.
-    palavras_chave_pt: [Policarpo, conselhos pastorais, mansidão, viúvas, escravos, Esmirna]
+      rebeldes, não descuidar das viúvas, nada deixar fazer sem o seu consentimento (ele próprio nada
+      fazendo sem o de Deus) e não desprezar escravos e escravas. Recomenda constância na oração, firmeza
+      diante dos que ensinam doutrina estranha e o casamento com o consentimento do bispo. Pede que
+      Policarpo reúna um conselho, envie um mensageiro à Síria e escreva às igrejas mais adiante, pois ele
+      parte às pressas de Trôade para Neápolis.
+    palavras_chave_pt: [Policarpo, conselhos pastorais, mansidão, viúvas, escravos, Esmirna, Síria]

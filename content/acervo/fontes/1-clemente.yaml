@@ -22,16 +22,17 @@ edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpre
 limites_pt: >-
   Carta escrita em grego, em nome da igreja de Roma, e atribuída pela tradição antiga a Clemente, que a mesma
   tradição coloca entre os primeiros líderes dessa comunidade; a maior parte dos estudiosos a data por volta
-  de 95 a 97 d.C. Foi escrita para apaziguar um levante contra os presbíteros em Corinto. O texto grego
-  chegou incompleto pelos manuscritos (entre eles o Códice Alexandrino) e foi completado pela versão siríaca
-  e por uma tradução latina.
+  de 95 a 97 d.C. Foi escrita para apaziguar um levante contra os presbíteros em Corinto. O Códice
+  Alexandrino preserva o texto grego com uma lacuna perto do fim, suprida pela versão siríaca e por uma
+  tradução latina; um manuscrito grego copiado em 1056, o Hierosolymitanus, conserva o texto grego completo.
 secoes:
   - slug: ii-i
     titulo: Texto
     resumo_pt: >-
-      Carta da igreja de Roma à de Corinto por causa de uma sedição em que alguns, por causa de uma ou duas
-      pessoas, se levantaram contra os presbíteros da comunidade. Desenvolve longa exortação contra o ciúme e
-      a inveja, com exemplos das escrituras hebraicas e dos apóstolos Pedro e Paulo, e defende que os bispos e
-      diáconos foram instituídos pelos apóstolos. Fecha pedindo a reconciliação e anunciando mensageiros
-      enviados de Roma, cuja volta também pede.
+      Carta da igreja de Roma à de Corinto por causa de uma sedição em que alguns, por causa de uma ou
+      duas pessoas, se levantaram contra os presbíteros da comunidade. Desenvolve longa exortação contra o
+      ciúme e a inveja, com exemplos das escrituras hebraicas e dos apóstolos Pedro e Paulo, chama à
+      humildade e à ordem da criação, trata da ressurreição (com o sinal da fênix) e defende que bispos e
+      diáconos foram instituídos pelos apóstolos. Encerra com longa oração, inclusive pelos governantes,
+      pede a reconciliação e anuncia mensageiros enviados de Roma, cuja volta também pede.
     palavras_chave_pt: [Corinto, sedição, ciúme, presbíteros, igreja de Roma, apóstolos, reconciliação]
