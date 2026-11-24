@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { OfflineBanner } from "@/components/estado/offline-banner";
 import { Cabecalho } from "./cabecalho";
+import { ENTRADA_DA_ADMINISTRACAO } from "./itens-da-faixa";
 import { LinkDeSalto } from "./link-de-salto";
 import { MenuSheet } from "./menu-sheet";
 import { type ItemDeNavegacao, Navegacao } from "./navegacao";
@@ -10,20 +11,31 @@ type Props = {
   children: ReactNode;
   // Itens da navegação (só para quem está autenticado). Sem itens, não há navegação.
   navegacao?: readonly ItemDeNavegacao[];
+  // Destinos de administração (só para Admin): bloco "Administração" no Menu e, a partir de 1024 px, um
+  // link "Administração" no cabeçalho. Sem itens, nada disso é renderizado.
+  itensAdministracao?: readonly ItemDeNavegacao[];
   // Ação de sair, entregue pelo plano de autenticação; sem ela o Menu não mostra "Sair".
   acaoSair?: () => Promise<void>;
 };
 
 const margens = "px-6 sm:px-8 md:px-12";
 
-export function AppShell({ children, navegacao = [], acaoSair }: Props) {
+export function AppShell({ children, navegacao = [], itensAdministracao = [], acaoSair }: Props) {
+  const noCabecalho =
+    itensAdministracao.length > 0 ? [...navegacao, ENTRADA_DA_ADMINISTRACAO] : navegacao;
   return (
     <div className="flex min-h-dvh flex-col">
       <LinkDeSalto />
       <Cabecalho
-        slotMenu={<MenuSheet itens={navegacao} acaoSair={acaoSair} />}
+        slotMenu={
+          <MenuSheet
+            itens={navegacao}
+            itensAdministracao={itensAdministracao}
+            acaoSair={acaoSair}
+          />
+        }
         navegacao={
-          navegacao.length > 0 ? <Navegacao itens={navegacao} posicao="cabecalho" /> : null
+          noCabecalho.length > 0 ? <Navegacao itens={noCabecalho} posicao="cabecalho" /> : null
         }
       />
       <main id="conteudo" tabIndex={-1} className={`flex-1 py-8 outline-none md:py-12 ${margens}`}>

@@ -16,6 +16,8 @@ import type { ItemDeNavegacao } from "./navegacao";
 type Props = {
   // Os mesmos destinos da faixa inferior; só para quem está autenticado.
   itens?: readonly ItemDeNavegacao[];
+  // Destinos de administração, só para Admin: sem itens o bloco não é renderizado.
+  itensAdministracao?: readonly ItemDeNavegacao[];
   // Ação de sair (Server Action do plano de autenticação). Sem ela, o item não aparece.
   acaoSair?: () => Promise<void>;
 };
@@ -25,7 +27,7 @@ const ligacao =
 
 // Menu: folha pela direita com navegação, Aparência, Créditos, Aviso de privacidade e Sair.
 // Esc fecha e o foco volta ao botão de Menu (comportamento do Radix).
-export function MenuSheet({ itens = [], acaoSair }: Props) {
+export function MenuSheet({ itens = [], itensAdministracao = [], acaoSair }: Props) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -67,6 +69,28 @@ export function MenuSheet({ itens = [], acaoSair }: Props) {
                 ))}
               </ul>
             </nav>
+          ) : null}
+          {itensAdministracao.length > 0 ? (
+            <section
+              aria-labelledby="menu-administracao"
+              data-slot="menu-administracao"
+              className="flex flex-col gap-2"
+            >
+              <h2 id="menu-administracao" className="text-label text-ink-muted">
+                Administração
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {itensAdministracao.map((item) => (
+                  <li key={item.href}>
+                    <SheetClose asChild>
+                      <Link href={item.href} className={ligacao}>
+                        {item.rotulo}
+                      </Link>
+                    </SheetClose>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
           <section aria-labelledby="menu-aparencia" className="flex flex-col gap-4">
             <h2 id="menu-aparencia" className="text-label text-ink-muted">
