@@ -240,6 +240,23 @@ describe("parsearHtml: casos sintéticos", () => {
     expect(() => parsearHtml(mau, OP)).toThrow(ErroHtml);
     expect(() => parsearHtml(tome, { ...OP, maxBytes: 1000 })).toThrow(/teto/);
   });
+
+  it("página adversa numa linha só (centenas de milhares de DOCTYPE sem subconjunto) é lida em tempo linear", () => {
+    // A página real do Mattison é uma linha só de 56 mil caracteres. Qualquer busca que, a cada marca, corra até o
+    // fim da linha faz trabalho quadrático: nesta entrada (2,9 MB) as duas primeiras versões desta conferência
+    // levaram dezenas de segundos, e o teste estoura em 5.
+    const linha = `${"<!DOCTYPE x ".repeat(240_000)}>`;
+    const html = `<!doctype html><html><body>${linha}${CABECALHO(1)}${p("Um.")}</body></html>`;
+    const r = parsearHtml(html, OP);
+    expect(textos(r)).toEqual(["Um."]);
+    // com o subconjunto interno no fim da mesma linha, recusa (sem ENTITY, para acusar o subconjunto)
+    const mau = `<!DOCTYPE ${"x ".repeat(240_000)}[ <!ELEMENT x> ]>`;
+    expect(() => parsearHtml(mau, OP)).toThrow(/DOCTYPE com subconjunto interno/);
+    // e ENTITY em qualquer lugar recusa
+    expect(() => parsearHtml(`${PAGINA([CABECALHO(1), p("Um.")])}<!ENTITY x "y">`, OP)).toThrow(
+      /ENTITY/,
+    );
+  });
 });
 
 describe("parsearHtml: a página REAL em cache (114 ditos; pula sem cache)", () => {

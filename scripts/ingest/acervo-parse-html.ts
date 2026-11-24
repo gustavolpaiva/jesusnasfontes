@@ -54,16 +54,32 @@ export type ResultadoHtml = {
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
 const SEM_CONTEUDO = new Set(["script", "style", "noscript", "template"]);
 
-/** conferência de entrada: teto e o que o modo HTML não deve deixar passar. */
+/**
+ * Conferência de entrada: teto e o que o modo HTML não deve deixar passar. LINEAR: a página pode ser uma linha só
+ * muito longa (a do Mattison tem 56 mil caracteres), então nenhuma busca pode, a cada marca, correr até o fim da
+ * linha — seria trabalho quadrático em dado de terceiros.
+ */
 function conferirEntrada(html: string, teto: number): void {
   if (Buffer.byteLength(html, "utf8") > teto)
     throw new ErroHtml(`página acima do teto de entrada (${teto} bytes)`);
-  // Procura-se linha a linha: nunca a página inteira numa expressão regular só.
-  for (const linha of html.split("\n")) {
-    if (/<!DOCTYPE[^>]*\[/.test(linha) || /<!ENTITY/.test(linha))
-      throw new ErroHtml(
-        "DOCTYPE com subconjunto interno e ENTITY não são aceitos na página de origem",
-      );
+  const min = html.toLowerCase();
+  // ENTITY nunca é aceito: procura-se uma vez, fora do laço (a cada volta, procurar até o fim seria quadrático).
+  if (min.includes("<!entity")) throw new ErroHtml("ENTITY não é aceito na página de origem");
+  let i = 0;
+  for (;;) {
+    const declaracao = min.indexOf("<!doctype", i);
+    if (declaracao < 0) return;
+    // Subconjunto interno é um "[" entre a declaração e o que vier logo depois: o ">" que a fecha ou outra marca.
+    // O laço de dentro para no primeiro ">" ou "<", e o de fora recomeça dele: cada posição é visitada uma vez.
+    let j = declaracao + "<!doctype".length;
+    for (; j < min.length; j++) {
+      const c = min[j] as string;
+      if (c === "[")
+        throw new ErroHtml("DOCTYPE com subconjunto interno não é aceito na página de origem");
+      if (c === ">" || c === "<") break;
+    }
+    if (j >= min.length) return;
+    i = j;
   }
 }
 
