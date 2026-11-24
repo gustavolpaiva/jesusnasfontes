@@ -46,3 +46,13 @@ Digital Library (Universidade de Tufts, <https://www.perseus.tufts.edu/>) a publ
 Atribuição-CompartilhaIgual 4.0 Internacional (<https://creativecommons.org/licenses/by-sa/4.0/>); a tradução
 de Whiston é de domínio público. Alteração feita: remoção das notas do editor e da marcação, e junção das
 linhas de cada parágrafo.
+
+### Perseus Digital Library: fixture do leitor TEI (`tests/fixtures/acervo/perseus-josefo-trecho.xml`)
+
+Recorte do arquivo `tlg0526.tlg001.perseus-eng2.xml` (*Antiquities of the Jews*, tradução de William Whiston,
+edição de Alden and Beardsley, 1856), commit `dacb04909e43dc47738828d33cc3d2b0635bc54c` de
+<https://github.com/PerseusDL/canonical-greekLit>: o cabeçalho TEI inteiro e quatro unidades do texto (18.63,
+18.65, 20.197 e 20.204), sem nenhuma alteração. Edição digital: Perseus Digital Library, Universidade de Tufts
+(<https://www.perseus.tufts.edu/>), sob a licença Creative Commons Atribuição-CompartilhaIgual
+(<https://creativecommons.org/licenses/by-sa/4.0/>). Serve de entrada de teste do leitor; o arquivo completo é
+baixado só na máquina de quem desenvolve e nunca entra no repositório.

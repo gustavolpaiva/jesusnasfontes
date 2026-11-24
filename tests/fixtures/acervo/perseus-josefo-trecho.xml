@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://epidoc.stoa.org/schema/latest/tei-epidoc.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader xml:lang="eng">
+    <fileDesc>
+      <titleStmt>
+	<title>Antiquities of the Jews</title>
+	<author xml:lang="lat">Flavius Josephus</author>
+	<editor role="translator">William Whiston</editor>     
+        <sponsor>Perseus Project, Tufts University</sponsor>
+        <principal>Gregory Crane</principal>
+        <respStmt>
+          <resp>Prepared under the supervision of</resp>
+          <name>Lisa Cerrato</name>
+          <name>David Smith</name>
+        </respStmt>
+    <funder n="org:Tufts" >Tufts University</funder>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>Trustees of Tufts University</publisher>
+        <pubPlace>Medford, MA</pubPlace>
+        <authority>Perseus Project</authority>
+        <date type="release" when="1997-12-01" cert="medium">Perseus 3.0</date>
+        <idno type="filename">tlg0526.tlg001.perseus-eng2.xml</idno>
+        <availability>
+          <licence target="https://creativecommons.org/licenses/by-sa/4.0/">Available under a Creative Commons Attribution-ShareAlike (CC BY-SA) license.</licence>
+          <p>Reuse must credit the Perseus Digital Library in a standard bibliographic format, including a link to <ref target="https://www.perseus.tufts.edu/">https://www.perseus.tufts.edu/</ref>. Each text reused should be individually identified and linked to its source GitHub repository whenever possible, either in its citation or in an accompanying source list. All corrections must be offered to the Perseus Digital Library.</p> 
+        </availability>
+      </publicationStmt>
+     
+      <sourceDesc>
+	<biblStruct>
+	  <monogr>
+	    <title>The Works of Flavius Josephus</title>
+	    <author xml:lang="lat">Flavius Josephus</author>
+	    <editor role="translator">William Whiston</editor>     
+	    <imprint>
+	      <pubPlace>Auburn and Rochester, NY</pubPlace>
+	      <publisher>Alden and Beardsley</publisher>
+	      <date>1856</date>
+	    </imprint>
+	  </monogr>
+	  <ref target="https://archive.org/details/worksofflaviusj00joseuoft/page/26/mode/2up">Internet Archive</ref>
+	</biblStruct>
+      </sourceDesc>
+    </fileDesc>
+    
+    <encodingDesc>
+      <refsDecl n="CTS">
+        <cRefPattern matchPattern="(\w+).(\w+)"
+          replacementPattern="#xpath(/tei:TEI/tei:text/tei:body/tei:div/tei:div[@n='$1']/tei:div[@n='$2'])" n="section">
+          <p>This pointer pattern extracts book and section.</p>
+        </cRefPattern>
+        <cRefPattern matchPattern="(\w+)"
+          replacementPattern="#xpath(/tei:TEI/tei:text/tei:body/tei:div/tei:div[@n='$1'])" n="book">
+          <p>This pointer pattern extracts book.</p>
+        </cRefPattern>
+      </refsDecl>
+      
+      <!--<refsDecl>
+	<state delim="." unit="book"/>
+	<state unit="section"/>
+      </refsDecl>
+      <refsDecl>
+	<state delim="." unit="book"/>
+	<state delim="." n="chunk" unit="Whiston_chapter"/>
+	<state unit="Whiston_section"/>
+      </refsDecl>-->
+        <refsDecl xml:id="CTS">
+      <citeStructure match="/TEI/text/body" use="@xml:base">
+        <citeStructure unit="book" delim=":" match="div/div[@subtype='book']" use="@n">
+          <citeStructure unit="section" delim="." match="div[@subtype='section']" use="@n"/>
+        </citeStructure>
+      </citeStructure>
+    </refsDecl>
+</encodingDesc>
+    
+    <profileDesc>
+      <langUsage>
+	<language ident="eng">English</language>
+	<language ident="grc">Greek</language>
+        <language ident="xgreek">Transliterated Greek</language>
+        <language ident="xhebrew">Transliterated Hebrew</language>
+      </langUsage>
+    </profileDesc>
+    
+    <revisionDesc>
+      <change who="Charles Pletcher" when="2026-08-26">Add citeStructure refsDecl</change>
+<change when="2024-09-26" who="Lisa Cerrato">EpiDoc and CTS Conversion</change>
+<change when="2011-01-08" who="gcrane">small fixes</change>
+<change when="2011-01-05" who="gcrane">improvements to the quotation marks</change>
+<change when="2009-11-24" who="rsingh04">moved more xml files around based on copyright status</change>
+<change when="2009-01-29" who="lcerrato">fixed duplicated note and added accurate one</change>
+<change when="2006-02-10" who="packel">places/dates now actually tagged</change>
+<change when="2005-07-25" who="packel">Converted to XML</change>
+<change when="2005-03-30" who="packel">fixed milestone units</change>
+<change when="2004-05-12" who="dasmith">Treat book headings as annotations.</change>
+<change when="2003-07-01" who="yorkc">Updated texts to TEI P4 and Perseus P4 extensions; minor cleanup (esp. character encodings and typos.)</change>
+<change when="2003-05-21" who="lcerrato">two notes were conflated in section 208: restored according to email report and taking out wrong phrases</change>
+<change when="2000-03-15" who="amahoney">remove spurious empty notes</change>
+<change when="2000-03-08" who="dasmith">Funded by Tufts, not NEH.</change>
+<change when="2000-03-04" who="dasmith">Added separate funder entity to TEI header.</change>
+<change when="2000-03-01" who="dasmith">Moved unnecessary initial header to TEI header.</change> 
+<change when="2000-01-31" who="dasmith">Use ED attribute in STATE.</change> 
+  <change when="1999-11-18" who="lcerrato">fixed typo</change> 
+  <change when="1999-10-21" who="dasmith">Made book headers HEADs.</change> 
+  <change when="1999-08-04" who="dasmith">Mark chunking milestones.</change> 
+  <change when="1999-07-20" who="dasmith">Regularized resDecl</change> 
+  <change when="1997-11-25" who="textgod">Fixed Greek word.</change> 
+<change when="1997-11-24" who="textgod">Added to repository. Passed SGML parse.</change>   </revisionDesc>
+</teiHeader>
+  
+<text xml:lang="eng">
+<body xml:base="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2">
+<div n="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2" type="translation" xml:lang="eng">
+<div type="textpart" subtype="book" xml:base="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2" n="18">
+<head rend="align(center)">Book XVIII <lb/> CONTAINING THE INTERVAL OF THIRTY-TWO YEARS. FROM THE BANISHMENT OF ARCHELUS TO THE DEPARTURE FROM BABYLON.</head>
+<div type="textpart" subtype="section" xml:base="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2:18" n="63"> <milestone n="3" unit="Whiston_section"/><p>Now there was about this time Jesus, a wise man, if it be lawful
+to call him a man; for he was a doer of wonderful works, a teacher of such
+men as receive the truth with pleasure. He drew over to him both many of
+the Jews and many of the Gentiles. He was [the] Christ. And when Pilate,
+at the suggestion of the principal men amongst us, had condemned him to
+the cross, 
+those that loved him at the first did not forsake him; for he appeared
+to them alive again the third day; 
+as the divine prophets had foretold these and ten thousand other wonderful
+things concerning him. And the tribe of Christians, so named from him,
+are not extinct at this day.</p></div>
+<div type="textpart" subtype="section" xml:base="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2:18" n="65"> <milestone n="4" unit="Whiston_section"/><p>About the same time also another sad calamity put the Jews into disorder,
+and certain shameful practices happened about the temple of Isis that was
+at Rome. I will now first take notice of the wicked attempt about the temple
+of Isis, and will then give an account of the Jewish affairs. There was
+at Rome a woman whose name was Paulina; one who, on account of the dignity
+of her ancestors, and by the regular conduct of a virtuous life, had a
+great reputation: she was also very rich; and although she was of a beautiful
+countenance, and in that flower of her age wherein women are the most gay,
+yet did she lead a life of great modesty. She was married to Saturninus,
+one that was every way answerable to her in an excellent character. Decius
+Mundus fell in love with this woman, who was a man very high in the equestrian
+order; and as she was of too great dignity to be caught by presents, and
+had already rejected them, though they had been sent in great abundance,
+he was still more inflamed with love to her, insomuch that he promised
+to give her two hundred thousand Attic drachmae for one night’s lodging;
+and when this would not prevail upon her, and he was not able to bear this
+misfortune in his amours, he thought it the best way to famish himself
+to death for want of food, on account of Paulina’s sad refusal; and he
+determined with himself to die after such a manner, and he went on with
+his purpose accordingly. Now Mundus had a freed-woman, who had been made
+free by his father, whose name was Ide, one skillful in all sorts of mischief.
+This woman was very much grieved at the young man’s resolution to kill
+himself, (for he did not conceal his intentions to destroy himself from
+others,) and came to him, and encouraged him by her discourse, and made
+him to hope, by some promises she gave him, that he might obtain a night’s
+lodging with Paulina; and when he joyfully hearkened to her entreaty, she
+said she wanted no more than fifty thousand drachmae for the entrapping
+of the woman. So when she had encouraged the young man, and gotten as much
+money as she required, she did not take the same methods as had been taken
+before, because she perceived that the woman was by no means to be tempted
+by money; but as she knew that she was very much given to the worship of
+the goddess Isis, she devised the following stratagem: She went to some
+of Isis’s priests, and upon the strongest assurances [of concealment],
+she persuaded them by words, but chiefly by the offer of money, of twenty-five
+thousand drachmae in hand, and as much more when the thing had taken effect;
+and told them the passion of the young man, and persuaded them to use all
+means possible to beguile the woman. So they were drawn in to promise so
+to do, by that large sum of gold they were to have. Accordingly, the oldest
+of them went immediately to Paulina; and upon his admittance, he desired
+to speak with her by herself. When that was granted him, he told her that
+he was sent by the god Anubis, who was fallen in love with her, and enjoined
+her to come to him. Upon this she took the message very kindly, and valued
+herself greatly upon this condescension of Anubis, and told her husband
+that she had a message sent her, and was to sup and lie with Anubis; so
+he agreed to her acceptance of the offer, as fully satisfied with the chastity
+of his wife. Accordingly, she went to the temple, and after she had supped
+there, and it was the hour to go to sleep, the priest shut the doors of
+the temple, when, in the holy part of it, the lights were also put out.
+Then did Mundus leap out, (for he was hidden therein,) and did not fail
+of enjoying her, who was at his service all the night long, as supposing
+he was the god; and when he was gone away, which was before those priests
+who knew nothing of this stratagem were stirring, Paulina came early to
+her husband, and told him how the god Anubis had appeared to her. Among
+her friends, also, she declared how great a value she put upon this favor,
+who partly disbelieved the thing, when they reflected on its nature, and
+partly were amazed at it, as having no pretense for not believing it, when
+they considered the modesty and the dignity of the person. But now, on
+the third day after what had been done, Mundus met Paulina, and said, <q rend="double">Nay,
+Paulina, thou hast saved me two hundred thousand drachmae, which sum thou
+sightest have added to thy own family; yet hast thou not failed to be at
+my service in the manner I invited thee. As for the reproaches thou hast
+laid upon Mundus, I value not the business of names; but I rejoice in the
+pleasure I reaped by what I did, while I took to myself the name of Anubis.</q>
+When he had said this, he went his way. But now she began to come to the
+sense of the grossness of what she had done, and rent her garments, and
+told her husband of the horrid nature of this wicked contrivance, and prayed
+him not to neglect to assist her in this case. So he discovered the fact
+to the emperor; whereupon Tiberius inquired into the matter thoroughly
+by examining the priests about it, and ordered them to be crucified, as
+well as Ide, who was the occasion of their perdition, and who had contrived
+the whole matter, which was so injurious to the woman. He also demolished
+the temple of Isis, and gave order that her statue should be thrown into
+the river Tiber; while he only banished Mundus, but did no more to him,
+because he supposed that what crime he had committed was done out of the
+passion of love. And these were the circumstances which concerned the temple
+of Isis, and the injuries occasioned by her priests. I now return to the
+relation of what happened about this time to the Jews at Rome, as I formerly
+told you I would.</p></div>
+</div>
+<div type="textpart" subtype="book" xml:base="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2" n="20">
+<head rend="align(center)">Book XX <lb/> CONTAINING THE INTERVAL OF TWENTY-TWO YEARS. FROM FADUS THE PROCURATOR TO FLORUS.</head>
+  <div type="textpart" subtype="section" xml:base="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2:20" n="197"> 
+ 
+<milestone n="9" unit="Whiston_chapter"/><milestone n="1" unit="Whiston_section"/>
+<head rend="align(center)">CONCERNING ALBINUS UNDER WHOSE PROCURATORSHIP JAMES WAS SLAIN;
+AS ALSO WHAT EDIFICES WERE BUILT BY AGRIPPA.</head>
+<p>AND now Caesar, upon hearing the death of Festus, sent Albinus into
+Judea, as procurator. But the king deprived Joseph of the high priesthood,
+and bestowed the succession to that dignity on the son of Ananus, who was
+also himself called Ananus. Now the report goes that this eldest Ananus
+proved a most fortunate man; for he had five sons who had all performed
+the office of a high priest to God, and who had himself enjoyed that dignity
+a long time formerly, which had never happened to any other of our high
+priests. But this younger Ananus, who, as we have told you already, took
+the high priesthood, was a bold man in his temper, and very insolent; he
+was also of the sect of the Sadducees, <note resp="editor">It hence evidently appears that Sadducees might be high priests in the
+days of Josephus, and that these Sadducees were usually very severe and
+inexorable judges, while the Pharisees were much milder, and more merciful,
+as appears by Reland’s instances in his note on this place, and on Josephus’s
+Life, sect. 31, and those taken from the New Testament, from Josephus himself,
+and from the Rabbins; nor do we meet with any Sadducees later than this
+high priest in all Josephus.</note>
+who are very rigid in judging offenders, above all the rest of the Jews,
+as we have already observed; when, therefore, Ananus was of this disposition,
+he thought he had now a proper opportunity [to exercise his authority].
+Festus was now dead, and Albinus was but upon the road; so he assembled
+the sanhedrim of judges, and brought before them the brother of Jesus,
+who was called Christ, whose name was James, and some others, [or, some
+of his companions]; and when he had formed an accusation against them as
+breakers of the law, he delivered them to be stoned: but as for those who
+seemed the most equitable of the citizens, and such as were the most uneasy
+at the breach of the laws, they disliked what was done; they also sent
+to the king [Agrippa], desiring him to send to Ananus that he should act
+so no more, for that what he had already done was not to be justified;
+nay, some of them went also to meet Albinus, as he was upon his journey
+from Alexandria, and informed him that it was not lawful for Ananus to
+assemble a sanhedrim without his consent. <note resp="editor">Of this condemnation of James the Just, and its causes, as also that he
+did not die till long afterwards, see Prim. Christ. Revived, vol. III.
+ch. 43-46. The sanhedrim condemned our Savior, but could not put him to
+death without the approbation of the Roman procurator; nor could therefore
+Ananias and his sanhedrim do more here, since they never had Albinus’s
+approbation for the putting this James to death.</note>
+Whereupon Albinus complied with what they said, and wrote in anger to Ananus,
+and threatened that he would bring him to punishment for what he had done;
+on which king Agrippa took the high priesthood from him, when he had ruled
+but three months, and made Jesus, the son of Damneus, high priest.</p></div>
+<div type="textpart" subtype="section" xml:base="urn:cts:greekLit:tlg0526.tlg001.perseus-eng2:20" n="204"> <milestone n="2" unit="Whiston_section"/><p>Now as soon as Albinus was come to the city of Jerusalem, he used
+all his endeavors and care that the country might be kept in peace, and
+this by destroying many of the <emph rend="italic">Sicarii</emph>. But as for the high priest,
+Ananias <note resp="editor">This Ananias was not the son of Nebedeus, as I take it, but he who was
+called Annas or Ananus the elder, the ninth in the catalogue, and who had
+been esteemed high priest for a long time; and, besides Caiaphas, his son-in-law,
+had five of his own sons high priests after him, which were those of numbers
+11, 14, 15, 17, 24, in the foregoing catalogue. Nor ought we to pass slightly
+over what Josephus here says of Annas, or Ananias, that he was high priest
+a long time before his children were so; he was the son of Seth, and is
+set down first for high priest in the foregoing catalogue, under number
+9. He was made by Quirinus, and continued till Ismael, the 10th in number,
+for about twenty-three years, which long duration of his high priesthood,
+joined to the successions of his son-in-law, and five children of his own,
+made him a sort of perpetual high priest, and was perhaps the occasion
+that former high priests kept their titles ever afterwards; for I believe
+it is hardly met with be fore him.</note>
+he increased in glory every day, and this to a great degree, and had obtained
+the favor and esteem of the citizens in a signal manner; for he was a great
+hoarder up of money: he therefore cultivated the friendship of Albinus,
+and of the high priest [Jesus], by making them presents; he also had servants
+who were very wicked, who joined themselves to the boldest sort of the
+people, and went to the thrashing-floors, and took away the tithes that
+belonged to the priests by violence, and did not refrain from beating such
+as would not give these tithes to them. So the other high priests acted
+in the like manner, as did those his servants, without any one being able
+to prohibit them; so that [some of the] priests, that of old were wont
+to be supported with those tithes, died for want of food.</p></div>
+</div></div>
+</body></text></TEI>
