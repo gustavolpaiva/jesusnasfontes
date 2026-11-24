@@ -184,9 +184,16 @@ export async function semearAcervoReal(env: FonteDeEnv = process.env): Promise<R
   const itens = readdirSync(dir)
     .filter((nome) => nome.endsWith(".yaml"))
     .sort()
-    .map((nome) => {
+    .flatMap((nome) => {
       const fonte = interpretarFonteYaml(readFileSync(path.join(dir, nome), "utf8"), nome);
-      return { fonte, derivado: lerDerivado(PASTA_DERIVADOS, lock, fonte.slug) };
+      // Como o `acervo:load`: não publicada e sem derivado é pulada (o Suetônio do plano 02-09); publicada e
+      // sem derivado é erro.
+      if (!lock.derivados[fonte.slug]) {
+        if (fonte.publicada)
+          throw new Error(`semearAcervoReal: Fonte ${fonte.slug} publicada e sem derivado`);
+        return [];
+      }
+      return [{ fonte, derivado: lerDerivado(PASTA_DERIVADOS, lock, fonte.slug) }];
     });
   return comCarga(env, (cliente) => carregarFontes(itens, { cliente }));
 }
