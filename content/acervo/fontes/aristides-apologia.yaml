@@ -14,8 +14,13 @@ licenca: dp-declarado-pela-origem
 licenca_url: https://ccel.org/ccel/schaff/anf09.xml
 origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf09
-tradutor: Schaff, Philip (1819-1893)
-edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+# Página de título da obra no volume (xiii.i-p8): "Translated from the Greek and from the Syriac Version in
+# Parallel Columns … by D. M. Kay, B.Sc., B.D." — evidência registrada em data/acervo-origens.yaml (as duas
+# versões, grega e siríaca, são do mesmo tradutor). Editor do volume: Philip Schaff na edição digital
+# (DC.Creator).
+tradutor: D. M. Kay
+editor: Philip Schaff
+edicao: "Ante-Nicene Fathers, vol. 9, Christian Classics Ethereal Library (edição digital); tradução do grego e do siríaco por D. M. Kay, declarada na página de título da obra (xiii.i-p8); o cabeçalho não declara o ano da tradução"
 traduzida_por_nos: false
 limites_pt: >-
   Apologia cristã primitiva escrita em grego, de datação debatida; a tradução do siríaco a apresenta como

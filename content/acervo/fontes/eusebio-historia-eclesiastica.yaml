@@ -16,9 +16,11 @@ licenca: dp-declarado-pela-origem
 licenca_url: https://ccel.org/ccel/schaff/npnf201.xml
 origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/npnf201
-# O cabeçalho digital (DC.Creator) nomeia Arthur Cushman McGiffert, tradutor e editor do volume, e Philip
-# Schaff, editor da série; o pubHistory está vazio e o printSourceInfo declara a edição de Nova York, 1890.
-tradutor: McGiffert, Rev. Arthur Cushman, Ph.D. com Schaff, Philip (1819-1893)
+# O cabeçalho digital (DC.Creator) marca Arthur Cushman McGiffert como Translator do volume (a única Fonte
+# ThML dispensa evidência) e Philip Schaff como Editor da série; o pubHistory está vazio e o printSourceInfo
+# declara a edição de Nova York, 1890.
+tradutor: McGiffert, Rev. Arthur Cushman, Ph.D.
+editor: Philip Schaff
 edicao: "Nicene and Post-Nicene Fathers, 2ª série, vol. 1 (Nova York: Christian Literature Publishing Co., 1890, como declara o cabeçalho; edição digital CCEL)"
 traduzida_por_nos: false
 # Teto próprio de seção (Pitfall 9): a seção é o LIVRO (divisão natural da edição, como em josefo e Ireneu);

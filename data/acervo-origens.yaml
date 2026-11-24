@@ -396,9 +396,15 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["ix.xvii"]
+      # Página de título da parte siríaca do volume (ix.i-p3): "[Translated by the Rev. B. P. Pratten, B.A.]".
+      evidencia_tradutor: ix.i-p3
+      tradutor_esperado: ["Rev. B. P. Pratten"]
+      evidencia_trecho: "Translated by the Rev. B. P. Pratten"
     # ───────── As Fontes apócrifas do plano 02-12, cada uma com as suas divisões div2 (a Parte vii do volume,
     # "Apocrypha of the New Testament", em tradução feita sobre a edição crítica de Tischendorf, como a
     # introdução da edição declara). O "Gospel of Thomas" do volume é o Evangelho da INFÂNCIA (Pitfall 5).
+    # A página de título da parte (vii.i-p2) credencia a tradução: "Translated by Alexander Walker, Esq.,
+    # One of Her Majesty's Inspectors for Schools for Scotland"; vale para as obras da parte inteira.
     - id: anf08.xml
       url: https://ccel.org/ccel/schaff/anf08.xml
       slug: protoevangelho-de-tiago
@@ -406,6 +412,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.iv"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
     - id: anf08.xml
       url: https://ccel.org/ccel/schaff/anf08.xml
       slug: evangelho-de-pseudo-mateus
@@ -413,6 +422,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.v"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
     - id: anf08.xml
       url: https://ccel.org/ccel/schaff/anf08.xml
       slug: historia-de-jose-o-carpinteiro
@@ -420,6 +432,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.vii"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
     # As três formas do Evangelho da Infância de Tomé que o volume traz (nunca o dos 114 ditos, que é Mattison)
     - id: anf08.xml
       url: https://ccel.org/ccel/schaff/anf08.xml
@@ -428,6 +443,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.viii", "vii.ix", "vii.x"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
     - id: anf08.xml
       url: https://ccel.org/ccel/schaff/anf08.xml
       slug: evangelho-arabe-da-infancia
@@ -435,6 +453,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.xi"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
     # Atos de Pilatos (Parte I do Evangelho de Nicodemos): duas formas gregas e uma latina. A Parte II
     # (Descida de Cristo ao inferno, vii.xiv e vii.xvi–xvii) é obra distinta e fica de fora desta Fonte.
     - id: anf08.xml
@@ -444,6 +465,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.xii", "vii.xiii", "vii.xv"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
     # A carta de Pilato ao imperador (vii.xviii) e o relatório em duas formas gregas (vii.xix e vii.xx). A
     # entrega de Pilato (vii.xxi) e a morte de Pilato (vii.xxii) são obras distintas e ficam de fora.
     - id: anf08.xml
@@ -453,6 +477,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.xviii", "vii.xix", "vii.xx"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
     - id: anf08.xml
       url: https://ccel.org/ccel/schaff/anf08.xml
       slug: atos-de-paulo-e-tecla
@@ -460,6 +487,9 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.xxvi"]
+      evidencia_tradutor: vii.i-p2
+      tradutor_esperado: ["Alexander Walker, Esq."]
+      evidencia_trecho: "Translated by Alexander Walker, Esq."
   verificador:
     # Editores do volume (DC.Creator com papel Editor no cabeçalho): NUNCA são prova de quem traduziu uma obra.
     editores:
@@ -560,6 +590,9 @@ ccel-anf01:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["vii.ii"]
+      # A introdução da edição (vii.i-p7) diz só que "The fragments of Papias are translated from the text
+      # given in Routh's Reliquiæ Sacræ, vol. i." — não nomeia o tradutor: a Fonte fica SEM `tradutor`
+      # (a página mostra "tradutor não identificado na edição").
     - id: anf01.xml
       url: https://ccel.org/ccel/schaff/anf01.xml
       slug: justino-1-apologia
@@ -567,6 +600,11 @@ ccel-anf01:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["viii.ii"]
+      # A nota introdutória às obras de Justino (viii.i-p9) entrega-lhes a tradução: "Introductory Note of
+      # the able translators, Messrs. Dods and Reith".
+      evidencia_tradutor: viii.i-p9
+      tradutor_esperado: ["Messrs. Dods", "Reith"]
+      evidencia_trecho: "Introductory Note of the able translators, Messrs. Dods and Reith"
     - id: anf01.xml
       url: https://ccel.org/ccel/schaff/anf01.xml
       slug: justino-2-apologia
@@ -574,6 +612,10 @@ ccel-anf01:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["viii.iii"]
+      # O mesmo parágrafo da nota introdutória às obras de Justino (viii.i-p9): "Messrs. Dods and Reith".
+      evidencia_tradutor: viii.i-p9
+      tradutor_esperado: ["Messrs. Dods", "Reith"]
+      evidencia_trecho: "Introductory Note of the able translators, Messrs. Dods and Reith"
     - id: anf01.xml
       url: https://ccel.org/ccel/schaff/anf01.xml
       slug: justino-dialogo-trifao
@@ -581,6 +623,10 @@ ccel-anf01:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["viii.iv"]
+      # O mesmo parágrafo da nota introdutória às obras de Justino (viii.i-p9): "Messrs. Dods and Reith".
+      evidencia_tradutor: viii.i-p9
+      tradutor_esperado: ["Messrs. Dods", "Reith"]
+      evidencia_trecho: "Introductory Note of the able translators, Messrs. Dods and Reith"
     # Contra as Heresias: os cinco livros na ordem do volume (a introdução ix.i, a Elucidation ix.v e os
     # fragmentos avulsos ix.viii ficam de fora).
     - id: anf01.xml
@@ -590,6 +636,14 @@ ccel-anf01:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["ix.ii", "ix.iii", "ix.iv", "ix.vi", "ix.vii"]
+      # Nota dos editores ao fim da introdução de Ireneu (parágrafo ix.i-p12): livros 1 e 2 traduzidos por
+      # Dr. Roberts (Alexander Roberts, editor do volume impresso), livro 3 e parte do 4 pelo rev. W. H. Rambaut.
+      evidencia_tradutor: ix.i-p12
+      tradutor_esperado: ["Dr. Roberts", "Rev. W. H. Rambaut"]
+      evidencia_trecho: >-
+        The first two books of Irenæus Against Heresies have been translated by Dr. Roberts. The groundwork
+        of the translation of the third book, and that portion of the fourth book which is continued in
+        this volume, has been furnished by the Rev. W. H. Rambaut
   verificador:
     # Editores do volume (DC.Creator com papel Editor no cabeçalho): NUNCA são prova de quem traduziu uma obra.
     editores:
@@ -655,6 +709,12 @@ ccel-anf03:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["iv.iii"]
+      # A assinatura na abertura da própria divisão do Apologético (iv.iii.i-p3): "[Translated by the Rev. S.
+      # Thelwall, Late Scholar of Christ's College, Cantab.]" — dentro das divisões da Fonte, o parágrafo é
+      # conferido também no derivado.
+      evidencia_tradutor: iv.iii.i-p3
+      tradutor_esperado: ["Rev. S. Thelwall"]
+      evidencia_trecho: "Translated by the Rev. S. Thelwall"
   verificador:
     # Editores do volume (DC.Creator com papel Editor no cabeçalho): NUNCA são prova de quem traduziu uma obra.
     editores:
@@ -721,6 +781,11 @@ ccel-anf04:
           "vi.ix.vii",
           "vi.ix.viii",
         ]
+      # Página de título da parte de Orígenes do volume (vi.i-p2): "[Translated by the Rev. Frederick Crombie,
+      # D.D.]" — vale para as obras de Orígenes do volume, o Contra Celso entre elas.
+      evidencia_tradutor: vi.i-p2
+      tradutor_esperado: ["Rev. Frederick Crombie"]
+      evidencia_trecho: "Translated by the Rev. Frederick Crombie"
       esperado:
         secoes: 260
         paragrafos:
@@ -785,6 +850,9 @@ ccel-anf06:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["v.v"]
+      # A introdução da parte declara (v.ii-p11): "It does not clearly appear, from the Edinburgh edition,
+      # who the translator is" — a edição NÃO nomeia o tradutor: a Fonte fica SEM `tradutor` (a página
+      # mostra "tradutor não identificado na edição").
   verificador:
     # Editores do volume (DC.Creator com papel Editor no cabeçalho): NUNCA são prova de quem traduziu uma obra.
     editores:
@@ -838,6 +906,10 @@ ccel-anf09:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["iv.iii", "iv.iv"]
+      # A introdução (iv.i-p5) nomeia só a tradução ANTERIOR ("translated into English by the Rev. J. Hamlyn
+      # Hill, B.D.", 1894) e (iv.i-p6) declara que "The translation offered here is quite independent of
+      # either of these two" — a tradução do volume é anônima: a Fonte fica SEM `tradutor` (a página mostra
+      # "tradutor não identificado na edição").
     # A Apologia de Aristides (plano 02-11): as duas traduções que o volume traz — o grego pela história de
     # Barlaam e Josafé (xiii.iii) e o siríaco (xiii.iv, com a passagem sobre Jesus o Messias do esperado).
     - id: anf09.xml
@@ -847,6 +919,11 @@ ccel-anf09:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["xiii.iii", "xiii.iv"]
+      # Página de título da Apologia de Aristides (xiii.i): "Translated from the Greek and from the Syriac
+      # Version in Parallel Columns … by D. M. Kay, B.Sc., B.D." — as duas versões são do mesmo tradutor.
+      evidencia_tradutor: xiii.i-p8
+      tradutor_esperado: ["D. M. Kay"]
+      evidencia_trecho: "D. M. Kay, B.Sc., B.D.,"
     # ───────── Fontes apócrifas do plano 02-12: o fragmento de Akhmîm do Evangelho de Pedro (a introdução do
     # volume atribui a tradução a J. Armitage Robinson) e o Apocalipse de Pedro com os fragmentos citados por
     # outros autores (tradução sobre a edição de Harnack, 1893, como a introdução declara). As introduções
@@ -858,6 +935,12 @@ ccel-anf09:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["iii.ii"]
+      # A introdução do Evangelho de Pedro (iii.i-p5): "The important fragment of which Mr. J. Armitage
+      # Robinson's translation here follows was discovered…"; a página de título da parte (iii-p3) o nomeia
+      # "Professor J. Armitage Robinson".
+      evidencia_tradutor: iii.i-p5
+      tradutor_esperado: ["Mr. J. Armitage Robinson"]
+      evidencia_trecho: "Mr. J. Armitage Robinson’s translation here follows"
     - id: anf09.xml
       url: https://ccel.org/ccel/schaff/anf09.xml
       slug: apocalipse-de-pedro
@@ -865,6 +948,9 @@ ccel-anf09:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["v.ii", "v.iii"]
+      # A introdução (v.i-p29) declara só a FONTE: "The present translation is made from Harnack's edition
+      # of the text, 2d ed., Leipzig, 1893" — não nomeia o tradutor: a Fonte fica SEM `tradutor` (a página
+      # mostra "tradutor não identificado na edição").
   verificador:
     # Editores do volume (DC.Creator com papel Editor no cabeçalho): NUNCA são prova de quem traduziu uma obra.
     editores:
@@ -997,6 +1083,12 @@ ccel-lightfoot-fathers:
     # Nove Fontes saem deste ÚNICO volume (plano 02-10): cada entrada lista em `divisoes` as divisões div2 que
     # lhe pertencem (o id pontuado da divisão da edição). O volume inteiro continua conferido pelo `esperado`
     # da origem; o derivado de cada Fonte sai só com as divisões dela, na ordem do volume.
+    #
+    # Tradutor: o volume NÃO tem introduções de obra nem nota de tradutor; a página de título (i-p1.3) credencia
+    # "THE APOSTOLIC FATHERS by J. B. Lightfoot" e o cabeçalho digital o descreve como "J.B. Lightfoot's
+    # collection and translation of many of the works of the Apostolic fathers". Lightfoot é o responsável pelo
+    # volume (DC.Author) E o tradutor das obras — daí `tradutor_tambem_editor` em cada entrada. A edição NÃO
+    # nomeia J. R. Harmer (responsável pela edição em volume único de 1891): não se inventa.
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: 1-clemente
@@ -1004,6 +1096,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.i"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: 2-clemente
@@ -1011,6 +1107,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.ii"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     # As sete cartas de Inácio, na ordem da coleção: uma Fonte, sete seções (uma por carta).
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
@@ -1019,6 +1119,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.iii", "ii.iv", "ii.v", "ii.vi", "ii.vii", "ii.viii", "ii.ix"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: policarpo-filipenses
@@ -1026,6 +1130,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.x"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: martirio-de-policarpo
@@ -1033,6 +1141,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.xi"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: didaque
@@ -1040,6 +1152,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.xii"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: barnabe
@@ -1047,6 +1163,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.xiii"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: hermas
@@ -1054,6 +1174,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.xiv"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
     - id: fathers.xml
       url: https://ccel.org/ccel/lightfoot/fathers.xml
       slug: diogneto
@@ -1061,6 +1185,10 @@ ccel-lightfoot-fathers:
       limite_bytes: 2097152
       divisao_secao: div2
       divisoes: ["ii.xv"]
+      evidencia_tradutor: i-p1.3
+      tradutor_esperado: ["J. B. Lightfoot"]
+      evidencia_trecho: "J. B. Lightfoot"
+      tradutor_tambem_editor: ["Lightfoot, Joseph Barber (1828-1889)"]
   verificador:
     # Responsável pelo volume (DC.Creator com papel Author no cabeçalho): NUNCA é prova de quem traduziu uma obra; só a
     # evidência da introdução de cada obra (`evidencia_tradutor` + `tradutor_tambem_editor`) o torna tradutor dela.

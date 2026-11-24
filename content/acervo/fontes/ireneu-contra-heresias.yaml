@@ -15,9 +15,14 @@ licenca: dp-anterior-1929
 licenca_url: https://ccel.org/ccel/schaff/anf01.xml
 origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf01
-tradutor: Schaff, Philip (1819-1893)
+# Tradutores nomeados na nota dos editores ao fim da introdução da obra (ix.i-p12): livros 1 e 2 por Dr.
+# Roberts, livro 3 e parte do 4 pelo rev. W. H. Rambaut (evidência registrada em data/acervo-origens.yaml).
+# Editor do volume: Philip Schaff na edição digital (DC.Creator); o impresso é editado por Alexander Roberts
+# e James Donaldson, revisto por A. Cleveland Coxe.
+tradutor: Dr. Roberts e Rev. W. H. Rambaut
+editor: Philip Schaff
 traducao_ano: 1867
-edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
+edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867 — ano da edição de Edimburgo que publicou a tradução; a introdução não declara ano próprio da tradução; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
 traduzida_por_nos: false
 # Teto próprio de seção (Pitfall 9): a seção é o LIVRO, página de leitura contínua aceita pelo UI-SPEC (o
 # mesmo critério de josefo-antiguidades); o maior livro medido tem 301.426 caracteres (Livro IV).

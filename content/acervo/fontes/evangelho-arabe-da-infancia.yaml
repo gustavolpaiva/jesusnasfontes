@@ -17,8 +17,12 @@ origem_url: https://ccel.org/ccel/schaff/anf08
 # O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
 # os tradutores do texto (pubHistory ausente). A introdução registra que o original provavelmente era siríaco
 # e que a tradução do volume segue a versão latina de Sike revista por Fleischer. Nada é atribuído de memória.
-tradutor: Schaff, Philip (1819-1893)
-edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+# Página de título da parte "Apocrypha of the New Testament" do volume (vii.i-p2): "Translated by Alexander
+# Walker, Esq." — evidência registrada em data/acervo-origens.yaml. Editor do volume: Philip Schaff na
+# edição digital (DC.Creator).
+tradutor: Alexander Walker, Esq.
+editor: Philip Schaff
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); tradução da parte dos apócrifos por Alexander Walker, declarada na página de título da parte (vii.i-p2); o cabeçalho não declara o ano da tradução"
 traduzida_por_nos: false
 limites_pt: >-
   Compilação apócrifa que não pertence ao cânone do Novo Testamento, de data incerta — a própria introdução

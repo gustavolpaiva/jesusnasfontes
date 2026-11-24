@@ -15,9 +15,13 @@ licenca: dp-anterior-1929
 licenca_url: https://ccel.org/ccel/schaff/anf01.xml
 origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf01
-tradutor: Schaff, Philip (1819-1893)
+# Tradutores nomeados na nota introdutória às obras de Justino (viii.i-p9): "Messrs. Dods and Reith"
+# (evidência registrada em data/acervo-origens.yaml). Editor do volume: Philip Schaff na edição digital
+# (DC.Creator); o impresso é editado por Alexander Roberts e James Donaldson, revisto por A. Cleveland Coxe.
+tradutor: Messrs. Dods and Reith
+editor: Philip Schaff
 traducao_ano: 1867
-edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
+edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867 — ano da edição de Edimburgo que publicou a tradução; a introdução não declara ano próprio da tradução; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
 traduzida_por_nos: false
 # Teto próprio de seção (Pitfall 9, a obra que o plano apontava como candidata): o Diálogo é UMA divisão do
 # volume (viii.iv, 142 capítulos nas referências dos parágrafos, sem divisões próprias no arquivo); texto

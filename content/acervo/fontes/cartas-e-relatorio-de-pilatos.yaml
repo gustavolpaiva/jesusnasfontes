@@ -18,8 +18,12 @@ origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf08
 # O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
 # os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
-tradutor: Schaff, Philip (1819-1893)
-edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+# Página de título da parte "Apocrypha of the New Testament" do volume (vii.i-p2): "Translated by Alexander
+# Walker, Esq." — evidência registrada em data/acervo-origens.yaml. Editor do volume: Philip Schaff na
+# edição digital (DC.Creator).
+tradutor: Alexander Walker, Esq.
+editor: Philip Schaff
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); tradução da parte dos apócrifos por Alexander Walker, declarada na página de título da parte (vii.i-p2); o cabeçalho não declara o ano da tradução"
 traduzida_por_nos: false
 limites_pt: >-
   Textos apócrifos que não pertencem ao cânone do Novo Testamento, de composição posterior aos fatos e de

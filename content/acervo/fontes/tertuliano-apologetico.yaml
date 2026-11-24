@@ -17,9 +17,10 @@ origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf03
 # O cabeçalho digital (DC.Creator) nomeia Philip Schaff, editor da série, e Allan Menzies, editor do volume;
 # o pubHistory não existe. A tradução do próprio texto é declarada na abertura da divisão: "Translated by
-# the Rev. S. Thelwall" (iv.iii.i-p3).
-tradutor: Schaff, Philip (1819-1893) e Menzies, Allan (1845-1916)
-edicao: "Ante-Nicene Fathers, vol. 3, Christian Classics Ethereal Library (edição digital); tradução da obra pelo rev. S. Thelwall, declarada no próprio texto, sem ano declarado"
+# the Rev. S. Thelwall" (iv.iii.i-p3) — evidência registrada em data/acervo-origens.yaml.
+tradutor: Rev. S. Thelwall
+editor: Philip Schaff e Allan Menzies
+edicao: "Ante-Nicene Fathers, vol. 3, Christian Classics Ethereal Library (edição digital); tradução da obra pelo rev. S. Thelwall, declarada na abertura da própria divisão (iv.iii.i-p3), sem ano declarado"
 traduzida_por_nos: false
 # Teto próprio de seção (Pitfall 9): a obra é UMA divisão do volume (iv.iii, 50 capítulos mais as
 # Elucidations do editor nas referências dos parágrafos); texto medido de 206.331 caracteres. O teto é 80.000.

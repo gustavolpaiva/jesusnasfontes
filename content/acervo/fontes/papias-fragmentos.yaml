@@ -15,12 +15,14 @@ licenca: dp-anterior-1929
 licenca_url: https://ccel.org/ccel/schaff/anf01.xml
 origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf01
-tradutor: Schaff, Philip (1819-1893)
+# A introdução da edição (vii.i-p7) diz apenas que os fragmentos foram traduzidos do texto de Routh
+# (Reliquiæ Sacræ, vol. i) e NÃO nomeia o tradutor: o campo fica ausente e a página mostra "tradutor não
+# identificado na edição" (decisão da regra `tradutor-e-editor`, medição de 2026-11-24). Editor do volume:
+# Philip Schaff na edição digital (DC.Creator); o impresso é editado por Alexander Roberts e James
+# Donaldson, revisto por A. Cleveland Coxe.
+editor: Philip Schaff
 traducao_ano: 1867
-# pubHistory do volume: texto editado por Alexander Roberts e James Donaldson, Edimburgo, 1867, com material
-# adicional de A. Cleveland Coxe, 1886; o cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da
-# série. Nenhum outro tradutor é atribuído de memória (plano 02-10).
-edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
+edicao: "Ante-Nicene Fathers, vol. 1 (texto de Roberts e Donaldson, Edimburgo, 1867 — ano da edição de Edimburgo que publicou a tradução; a introdução não declara ano próprio da tradução; material adicional de A. Cleveland Coxe, 1886 — pubHistory do volume; edição digital CCEL)"
 traduzida_por_nos: false
 limites_pt: >-
   Obra perdida de um bispo de Hierápolis, escrita em grego no começo do século II: só sobrevive em citações

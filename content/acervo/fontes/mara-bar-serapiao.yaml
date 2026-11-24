@@ -17,8 +17,12 @@ origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf08
 # O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
 # os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
-tradutor: Schaff, Philip (1819-1893)
-edicao: "Ante-Nicene Fathers, vol. 8, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+# Página de título da parte siríaca do volume (ix.i-p3): "[Translated by the Rev. B. P. Pratten, B.A.]" —
+# evidência registrada em data/acervo-origens.yaml. Editor do volume: Philip Schaff na edição digital
+# (DC.Creator).
+tradutor: Rev. B. P. Pratten
+editor: Philip Schaff
+edicao: "Ante-Nicene Fathers, vol. 8, Christian Classics Ethereal Library (edição digital); tradução da parte siríaca pelo rev. B. P. Pratten, declarada na página de título da parte (ix.i-p3); o cabeçalho não declara o ano da tradução"
 traduzida_por_nos: false
 limites_pt: >-
   Carta escrita em siríaco por um autor pagão, dirigida ao filho e escrita da prisão, de datação debatida.

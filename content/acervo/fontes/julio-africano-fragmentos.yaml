@@ -17,8 +17,12 @@ origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf06
 # O cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da série; o pubHistory não existe e nenhum
 # tradutor do texto é declarado. Nada é atribuído de memória (plano 02-10, mesma regra).
-tradutor: Schaff, Philip (1819-1893)
-edicao: "Ante-Nicene Fathers, vol. 6, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+# A introdução da parte de Júlio Africano no volume declara (v.ii-p11): "It does not clearly appear, from
+# the Edinburgh edition, who the translator is" — a edição NÃO nomeia o tradutor: o campo fica ausente e a
+# página mostra "tradutor não identificado na edição". Editor do volume: Philip Schaff na edição digital
+# (DC.Creator).
+editor: Philip Schaff
+edicao: "Ante-Nicene Fathers, vol. 6, Christian Classics Ethereal Library (edição digital); a introdução da parte declara que o tradutor não aparece claramente na edição de Edimburgo; o cabeçalho não declara o ano da tradução"
 traduzida_por_nos: false
 limites_pt: >-
   Cronografia em cinco livros, obra perdida escrita em grego por um cristão da Palestina: o que resta são

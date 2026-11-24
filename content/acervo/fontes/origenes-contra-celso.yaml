@@ -17,8 +17,12 @@ origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/schaff/anf04
 # O cabeçalho digital (DC.Creator) nomeia só Philip Schaff, editor da série; o pubHistory não existe e nenhum
 # tradutor do texto é declarado. Nada é atribuído de memória (plano 02-10, mesma regra).
-tradutor: Schaff, Philip (1819-1893)
-edicao: "Ante-Nicene Fathers, vol. 4, Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+# A página de título da parte de Orígenes do volume (vi.i-p2) declara: "Translated by the Rev. Frederick
+# Crombie, D.D." — evidência registrada em data/acervo-origens.yaml. Editor do volume: Philip Schaff na
+# edição digital (DC.Creator).
+tradutor: Rev. Frederick Crombie, D.D.
+editor: Philip Schaff
+edicao: "Ante-Nicene Fathers, vol. 4, Christian Classics Ethereal Library (edição digital); tradução da parte de Orígenes pelo rev. Frederick Crombie, declarada na página de título da parte (vi.i-p2); o cabeçalho não declara o ano da tradução"
 traduzida_por_nos: false
 # Teto próprio de seção (Pitfall 9): a seção é o LIVRO (divisões div3 vi.ix.i–viii, a divisão natural da
 # edição neste volume); o maior livro medido tem 223.515 caracteres (Livro IV). O teto geral é 80.000.

@@ -15,11 +15,17 @@ licenca: dp-declarado-pela-origem
 licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
 origem_nome: Christian Classics Ethereal Library
 origem_url: https://ccel.org/ccel/lightfoot/fathers
-tradutor: Lightfoot, Joseph Barber (1828-1889)
+# O volume não tem introduções de obra nem nota de tradutor: a página de título credencia "THE APOSTOLIC
+# FATHERS by J. B. Lightfoot" (i-p1.3) e o cabeçalho digital o descreve como "J.B. Lightfoot's collection
+# and translation of many of the works of the Apostolic fathers" — Lightfoot é o responsável pelo volume E
+# o tradutor das obras (evidência e `tradutor_tambem_editor` registrados em data/acervo-origens.yaml). A
+# edição não nomeia nenhum outro responsável (J. R. Harmer não aparece no arquivo); não se inventa.
+tradutor: J. B. Lightfoot
+editor: J. B. Lightfoot
 traduzida_por_nos: false
 # A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
 # ano de edição ou de tradução é atribuído de memória (plano 02-10).
-edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956; a página de título credencia o volume a J. B. Lightfoot e o cabeçalho digital o descreve como sua coleção e tradução"
 limites_pt: >-
   Homilia anônima em grego, do século II, transmitida junto com a Primeira Carta de Clemente e conhecida por
   isso como Segunda Clemente; a própria origem a apresenta como homilia antiga de autor desconhecido. Dirige-se
