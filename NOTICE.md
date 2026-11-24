@@ -109,7 +109,7 @@ reescrita: itens da navegação do site, o título, o parágrafo da dedicação,
 ditos 1, 2 e 3; depois do recorte, o título final e o cabeçalho "Notes on Translation". Os ditos 4 a 113 e as notas
 do tradutor ficaram fora. O sha256 da página inteira está em `data/acervo.lock.json`.
 
-### Christian Classics Ethereal Library: fixtures do leitor ThML (`ccel-anf08-mara.xml`, `ccel-anf01-notas.xml`, `ccel-lightfoot-trecho.xml`)
+### Christian Classics Ethereal Library: fixtures do leitor ThML (`ccel-anf08-mara.xml`, `ccel-anf01-notas.xml`, `ccel-lightfoot-trecho.xml`, `ccel-lightfoot-obras.thml`)
 
 Recortes de teste de volumes ThML do Christian Classics Ethereal Library (CCEL, Calvin University,
 <https://ccel.org>), cada um declarando no próprio cabeçalho `DC.Rights: Public Domain` (traduções inglesas do
@@ -124,3 +124,7 @@ fixado pelo sha256 em `data/acervo.lock.json`, e nunca entra no repositório.
 - `ccel-lightfoot-trecho.xml`: o cabeçalho ThML (com o DOCTYPE de DTD externo que a origem traz) e três
   parágrafos da divisão `ii.iii` de `fathers.xml` (*The Apostolic Fathers*, de J. B. Lightfoot, edição CCEL,
   <https://ccel.org/ccel/lightfoot/fathers.xml>), sem nenhuma alteração do texto.
+- `ccel-lightfoot-obras.thml`: o mesmo cabeçalho e as divisões `ii.i` (um parágrafo), `ii.xii` (dois) e `ii.xv`
+  (um) do mesmo `fathers.xml`, para o teste do recorte por divisões (`divisoes` do registro, quando o volume
+  reúne várias obras); a descrição e os assuntos gerais do cabeçalho foram encurtados, o texto dos parágrafos é
+  o da origem sem alteração.

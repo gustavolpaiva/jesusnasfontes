@@ -49,6 +49,8 @@ export type ParagrafoThml = ParagrafoTei & {
   paginas: string[];
 };
 export type SecaoThml = Omit<SecaoTei, "paragrafos"> & {
+  /** O id pontuado da divisão da edição (ex.: "ii.xii"): é ele que o registro lista em `divisoes`. */
+  id: string;
   paragrafos: ParagrafoThml[];
   /** Páginas abertas na seção fora de qualquer parágrafo. */
   paginas: string[];
@@ -63,6 +65,8 @@ export type ResultadoThml = {
 };
 
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
+/** O id pontuado da divisão da edição (ex.: "ii.xii") vira o slug kebab-case que o contrato do derivado exige. */
+export const slugDaDivisao = (id: string) => id.replaceAll(".", "-");
 const NIVEIS = new Set(["div1", "div2", "div3", "div4", "div5", "div6"]);
 const CABECALHOS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
@@ -195,8 +199,10 @@ export function parsearThml(xml: string, opcoes: OpcoesThml): ResultadoThml {
             if (secao.paragrafos.length > 0)
               secoes.push({
                 // O contrato do derivado (plano 01) exige slug kebab-case: o id da divisão vira o slug com
-                // hífens no lugar dos pontos; o id original segue intacto na referência de cada parágrafo.
-                slug: secao.id.replaceAll(".", "-"),
+                // hífens no lugar dos pontos; o id original segue na própria seção e na referência de cada
+                // parágrafo — é ele que o registro lista em `divisoes` quando o volume tem várias obras.
+                id: secao.id,
+                slug: slugDaDivisao(secao.id),
                 titulo: secao.titulo,
                 ordem: secoes.length + 1,
                 paragrafos: secao.paragrafos,

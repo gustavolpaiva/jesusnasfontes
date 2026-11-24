@@ -82,6 +82,11 @@ const esquemaArquivo = z
     // Formato `thml` (CCEL): qual nível de divisão do arquivo vira seção; o id da divisão é o slug da seção
     // e o id de cada `<p>` (que carrega o da divisão) é a referência do parágrafo.
     divisao_secao: z.enum(["div1", "div2", "div3", "div4"]).optional(),
+    // Formato `thml`, volume com várias obras (a coleção de Lightfoot): ids das divisões do nível da seção
+    // que pertencem a ESTE arquivo — cada obra do volume é uma entrada de `arquivos` com o seu slug. O volume
+    // INTEIRO continua conferido (`esperado` da origem, sobre o arquivo completo); só as divisões listadas
+    // saem no derivado. Divisão listada e ausente no bruto reprova: typo nunca vira derivado menor em silêncio.
+    divisoes: z.array(z.string().min(1)).min(1).optional(),
   })
   .strict();
 
@@ -161,6 +166,20 @@ export function unidadesPermitidas(origem: OrigemAcervo): Set<string> | undefine
   const conjunto = new Set(lista);
   if (conjunto.size !== lista.length)
     throw new ErroOrigem("unidades_conferidas com unidade repetida");
+  return conjunto;
+}
+
+/**
+ * As divisões do volume que pertencem a este arquivo (`divisoes`, formato `thml`), ou `undefined` quando o
+ * arquivo é o volume inteiro (comportamento de sempre). Lista vazia ou com repetição é erro.
+ */
+export function divisoesPermitidas(arquivo: ArquivoOrigem): Set<string> | undefined {
+  const lista = arquivo.divisoes;
+  if (lista === undefined) return undefined;
+  if (lista.length === 0)
+    throw new ErroOrigem("divisoes vazia: liste as divisões da obra ou remova o campo");
+  const conjunto = new Set(lista);
+  if (conjunto.size !== lista.length) throw new ErroOrigem("divisoes com divisão repetida");
   return conjunto;
 }
 

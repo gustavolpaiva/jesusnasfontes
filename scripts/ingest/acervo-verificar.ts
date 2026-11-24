@@ -21,14 +21,17 @@ import {
 import { conferirBruto, derivar, serializar } from "./acervo-derivar";
 import { ErroLicenca } from "./acervo-licenca";
 import {
+  acharArquivoDoDerivado,
   caminhoDoBruto,
   chaveDoArquivo,
+  divisoesPermitidas,
   lerLockBruto,
   lerOrigens,
   type Origens,
   PASTA_BRUTO,
   unidadesPermitidas,
 } from "./acervo-origens";
+import { slugDaDivisao } from "./acervo-parse-thml";
 
 const sha256 = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
 /** Primeiros itens de uma lista e, se ela for longa, o último entre parênteses. */
@@ -100,6 +103,17 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
               `derivado ${c.slug}: ${fora.length} unidade(s) fora de unidades_conferidas da origem ${d.origem_id} (${fora.slice(0, 5).join(", ")}${fora.length > 5 ? ", …" : ""})`,
             );
         }
+        // Arquivo com divisões (volume de várias obras): nenhuma seção fora delas pode estar no derivado.
+        const achado = acharArquivoDoDerivado(origens, c.slug);
+        const divisoes = achado ? divisoesPermitidas(achado.arquivo) : undefined;
+        if (divisoes) {
+          const permitidasSlug = new Set([...divisoes].map(slugDaDivisao));
+          const fora = d.secoes.filter((s) => !permitidasSlug.has(s.slug)).map((s) => s.slug);
+          if (fora.length > 0)
+            throw new ErroDerivado(
+              `derivado ${c.slug}: ${fora.length} seção(ões) fora das divisões do arquivo (${fora.join(", ")})`,
+            );
+        }
         slugsConferidos.add(c.slug);
         linhas.push(`OK ${c.slug} (${c.bytes} bytes, sha256 ${c.sha256.slice(0, 12)})`);
       } catch (erro) {
@@ -118,6 +132,15 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
   } catch (erro) {
     reprovar("lock do bruto", (erro as Error).message);
   }
+  // Várias Fontes podem vir do MESMO arquivo (volume de várias obras): o relatório do volume é impresso
+  // uma vez por arquivo, não uma vez por Fonte. A chave é a LINHA inteira: TOTAIS e AVISO são linhas
+  // diferentes e ambas aparecem.
+  const volumesReportados = new Set<string>();
+  const reportarVolume = (linha: string) => {
+    if (volumesReportados.has(linha)) return;
+    volumesReportados.add(linha);
+    linhas.push(linha);
+  };
   for (const [origemId, origem] of Object.entries(origens)) {
     const presentes = origem.arquivos.filter((a) =>
       existsSync(caminhoDoBruto(pastaBruto, origemId, a.id)),
@@ -148,19 +171,20 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
           linhas.push(
             `NÃO PUBLICÁVEL ${chave}: ${origem.motivo} (bruto confere: ${interpretado.secoes.length} seções, ${interpretado.secoes.reduce((n, s) => n + s.paragrafos.length, 0)} parágrafos)`,
           );
-          linhas.push(`TOTAIS ${chave}: ${totais(interpretado)}`);
+          reportarVolume(`TOTAIS ${chave}: ${totais(interpretado)}`);
           if (interpretado.cabecalho.avisoEditorial)
-            linhas.push(`AVISO ${chave}: ${interpretado.cabecalho.avisoEditorial}`);
+            reportarVolume(`AVISO ${chave}: ${interpretado.cabecalho.avisoEditorial}`);
           continue;
         }
         if (interpretado.cabecalho.avisoEditorial)
-          linhas.push(`AVISO ${chave}: ${interpretado.cabecalho.avisoEditorial}`);
+          reportarVolume(`AVISO ${chave}: ${interpretado.cabecalho.avisoEditorial}`);
         // `derivar` confere sha256, licença, tradutor, parser e fatos esperados, nesta ordem.
         const derivado = derivar({ origemId, origem, arquivo, bruto: bytes, sha256Lock: noLock });
+        // Quando várias Fontes saem do mesmo arquivo, o slug diz de qual Fonte é esta linha.
         linhas.push(
-          `OK ${chave} (${derivado.secoes.length} seções, ${derivado.secoes.reduce((n, s) => n + s.paragrafos.length, 0)} parágrafos, notas fora)`,
+          `OK ${chave} (${derivado.secoes.length} seções, ${derivado.secoes.reduce((n, s) => n + s.paragrafos.length, 0)} parágrafos, notas fora) — ${arquivo.slug}`,
         );
-        linhas.push(`TOTAIS ${chave}: ${totais(interpretado)}`);
+        reportarVolume(`TOTAIS ${chave}: ${totais(interpretado)}`);
         // Formatos que numeram as unidades relatam o que a origem não traz e o que ficou com a numeração da origem.
         if (interpretado.ausentes?.length)
           linhas.push(

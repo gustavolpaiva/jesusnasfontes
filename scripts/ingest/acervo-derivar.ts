@@ -20,6 +20,7 @@ import {
   acharArquivoDoDerivado,
   caminhoDoBruto,
   chaveDoArquivo,
+  divisoesPermitidas,
   ErroOrigem,
   type Esperado,
   esperadoDoArquivo,
@@ -173,6 +174,31 @@ function restringir(
 }
 
 /**
+ * Volume de várias obras (formato `thml`, `divisoes` do registro): só as divisões listadas saem no derivado.
+ * A ordem e as referências são as do volume; divisão listada e ausente reprova.
+ */
+function restringirDivisoes(
+  secoes: ResultadoInterpretado["secoes"],
+  permitidas: Set<string>,
+  slug: string,
+): ResultadoInterpretado["secoes"] {
+  const idDaSecao = (s: ResultadoInterpretado["secoes"][number]) => (s as { id?: string }).id;
+  const recortadas = secoes.filter((s) => {
+    const id = idDaSecao(s);
+    if (id === undefined)
+      throw new ErroOrigem(
+        `${slug}: divisoes só vale para formato thml (a seção ${s.slug} não traz id de divisão)`,
+      );
+    return permitidas.has(id);
+  });
+  const emitidas = recortadas.map(idDaSecao);
+  const faltam = [...permitidas].filter((d) => !emitidas.includes(d));
+  if (faltam.length > 0)
+    throw new ErroOrigem(`${slug}: divisão conferida ausente no bruto: ${faltam.join(", ")}`);
+  return recortadas;
+}
+
+/**
  * Bruto verificado para derivado. Não toca o disco. Lança antes de ler o conteúdo se a origem não é publicável
  * ou se o sha256 não confere; lança `ErroLicenca` se o cabeçalho diverge do registro.
  */
@@ -184,11 +210,14 @@ export function derivar(entrada: EntradaDerivar): Derivado {
     );
   // Lista vazia lança aqui, antes de ler o bruto.
   const permitidas = unidadesPermitidas(origem);
+  const divisoes = divisoesPermitidas(arquivo);
   const { interpretado: tei, sha256: obtido } = conferirBruto(entrada);
 
   // O bruto inteiro foi conferido acima; só o que a origem autoriza sai. Unidade autorizada que o bruto não
-  // tem é erro (typo na lista nunca vira derivado menor em silêncio).
-  const secoes = permitidas ? restringir(tei.secoes, permitidas, arquivo.slug) : tei.secoes;
+  // tem é erro (typo na lista nunca vira derivado menor em silêncio). O recorte por DIVISÃO (volume com
+  // várias obras, ex.: a coleção de Lightfoot) segue a mesma regra.
+  let secoes = permitidas ? restringir(tei.secoes, permitidas, arquivo.slug) : tei.secoes;
+  if (divisoes) secoes = restringirDivisoes(secoes, divisoes, arquivo.slug);
 
   return interpretarDerivado(
     {

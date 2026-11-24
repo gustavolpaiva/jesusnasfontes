@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ThML PUBLIC "-//CCEL/DTD Theological Markup Language//EN" "http://www.ccel.org/dtd/ThML10.dtd">
+<ThML>
+  <ThML.head>
+
+    <!-- Copyright Christian Classics Ethereal Library -->
+
+    <generalInfo>
+      <description>J.B. Lightfoot’s collection and translation of many of the works of the Apostolic fathers is a must-read for anyone wanting to expand his or her knowledge of early Christian thought and the theological roots of our faith.</description>
+      <pubHistory />
+      <comments />
+    </generalInfo>
+
+    <printSourceInfo>
+      <published>Baker Book House, 1956</published>
+    </printSourceInfo>
+
+    <electronicEdInfo>
+      <publisherID>ccel</publisherID>
+      <authorID>lightfoot</authorID>
+      <bookID>fathers</bookID>
+      <workID>fathers</workID>
+      <version>1.0</version>
+
+      <DC>
+        <DC.Title>The Apostolic Fathers</DC.Title>
+        <DC.Creator sub="Author" scheme="short-form">Joseph Barber Lightfoot</DC.Creator>
+        <DC.Creator sub="Author" scheme="file-as">Lightfoot, Joseph Barber (1828-1889)</DC.Creator>
+        <DC.Publisher>Grand Rapids, MI: Christian Classics Ethereal Library</DC.Publisher>
+        <DC.Rights>Public Domain</DC.Rights>
+      </DC>
+
+    </electronicEdInfo>
+</ThML.head>
+<ThML.body>
+    <div1 title="The Apostolic Fathers" id="ii" prev="i" next="ii.i">
+      <div2 title="First Clement" id="ii.i" prev="ii" next="ii.ii">
+<p id="ii.i-p1">
+The Church of God which sojourneth in Rome to the Church of God which
+sojourneth in Corinth, to them which are called and sanctified by the
+will of God through our Lord Jesus Christ. Grace to you and peace
+from Almighty God through Jesus Christ be multiplied.
+
+<br /><br />
+</p>
+      </div2>
+      <div2 title="Didache" id="ii.xii" prev="ii.xi" next="ii.xiii">
+<p id="ii.xii-p1">
+There are two ways, one of life and one of death, and there is a
+great difference between the two ways.
+
+<br /><br />
+</p>
+<p id="ii.xii-p2">
+The way of life is this. First of all, thou shalt love the God
+that made thee; secondly, Thy neighbor as thyself. And all things
+whatsoever thou wouldst not have befall thyself, neither do thou
+unto another.
+
+<br /><br />
+</p>
+      </div2>
+      <div2 title="The Epistle to Diognetus" id="ii.xv" prev="ii.xiv" next="toc">
+<p id="ii.xv-p1">
+   Since I see, most excellent Diognetus, that thou art exceedingly
+anxious to understand the religion of the Christians, and that thy
+enquiries respecting them are distinctly and carefully made, as to
+what God they trust and how they worship Him, that they all disregard
+the world and despise death, and take no account of those who are
+regarded as gods by the Greeks, neither observe the superstition of
+the Jews, and as to the nature of the affection which they entertain
+one to another, and of this new development or interest, which has
+entered into men's lives now and not before: I gladly welcome
+
+<br /><br />
+</p>
+      </div2>
+    </div1>
+  </ThML.body>
+</ThML>
