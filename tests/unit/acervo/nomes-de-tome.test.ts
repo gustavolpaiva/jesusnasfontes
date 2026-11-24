@@ -15,6 +15,7 @@ type Tomé = {
   titulo: string;
   origem_nome: string;
   origem_url: string;
+  tradutor?: string;
   edicao: string;
   secoes: { slug: string; titulo: string }[];
 };
