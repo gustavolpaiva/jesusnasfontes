@@ -24,21 +24,15 @@ export const PASTA_BRUTO = path.join(RAIZ_PRODUTO, "data", "raw", "acervo");
 /** Teto padrão do arquivo bruto (baixado e interpretado). Cada arquivo pode pedir menos no registro. */
 export const TETO_BRUTO_BYTES = 32 * 1024 * 1024;
 
+/** Formatos de arquivo de origem que o despachante (`acervo-interpretar`) sabe ler. Cada plano de origem acrescenta o seu. */
+export const FORMATOS_ORIGEM = ["tei"] as const;
+export type FormatoOrigem = (typeof FORMATOS_ORIGEM)[number];
+
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "deve ser kebab-case");
 const sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, "sha256 em hexadecimal minúsculo");
 // Nome de arquivo: nunca separador de caminho, nunca ponto inicial (nada de `..`).
 const nomeDeArquivo = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, "nome de arquivo inválido");
 const https = z.string().regex(/^https:\/\/[^\s]+$/, "deve começar por https://");
-
-const esquemaArquivo = z
-  .object({
-    id: nomeDeArquivo,
-    url: https,
-    slug,
-    idioma: z.enum(["pt", "en"]),
-    limite_bytes: z.number().int().min(1).max(TETO_BRUTO_BYTES).optional(),
-  })
-  .strict();
 
 const esquemaEsperadoParagrafo = z
   .object({
@@ -59,6 +53,18 @@ const esquemaEsperado = z
   })
   .strict();
 
+const esquemaArquivo = z
+  .object({
+    id: nomeDeArquivo,
+    url: https,
+    slug,
+    idioma: z.enum(["pt", "en"]),
+    limite_bytes: z.number().int().min(1).max(TETO_BRUTO_BYTES).optional(),
+    // Fatos esperados deste arquivo; quando faltam, valem os da origem (Antiguidades e Guerra: 20 e 7 livros).
+    esperado: esquemaEsperado.optional(),
+  })
+  .strict();
+
 const esquemaOrigem = z
   .object({
     nome: z.string().min(1),
@@ -69,7 +75,7 @@ const esquemaOrigem = z
     commit: z.string().min(1),
     data_versao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     alteracoes: z.string().min(1),
-    formato: z.literal("tei"),
+    formato: z.enum(FORMATOS_ORIGEM),
     publicavel: z.boolean(),
     motivo: z.string().min(1),
     arquivos: z.array(esquemaArquivo).min(1),
@@ -138,6 +144,11 @@ export function gravarLockBruto(lock: LockBruto, caminho: string = CAMINHO_LOCK_
   const ordenado: Record<string, string> = {};
   for (const k of Object.keys(lock.arquivos).sort()) ordenado[k] = lock.arquivos[k] as string;
   writeFileSync(caminho, `${JSON.stringify({ arquivos: ordenado }, null, 2)}\n`);
+}
+
+/** Os fatos esperados que valem para um arquivo: os do próprio arquivo ou, na falta, os da origem. */
+export function esperadoDoArquivo(origem: OrigemAcervo, arquivo: ArquivoOrigem): Esperado {
+  return arquivo.esperado ?? origem.esperado;
 }
 
 /** Acha, em todo o registro, o arquivo que alimenta o derivado `slugDoDerivado`. */

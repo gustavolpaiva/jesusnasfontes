@@ -17,7 +17,7 @@ import {
   PASTA_DERIVADOS,
   verificarDerivados,
 } from "../acervo/derivados";
-import { derivar, serializar } from "./acervo-derivar";
+import { conferirBruto, derivar, serializar } from "./acervo-derivar";
 import {
   caminhoDoBruto,
   chaveDoArquivo,
@@ -104,6 +104,23 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
         );
         const noLock = lockBruto.arquivos[chave];
         if (!noLock) throw new Error("arquivo bruto fora do lock (rode acervo:baixar --fixar)");
+        if (!origem.publicavel) {
+          // Origem barrada: o bruto continua tendo de conferir (hash, licença, tradutor, esperado), mas dela não
+          // sai derivado. Aparece como NÃO PUBLICÁVEL e o aviso da própria edição fica registrado.
+          const { interpretado } = conferirBruto({
+            origemId,
+            origem,
+            arquivo,
+            bruto: bytes,
+            sha256Lock: noLock,
+          });
+          linhas.push(
+            `NÃO PUBLICÁVEL ${chave}: ${origem.motivo} (bruto confere: ${interpretado.secoes.length} seções, ${interpretado.secoes.reduce((n, s) => n + s.paragrafos.length, 0)} parágrafos)`,
+          );
+          if (interpretado.cabecalho.avisoEditorial)
+            linhas.push(`AVISO ${chave}: ${interpretado.cabecalho.avisoEditorial}`);
+          continue;
+        }
         // `derivar` confere sha256, licença, tradutor, parser e fatos esperados, nesta ordem.
         const derivado = derivar({ origemId, origem, arquivo, bruto: bytes, sha256Lock: noLock });
         linhas.push(

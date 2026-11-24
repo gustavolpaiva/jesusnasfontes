@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://epidoc.stoa.org/schema/latest/tei-epidoc.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+<teiHeader xml:lang="eng">
+<fileDesc>
+<titleStmt>
+<title>The Passing of Peregrinus</title>
+<author>Lucian of Samosata</author>
+<editor role="translator">Austin Morris Harmon</editor>
+<funder>National Endowment for the Humanities</funder>
+<principal>Gregory Crane</principal>
+<respStmt>
+<persName>Gregory Crane</persName>
+<orgName>Tufts University</orgName>
+<resp>Digital conversion and editing</resp>
+</respStmt>
+</titleStmt>
+<publicationStmt>
+<authority>Perseus Digital Library</authority>
+<idno type="filename">tlg0062.tlg042.perseus-eng2.xml</idno>
+<availability>
+<licence target="https://creativecommons.org/licenses/by-sa/4.0/">Available under a Creative Commons Attribution-ShareAlike (CC BY-SA) license.</licence>
+<p>Reuse must credit the Perseus Digital Library in a standard bibliographic format, including a link to <ref target="https://www.perseus.tufts.edu/">https://www.perseus.tufts.edu/</ref>. Each text reused should be individually identified and linked to its source GitHub repository whenever possible, either in its citation or in an accompanying source list. All corrections must be offered to the Perseus Digital Library.</p>
+</availability>
+ <date type="release" when="2023-08-11">Perseus 5.0</date>
+<publisher>Trustees of Tufts University</publisher>
+<pubPlace>United States</pubPlace>
+</publicationStmt>
+<sourceDesc>
+<listBibl>
+<biblStruct>
+<monogr>
+<title>Lucian</title>
+<editor>
+<persName>
+<name>Austin Morris Harmon</name>
+</persName>
+</editor>
+<author ref="urn:cts:greekLit:1lg0062">Lucian of Samosata</author>
+<imprint>
+    <pubPlace>London</pubPlace>
+    <publisher>William Heinemann Ltd.</publisher>
+    <pubPlace>Cambridge, MA</pubPlace>
+    <publisher>Harvard University Press</publisher>
+    <date type="printing">1936</date>
+</imprint>
+<biblScope unit="volume">5</biblScope>
+</monogr>
+    <series>
+        <title>Loeb Classical Library</title>
+    </series>
+<ref target="https://archive.org/details/lucianhar05luciuoft/page/4/mode/2up">Internet Archive</ref>
+<ref target="https://hdl.handle.net/2027/osu.32435024202111?urlappend=%3Bseq=16">The Hathi Trust</ref>
+</biblStruct>
+</listBibl>
+</sourceDesc>
+</fileDesc>
+<encodingDesc>
+<p>Text encoded in accordance with the latest EpiDoc standards</p>
+<refsDecl n="CTS">
+<cRefPattern n="section" matchPattern="(\w+)" replacementPattern="#xpath(/tei:TEI/tei:text/tei:body/tei:div/tei:div[@n='$1'])">
+<p>This pointer pattern extracts section.</p>
+</cRefPattern>
+</refsDecl>
+<refsDecl xml:id="CTS">
+  <citeStructure match="/TEI/text/body" use="@xml:base">
+    <citeStructure unit="section" delim=":" match="div/div[@subtype='section']" use="@n"/>
+  </citeStructure>
+</refsDecl>
+</encodingDesc>
+<profileDesc>
+<langUsage>
+<language ident="eng">English</language>
+</langUsage>
+</profileDesc>
+<revisionDesc>
+  <change who="Charles Pletcher" when="2026-08-26">Add citeStructure refsDecl</change>
+<change/>
+</revisionDesc>
+</teiHeader>
+</TEI>

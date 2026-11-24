@@ -24,6 +24,8 @@ export type CabecalhoTei = {
   licenca: string;
   licencaUrl: string | null;
   anos: string[];
+  /** Texto do `editorialDecl` do cabeçalho (vazio se não houver): o aviso da própria edição digital. */
+  avisoEditorial: string;
 };
 
 const FIM_DO_CABECALHO = "</teiHeader>";
@@ -43,6 +45,9 @@ export function lerCabecalhoTei(xml: string): CabecalhoTei {
   let capturando: "tradutor" | "licenca" | "ano" | null = null;
   let imprint = 0;
   let texto = "";
+  let editorial = 0;
+  let paragrafoEditorial = "";
+  const avisos: string[] = [];
 
   const parser = new Parser(
     {
@@ -54,6 +59,10 @@ export function lerCabecalhoTei(xml: string): CabecalhoTei {
           capturando = "licenca";
           texto = "";
           licencaUrl = atributos.target ?? null;
+        } else if (nome === "editorialDecl") {
+          editorial++;
+        } else if (nome === "p" && editorial > 0) {
+          paragrafoEditorial = "";
         } else if (nome === "imprint") {
           imprint++;
         } else if (nome === "date" && imprint > 0) {
@@ -63,9 +72,16 @@ export function lerCabecalhoTei(xml: string): CabecalhoTei {
       },
       ontext(dados) {
         if (capturando) texto += dados;
+        if (editorial > 0) paragrafoEditorial += dados;
       },
       onclosetag(nome) {
         if (nome === "imprint") imprint = Math.max(0, imprint - 1);
+        if (nome === "p" && editorial > 0) {
+          const t = compactar(paragrafoEditorial);
+          if (t) avisos.push(t);
+          paragrafoEditorial = "";
+        }
+        if (nome === "editorialDecl") editorial = Math.max(0, editorial - 1);
         if (capturando === "tradutor" && nome === "editor") {
           const t = compactar(texto);
           if (t) tradutores.add(t);
@@ -85,7 +101,13 @@ export function lerCabecalhoTei(xml: string): CabecalhoTei {
   parser.write(cabecalho);
   parser.end();
 
-  return { tradutores: [...tradutores].sort(), licenca, licencaUrl, anos };
+  return {
+    tradutores: [...tradutores].sort(),
+    licenca,
+    licencaUrl,
+    anos,
+    avisoEditorial: avisos.join(" "),
+  };
 }
 
 /**

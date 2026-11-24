@@ -3,11 +3,17 @@
 // nunca resolve entidade externa; mesmo assim, DOCTYPE e ENTITY são recusados, o tamanho de entrada tem teto e
 // nenhuma expressão regular lê o XML (a única normalização é de espaços, sobre texto já extraído).
 //
-// Estrutura lida (Perseus, `perseus-eng2`): `div[subtype=book][n]` > `div[subtype=section][n]` > `p`.
-// O `n` da seção é o PRIMEIRO parágrafo da numeração de Niese que a unidade de Whiston contém; a faixa vai até
-// o `n` da seção seguinte menos 1 (a última seção do livro, e as de numeração fora de ordem, ficam sem faixa).
+// Estruturas lidas (Perseus):
+//   livro e unidade   `div[subtype=book][n]` > `div[subtype=section|chapter][n]` > `p` (Josefo: `section`;
+//                     Tácito: `chapter`). Cada livro vira uma seção; a referência é `<livro>.<n>`.
+//   obra curta        `div[subtype=section][n]` > `p`, sem livro (Luciano). A obra inteira vira UMA seção de slug
+//                     `texto` e a referência é o próprio `n`.
+// O `n` da unidade é o PRIMEIRO parágrafo da numeração de Niese que a unidade de Whiston contém; a faixa vai até
+// o `n` da unidade seguinte menos 1 (a última unidade do livro, e as de numeração fora de ordem, ficam sem faixa).
 // `note` (nota de editor) e `head` ficam fora do texto; as notas voltam à parte para conferir que nenhuma
-// entrou num parágrafo. `q` vira aspas curvas (o arquivo guarda a citação como elemento, sem o sinal).
+// entrou num parágrafo. `q` vira aspas curvas (o arquivo guarda a citação como elemento, sem o sinal); verso (`l`)
+// e marcador de página (`pb`) dentro do `p` não deixam nada além do texto; lacuna (`gap`) entra como o sinal
+// que a própria edição usa (o atributo `rend`).
 
 import { Parser } from "htmlparser2";
 import { TETO_BRUTO_BYTES } from "./acervo-origens";
@@ -30,6 +36,8 @@ export type ResultadoTei = { secoes: SecaoTei[]; notas: string[] };
 export type OpcoesTei = {
   /** Rótulo do título da seção: "Book" dá "Book 18". */
   rotuloLivro?: string;
+  /** Título da seção única de uma obra sem livros (padrão "Text"). */
+  tituloObraUnica?: string;
   /** Teto do tamanho de entrada em bytes (padrão: o do registro). */
   maxBytes?: number;
 };
@@ -61,6 +69,8 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
   let nota = "";
   let atual = "";
   const pilhaDiv: ("livro" | "secao" | "outro")[] = [];
+  // Obra sem livros: as unidades ficam num livro implícito de `n` vazio, que nunca fecha.
+  const IMPLICITO = "";
 
   const acrescentar = (texto: string) => {
     atual += texto;
@@ -76,7 +86,13 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
             livro = { n: a.n, secoes: [] };
             livros.push(livro);
             pilhaDiv.push("livro");
-          } else if (a.subtype === "section" && a.n && livro) {
+          } else if ((a.subtype === "section" || a.subtype === "chapter") && a.n) {
+            if (!livro) {
+              if (livros.some((l) => l.n !== IMPLICITO))
+                throw new ErroTei(`unidade ${a.n} fora de um livro, depois de livros explícitos`);
+              livro = livros[0] ?? { n: IMPLICITO, secoes: [] };
+              if (livros.length === 0) livros.push(livro);
+            }
             secao = { n: a.n, textos: [] };
             livro.secoes.push(secao);
             pilhaDiv.push("secao");
@@ -95,6 +111,10 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
           if (!ABRE.has(ultimo)) acrescentar(" ");
           acrescentar("“");
         } else if (nome === "lb" && profundidadeP > 0 && profundidadeNota === 0) acrescentar(" ");
+        else if (nome === "gap" && profundidadeP > 0 && profundidadeNota === 0) {
+          const sinal = compactar(a.rend ?? "");
+          if (sinal) acrescentar(` ${sinal} `);
+        }
       },
       ontext(dados) {
         if (!corpo) return;
@@ -139,11 +159,15 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
   parser.write(xml);
   parser.end();
 
-  if (livros.length === 0) throw new ErroTei("nenhum livro (div subtype=book) no arquivo");
+  if (livros.length === 0)
+    throw new ErroTei(
+      "nenhum livro (div subtype=book) nem unidade (section ou chapter) no arquivo",
+    );
 
   const secoes: SecaoTei[] = [];
   for (const [i, l] of livros.entries()) {
-    const ordem = inteiro(l.n);
+    const implicito = l.n === IMPLICITO;
+    const ordem = implicito ? 1 : inteiro(l.n);
     if (ordem === null) throw new ErroTei(`livro ${i + 1}: o atributo n não é um número`);
     const paragrafos: ParagrafoTei[] = [];
     for (const [j, s] of l.secoes.entries()) {
@@ -160,7 +184,7 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
         proximo > inicio &&
         (j === 0 || (anterior !== null && anterior < inicio));
       paragrafos.push({
-        ref: `${l.n}.${s.n}`,
+        ref: implicito ? s.n : `${l.n}.${s.n}`,
         ref_inicio: comFaixa ? inicio : null,
         ref_fim: comFaixa ? (proximo as number) - 1 : null,
         // Mais de um `p` na mesma unidade da obra: uma só referência, parágrafos unidos por um espaço.
@@ -168,7 +192,9 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
       });
     }
     if (paragrafos.length === 0) throw new ErroTei(`livro ${l.n}: sem nenhum parágrafo`);
-    secoes.push({ slug: l.n, titulo: `${rotulo} ${l.n}`, ordem, paragrafos });
+    if (implicito)
+      secoes.push({ slug: "texto", titulo: opcoes.tituloObraUnica ?? "Text", ordem, paragrafos });
+    else secoes.push({ slug: l.n, titulo: `${rotulo} ${l.n}`, ordem, paragrafos });
   }
   return { secoes, notas };
 }

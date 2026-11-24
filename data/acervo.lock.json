@@ -1,5 +1,8 @@
 {
   "arquivos": {
-    "perseus-greeklit-josefo/tlg0526.tlg001.perseus-eng2.xml": "5b69b55d72abd11ff1b9f55ff570dbeaf4369579546f38cec8e83db462cd8a09"
+    "perseus-greeklit-josefo/tlg0526.tlg001.perseus-eng2.xml": "5b69b55d72abd11ff1b9f55ff570dbeaf4369579546f38cec8e83db462cd8a09",
+    "perseus-greeklit-josefo/tlg0526.tlg004.perseus-eng2.xml": "e7f824684407e8d2ca57d62ad1c099823c079fe2bfa70b2a3cff72143a015ec8",
+    "perseus-greeklit-luciano/tlg0062.tlg042.perseus-eng4.xml": "d441e36ea2ef345300f916f35b1e2b6c8cf8dad20f747b1016a4ac29f5b3e8e9",
+    "perseus-latinlit-tacito/phi1351.phi005.perseus-eng2.xml": "3fd377088c7cdf573658becd2b97e7707400cf4849bcbdfbe8f9c4bd71fdf981"
   }
 }

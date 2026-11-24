@@ -127,3 +127,54 @@ describe("parsearTei: numeração fora de ordem na origem", () => {
     });
   });
 });
+
+describe("parsearTei: Tácito (livro e capítulo) e Luciano (obra curta, sem livro)", () => {
+  const tacito = parsearTei(readFileSync(path.join(FIXTURES, "perseus-tacito-trecho.xml"), "utf8"));
+  const luciano = parsearTei(
+    readFileSync(path.join(FIXTURES, "perseus-luciano-eng4-trecho.xml"), "utf8"),
+  );
+
+  it("Tácito: o livro 15 vira seção e o capítulo vira parágrafo 15.44, sem texto de marcação", () => {
+    expect(tacito.secoes.map((s) => [s.slug, s.titulo])).toEqual([["15", "Book 15"]]);
+    const p = tacito.secoes[0]?.paragrafos.find((x) => x.ref === "15.44");
+    expect(p?.texto).toContain("Christus");
+    expect(p?.texto).toContain("Pontius Pilatus");
+    expect(p?.texto).toContain("called Christians by the populace");
+    expect(p?.texto).not.toMatch(/[<>]/);
+    expect(p?.texto).not.toContain("BOOK XV");
+    expect(tacito.secoes[0]?.paragrafos.map((x) => x.ref)).toEqual(["15.43", "15.44", "15.45"]);
+  });
+
+  it("Luciano: sem livro, uma só seção 'texto' e a referência é o próprio número da seção", () => {
+    expect(luciano.secoes).toHaveLength(1);
+    expect(luciano.secoes[0]?.slug).toBe("texto");
+    expect(luciano.secoes[0]?.ordem).toBe(1);
+    expect(luciano.secoes[0]?.paragrafos.map((x) => x.ref)).toEqual(["11", "12", "13"]);
+    const p13 = luciano.secoes[0]?.paragrafos.find((x) => x.ref === "13");
+    expect(p13?.texto).toContain("assistance, and legal advice");
+    // O marcador de página no meio do parágrafo não deixa rastro nem quebra a frase.
+    expect(p13?.texto).not.toContain("v.4.p.83");
+    expect(luciano.secoes[0]?.paragrafos[0]?.texto).toContain("crucified");
+  });
+
+  it("verso (l) dentro de p entra no texto; lacuna (gap) entra como o sinal da própria edição", () => {
+    const r = parsearTei(
+      TEI(
+        `<div subtype="book" n="1"><div subtype="section" n="1"><p>citou:\n<l>um</l>\n<l>dois</l></p>` +
+          `</div><div subtype="section" n="2"><p><gap reason="lost" rend=" . . . "/>depois</p></div></div>`,
+      ),
+    );
+    expect(r.secoes[0]?.paragrafos.map((p) => p.texto)).toEqual(["citou: um dois", ". . . depois"]);
+  });
+
+  it("seção solta depois de um livro explícito é recusada (estrutura mista)", () => {
+    expect(() =>
+      parsearTei(
+        TEI(
+          `<div subtype="book" n="1"><div subtype="section" n="1"><p>a</p></div></div>` +
+            `<div subtype="section" n="2"><p>solta</p></div>`,
+        ),
+      ),
+    ).toThrow(ErroTei);
+  });
+});

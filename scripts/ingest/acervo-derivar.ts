@@ -14,7 +14,7 @@ import {
   lerLock as lerLockDerivados,
   PASTA_DERIVADOS,
 } from "../acervo/derivados";
-import { exigirTraducaoTei } from "./acervo-licenca";
+import { interpretarOrigem, type ResultadoInterpretado } from "./acervo-interpretar";
 import {
   type ArquivoOrigem,
   acharArquivoDoDerivado,
@@ -22,6 +22,7 @@ import {
   chaveDoArquivo,
   ErroOrigem,
   type Esperado,
+  esperadoDoArquivo,
   type LockBruto,
   lerLockBruto,
   lerOrigens,
@@ -29,7 +30,7 @@ import {
   PASTA_BRUTO,
   TETO_BRUTO_BYTES,
 } from "./acervo-origens";
-import { parsearTei, type ResultadoTei } from "./acervo-parse-tei";
+import type { ResultadoTei } from "./acervo-parse-tei";
 import { ErroChecksum } from "./fontes";
 
 const sha256 = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
@@ -83,15 +84,15 @@ export function serializar(derivado: Derivado): string {
 }
 
 /**
- * Bruto verificado para derivado. Não toca o disco. Lança antes de ler o conteúdo se a origem não é publicável
- * ou se o sha256 não confere; lança `ErroLicenca` se o cabeçalho diverge do registro.
+ * Confere o bruto SEM decidir se a origem é publicável: tamanho, sha256 contra o lock, licença e tradutor lidos no
+ * cabeçalho, parser e fatos esperados, nesta ordem. É o que o `acervo:verify` usa para a origem barrada
+ * (`publicavel: false`), cujo bruto continua tendo de conferir. Não toca o disco.
  */
-export function derivar(entrada: EntradaDerivar): Derivado {
+export function conferirBruto(entrada: EntradaDerivar): {
+  interpretado: ResultadoInterpretado;
+  sha256: string;
+} {
   const { origemId, origem, arquivo, bruto } = entrada;
-  if (!origem.publicavel)
-    throw new ErroOrigem(
-      `origem ${origemId} não é publicável (${origem.motivo}); derivação recusada`,
-    );
   const chave = chaveDoArquivo(origemId, arquivo.id);
   if (!entrada.sha256Lock)
     throw new ErroOrigem(`${chave}: sem sha256 no lock do bruto (rode acervo:baixar --fixar)`);
@@ -101,11 +102,27 @@ export function derivar(entrada: EntradaDerivar): Derivado {
     throw new ErroOrigem(`${chave}: arquivo bruto acima do teto`);
 
   const xml = new TextDecoder("utf-8", { fatal: true }).decode(bruto);
-  exigirTraducaoTei(xml, origem.verificador);
-  const tei = parsearTei(xml, { rotuloLivro: entrada.rotuloLivro });
-  const falhas = conferirEsperado(tei, origem.esperado);
+  const interpretado = interpretarOrigem(origem.formato, xml, {
+    verificador: origem.verificador,
+    rotuloLivro: entrada.rotuloLivro,
+  });
+  const falhas = conferirEsperado(interpretado, esperadoDoArquivo(origem, arquivo));
   if (falhas.length > 0)
     throw new ErroOrigem(`${chave}: a leitura não confere com o esperado: ${falhas.join("; ")}`);
+  return { interpretado, sha256: obtido };
+}
+
+/**
+ * Bruto verificado para derivado. Não toca o disco. Lança antes de ler o conteúdo se a origem não é publicável
+ * ou se o sha256 não confere; lança `ErroLicenca` se o cabeçalho diverge do registro.
+ */
+export function derivar(entrada: EntradaDerivar): Derivado {
+  const { origemId, origem, arquivo } = entrada;
+  if (!origem.publicavel)
+    throw new ErroOrigem(
+      `origem ${origemId} não é publicável (${origem.motivo}); derivação recusada`,
+    );
+  const { interpretado: tei, sha256: obtido } = conferirBruto(entrada);
 
   return interpretarDerivado(
     {

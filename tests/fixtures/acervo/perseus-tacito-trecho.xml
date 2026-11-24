@@ -1,0 +1,118 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?xml-model href="https://epidoc.stoa.org/schema/latest/tei-epidoc.rng" schematypens="http://relaxng.org/ns/structure/1.0"?><TEI xmlns="http://www.tei-c.org/ns/1.0">
+<teiHeader xml:lang="eng">
+<fileDesc>
+<titleStmt>
+<title>The Annals</title>
+<author>Cornelius Tacitus</author>
+ <editor role="translator">Alfred John Church</editor>
+ <editor role="translator">William Jackson Brodribb</editor>
+ <respStmt>
+  <resp>Prepared under the supervision of</resp>
+  <name>Lisa Cerrato</name>
+  <name>David Smith</name>
+ </respStmt>
+ <respStmt>
+  <persName>Sara Bryant</persName>
+  <orgName>Perseus Digital Library</orgName>
+  <resp>Digital Editor</resp>
+ </respStmt>
+</titleStmt>
+
+ <publicationStmt>
+  <publisher>Trustees of Tufts University</publisher>
+  <pubPlace>Medford, MA</pubPlace>
+  <authority>Perseus Project</authority>
+  <date type="release" when="2001-03-12">2001-03-12</date>
+ <idno type="filename">phi1351.phi005.perseus-eng2.xml</idno>
+  <availability>
+   <licence target="https://creativecommons.org/licenses/by-sa/4.0/">Available under a Creative Commons Attribution-ShareAlike 4.0 International License</licence>
+  </availability>
+ </publicationStmt>
+ 
+ <sourceDesc>
+  <biblStruct>	  
+   <monogr>
+    <author>Cornelius Tacitus</author>
+    <title>The History of Tacitus</title>
+    <editor role="translator">Alfred John Church</editor>
+    <editor role="translator">William Jackson Brodribb</editor>
+    <imprint>
+     <pubPlace>Cambridge and London</pubPlace>
+     <publisher>MacMillan and Co.</publisher>
+     <date>1869</date>
+    </imprint>
+    <imprint>
+     <pubPlace>New York</pubPlace>
+     <publisher>Modern Library</publisher>
+     <date type="reprint">1942</date>
+    </imprint>
+   </monogr>
+   <ref target="https://archive.org/details/church-and-brodribb-annals-1895-en/page/1/mode/2up" n="MacMillan_1895">Internet Archive</ref>
+   <ref target="https://hdl.handle.net/2027/pst.000001599961" n="MacMillan_1921">HathiTrust</ref>
+   <ref target="https://archive.org/details/completeworksoft0000taci/page/2/mode/2up" n="ModernLibrary">Internet Archive</ref>
+  </biblStruct>
+ </sourceDesc>   
+</fileDesc>
+ 
+<encodingDesc>
+ <editorialDecl><p>Appears to be substantially based on the 1942 reprint, which has significant changes from the earlier editions.</p>
+  <p>Differences in the section break locatons vs Fisher Latin: 1.57–1.58; 3.34–3.35; 3.72–3.73; 4.6–4.7; 4.25–4.26; 4.49–4.50; 6.50–6.51; 12.36–12.37; 13.16–13.17; 14.30–14.31; 15.9–15.10</p></editorialDecl>
+ 
+<refsDecl n="CTS">
+ <cRefPattern n="chapter" matchPattern="(\w+).(\w+)" replacementPattern="#xpath(/tei:TEI/tei:text/tei:body/tei:div/tei:div[@n='$1']/tei:div[@n='$2'])">
+  <p>This pointer pattern extracts book and chapter.</p>
+ </cRefPattern>
+ <cRefPattern n="book" matchPattern="(\w+)" replacementPattern="#xpath(/tei:TEI/tei:text/tei:body/tei:div/tei:div[@n='$1'])">
+  <p>This pointer pattern extracts book.</p>
+ </cRefPattern>
+</refsDecl>
+ 
+ <refsDecl n="TEI.2">
+  <refState unit="book" delim="."/>
+  <refState unit="chapter" n="chunk"/>
+ </refsDecl>
+ 
+ <refsDecl xml:id="CTS">
+  <citeStructure match="/TEI/text/body" use="@xml:base">
+   <citeStructure unit="book" delim=":" match="div/div[@subtype='book']" use="@n">
+    <citeStructure unit="chapter" delim="." match="div[@subtype='chapter']" use="@n" n="chunk"/>
+   </citeStructure>
+  </citeStructure>
+ </refsDecl>
+</encodingDesc>
+ 
+<profileDesc>
+ <langUsage>
+ <language ident="eng">English</language>
+<language ident="lat">Latin</language>
+</langUsage>
+</profileDesc>
+ 
+<revisionDesc>
+ <change who="Lisa Cerrato" when="2026-10">Fixes to header, removing page headers found only in reprint, fixed straight quotes, minor formatting, spellchecking, etc.</change>
+ <change who="gcrane" when="2026-10-02">Updated the header and text structure for current EpiDoc, CTS, HookTest, and MVP compatibility.</change>
+ <change who="gcrane" when="2026-09-26">Converted legacy TEI P4 markup and character entities to standalone TEI P5 for MVP compatibility.</change>
+ <change who="Charles Pletcher" when="2026-08-26">Add citeStructure refsDecl</change>
+</revisionDesc>
+</teiHeader>
+ 
+<text xml:lang="eng">
+<body xml:base="urn:cts:latinLit:phi1351.phi005.perseus-eng2">
+
+<div type="translation" n="urn:cts:latinLit:phi1351.phi005.perseus-eng2" xml:lang="eng">
+
+<div type="textpart" subtype="book" xml:base="urn:cts:latinLit:phi1351.phi005.perseus-eng2" n="15"> 
+<head rend="align(center)">BOOK XV</head> 
+<head rend="align(center)"><date from="0062" to="0065">A.D. 62—65</date></head> 
+<div type="textpart" subtype="chapter" xml:base="urn:cts:latinLit:phi1351.phi005.perseus-eng2:15" n="43">
+<p rend="align(indent">Of <rs type="placename">Rome</rs> meanwhile, so much as was left unoccupied by his mansion, was not built up, as it had been after its burning by the <name type="ethnic">Gauls</name>, without any regularity or in any fashion, but with rows of streets according to measurement, with broad thoroughfares, with a restriction on the height of houses, with open spaces, and the further addition of colonnades, as a protection to the frontage of the blocks of tenements. These colonnades <name type="person">Nero</name> promised to erect at his own expense, and to hand over the open spaces, when cleared of the débris, to the ground landlords. He also offered rewards proportioned to each person’s position and property, and prescribed a period within which they were to obtain them on the completion of so many houses or blocks of building. He fixed on the marshes of <rs type="placename">Ostia</rs> for the reception of the rubbish, and arranged that the ships which had brought up corn by the <rs type="placename">Tiber</rs>, should sail down the river with cargoes of this rubbish. The buildings themselves, to a certain height, were to be solidly constructed, without wooden beams, of stone from <rs type="placename">Gabii</rs> or <rs type="placename">Alba</rs>, that material being impervious to fire. And to provide that the water which individual license had illegally appropriated, might flow in greater abundance in several places for the public use, officers were appointed, and everyone was to have in the open court the means of stopping a fire. Every building, too, was to be enclosed by its own proper wall, not by one common to others. These changes which were liked for their utility, also added beauty to the new city. Some, however, thought that its old arrangement had been more conducive to health, inasmuch as the narrow streets with the elevation of the roofs were not equally penetrated by the sun’s heat, while now the open space, unsheltered by any shade, was scorched by a fiercer glow.</p></div> 
+
+<div type="textpart" subtype="chapter" xml:base="urn:cts:latinLit:phi1351.phi005.perseus-eng2:15" n="44">
+<p rend="align(indent">Such indeed were the precautions of human wisdom. The next thing was to seek means of propitiating the gods, and recourse was had to the Sibylline books, by the direction of which prayers were offered to <name type="person">Vulcanus</name>, <name type="person">Ceres</name>, and <name type="person">Proserpina</name>. <name type="person">Juno</name>, too, was entreated by the matrons, first, in the <rs type="placename">Capitol</rs>, then on the nearest part of the coast, whence water was procured to sprinkle the fane and image of the goddess. And there were sacred banquets and nightly vigils celebrated by married women. But all human efforts, all the lavish gifts of the emperor, and the propitiations of the gods, did not banish the sinister belief that the conflagration was the result of an order. Consequently, to get rid of the report, <name type="person">Nero</name> fastened the guilt and inflicted the most exquisite tortures on a class hated for their abominations, called Christians by the populace. <name type="person">Christus</name>, from whom the name had its origin, suffered the extreme penalty during the reign of <name type="person">Tiberius</name> at the hands of one of our procurators, <name type="person">Pontius Pilatus</name>, and a most mischievous superstition, thus checked for the moment, again broke out not only in <rs type="placename">Judæa</rs>, the first source of the evil, but even in <rs type="placename">Rome</rs>, where all things hideous and shameful from every part of the world find their  centre and become popular. Accordingly, an arrest was first made of all who pleaded guilty; then, upon their information, an immense multitude was convicted, not so much of the crime of firing the city, as of hatred against mankind. Mockery of every sort was added to their deaths. Covered with the skins of beasts, they were torn by dogs and perished, or were nailed to crosses, or were doomed to the flames and burnt, to serve as a nightly illumination, when daylight had expired. </p> 
+<p rend="align(indent"><name type="person">Nero</name> offered his gardens for the spectacle, and was exhibiting a show in the circus, while he mingled with the people in the dress of a charioteer or stood aloft on a car. Hence, even for criminals who deserved extreme and exemplary punishment, there arose a feeling of compassion; for it was not, as it seemed, for the public good, but to glut one man’s cruelty, that they were being destroyed.</p></div> 
+
+<div type="textpart" subtype="chapter" xml:base="urn:cts:latinLit:phi1351.phi005.perseus-eng2:15" n="45">
+<p rend="align(indent">Meanwhile <rs type="placename">Italy</rs> was thoroughly exhausted by contributions of money, the provinces were ruined, as also the allied nations and the free states, as they were called. Even the gods fell victims to the plunder; for the temples in <rs type="placename">Rome</rs> were despoiled and the gold carried off, which, for a triumph or a vow, the Roman people in every age had consecrated in their prosperity or their alarm. Throughout <rs type="placename">Asia</rs> and <rs type="placename">Achaia</rs> not only votive gifts, but the images of deities were seized, <name type="person">Acratus</name> and <name type="person">Secundus Carinas</name> having been sent into those provinces. The first was a freedman ready for any wickedness; the latter, as far as speech went, was thoroughly trained in Greek learning, but he had not imbued his heart with sound principles. <name type="person">Seneca</name>, it was said, to avert from himself the obloquy of sacrilege, begged for the seclusion of a remote rural retreat, and, when it was refused, feigning ill health, as though he had a nervous ailment, would not quit his chamber. According to some writers, poison was prepared for him at <name type="person">Nero</name>’s command by his own freedman, whose name was <name type="person">Cleonicus</name>. This <name type="person">Seneca</name> avoided through the freedman’s disclosure, or his own apprehension, while he used to support life on the very simple diet of wild fruits, with water from a running stream when thirst prompted.</p></div> 
+
+</div></div></body></text></TEI>

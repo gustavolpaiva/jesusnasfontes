@@ -171,3 +171,99 @@ describe("acervo:verify", () => {
     expect(r.linhas.join("\n")).toMatch(/REPROVADO perseus\/josefo\.xml: sha256 diferente/);
   });
 });
+
+describe("acervo:verify: origem não publicável com bruto em cache", () => {
+  it("aparece como NÃO PUBLICÁVEL com o motivo e o aviso editorial, e NÃO reprova (saída 0)", () => {
+    const { opcoes } = montar(false);
+    const tacito = readFileSync(
+      path.join(RAIZ, "tests", "fixtures", "acervo", "perseus-tacito-trecho.xml"),
+    );
+    const arq = "phi1351.phi005.perseus-eng2.xml";
+    writeFileSync(
+      opcoes.origens,
+      JSON.stringify({
+        perseus: ORIGEM(),
+        "perseus-latinlit-tacito": {
+          ...ORIGEM(false, 1),
+          motivo: "conferência de 1895 pendente",
+          arquivos: [
+            {
+              id: arq,
+              url: "https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/dacb04909e43dc47738828d33cc3d2b0635bc54c/x.xml",
+              slug: "tacito-anais",
+              idioma: "en",
+            },
+          ],
+          verificador: {
+            tradutores: ["Alfred John Church", "William Jackson Brodribb"],
+            licenca: "Attribution-ShareAlike 4.0",
+          },
+          esperado: {
+            secoes: 1,
+            paragrafos: [{ ref: "15.44", contem: ["Christus"] }],
+            notas_fora_do_texto: true,
+          },
+        },
+      }),
+    );
+    writeFileSync(
+      opcoes.lockBruto,
+      JSON.stringify({
+        arquivos: {
+          "perseus/josefo.xml": sha(bruto),
+          [`perseus-latinlit-tacito/${arq}`]: sha(tacito),
+        },
+      }),
+    );
+    mkdirSync(path.join(opcoes.bruto, "perseus-latinlit-tacito"), { recursive: true });
+    writeFileSync(path.join(opcoes.bruto, "perseus-latinlit-tacito", arq), tacito);
+    const p = rodar(opcoes);
+    expect(p.status).toBe(0);
+    expect(p.stdout).toMatch(
+      /NÃO PUBLICÁVEL perseus-latinlit-tacito\/phi1351\.phi005\.perseus-eng2\.xml: conferência de 1895 pendente/,
+    );
+    expect(p.stdout).toMatch(/AVISO .*1942/);
+    expect(p.stdout).not.toContain("REPROVADO");
+  });
+
+  it("controle negativo: o bruto de uma origem não publicável que não confere AINDA reprova", () => {
+    const { opcoes } = montar(false);
+    const tacito = readFileSync(
+      path.join(RAIZ, "tests", "fixtures", "acervo", "perseus-tacito-trecho.xml"),
+    );
+    const arq = "phi1351.phi005.perseus-eng2.xml";
+    writeFileSync(
+      opcoes.origens,
+      JSON.stringify({
+        perseus: ORIGEM(),
+        "perseus-latinlit-tacito": {
+          ...ORIGEM(false, 1),
+          arquivos: [
+            {
+              id: arq,
+              url: "https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/dacb04909e43dc47738828d33cc3d2b0635bc54c/x.xml",
+              slug: "tacito-anais",
+              idioma: "en",
+            },
+          ],
+          verificador: { tradutores: ["William Whiston"], licenca: "Attribution-ShareAlike 4.0" },
+          esperado: { secoes: 1, paragrafos: [], notas_fora_do_texto: true },
+        },
+      }),
+    );
+    writeFileSync(
+      opcoes.lockBruto,
+      JSON.stringify({
+        arquivos: {
+          "perseus/josefo.xml": sha(bruto),
+          [`perseus-latinlit-tacito/${arq}`]: sha(tacito),
+        },
+      }),
+    );
+    mkdirSync(path.join(opcoes.bruto, "perseus-latinlit-tacito"), { recursive: true });
+    writeFileSync(path.join(opcoes.bruto, "perseus-latinlit-tacito", arq), tacito);
+    const r = verificarAcervo(opcoes);
+    expect(r.codigo).toBe(1);
+    expect(r.linhas.join("\n")).toMatch(/REPROVADO perseus-latinlit-tacito\/.*tradutor/);
+  });
+});

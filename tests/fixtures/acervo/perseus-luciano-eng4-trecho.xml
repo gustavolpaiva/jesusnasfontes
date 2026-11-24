@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://epidoc.stoa.org/schema/latest/tei-epidoc.rng" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+<teiHeader xml:lang="eng">
+<fileDesc>
+<titleStmt>
+<title >The Death of Peregrine</title>
+<author>Lucian</author>
+<editor role="translator">Henry Watson Fowler</editor>
+<editor role="translator">Francis George Fowler</editor>
+<sponsor>Tufts University</sponsor>
+<funder>National Endowment for the Humanities</funder>
+<principal xml:id="GRC">Gregory Crane</principal>
+<respStmt>
+<persName>Gregory Crane</persName>
+<resp>Digital conversion and editing</resp>
+</respStmt>
+
+</titleStmt>
+<publicationStmt>
+<authority>Tufts University</authority>
+<authority>Perseus Digital Library</authority>
+<idno type="filename">tlg0062.tlg042.perseus-eng4.xml</idno>
+<availability>
+<licence target="https://creativecommons.org/licenses/by-sa/4.0/">Available under a Creative Commons Attribution-ShareAlike (CC BY-SA) license.</licence>
+<p>Reuse must credit the Perseus Digital Library in a standard bibliographic format, including a link to <ref target="https://www.perseus.tufts.edu/">https://www.perseus.tufts.edu/</ref>. Each text reused should be individually identified and linked to its source GitHub repository whenever possible, either in its citation or in an accompanying source list. All corrections must be offered to the Perseus Digital Library.</p>
+</availability>
+<date type="release">2023-08-01</date>
+<publisher>Tufts University</publisher>
+<pubPlace>Medford, MA, USA</pubPlace>
+</publicationStmt>
+<sourceDesc>
+<listBibl>
+<biblStruct>
+<monogr>
+<editor role="translator">
+<persName>
+<name>Henry Watson Fowler</name>
+</persName>
+</editor>
+<editor role="translator">
+<persName>
+<name>Francis George Fowler</name>
+</persName>
+</editor>
+<author>Lucian</author>
+<title>The works of Lucian of Samosata</title>
+<imprint>
+<publisher>Clarendon Press</publisher>
+<pubPlace>Oxford</pubPlace>
+<date>1905</date>
+</imprint>
+<biblScope unit="volume">4</biblScope>
+</monogr>
+<ref target="https://archive.org/details/worksoflucianofs04luciuoft/page/79/mode/2up">Internet Archive</ref>
+</biblStruct>
+</listBibl>
+</sourceDesc>
+</fileDesc>
+<encodingDesc>
+<p>The following text is encoded in accordance with EpiDoc standards and with the CTS/CITE Architecture.</p>
+ <refsDecl n="CTS">
+  <cRefPattern n="section" matchPattern="(\w+)"
+   replacementPattern="#xpath(/tei:TEI/tei:text/tei:body/tei:div/tei:div[@n='$1'])">
+   <p>This pointer pattern extracts section.</p>
+  </cRefPattern>
+ </refsDecl>
+<refsDecl xml:id="CTS">
+  <citeStructure match="/TEI/text/body" use="@xml:base">
+    <citeStructure unit="section" delim=":" match="div/div[@subtype='section']" use="@n"/>
+  </citeStructure>
+</refsDecl>
+</encodingDesc>
+<profileDesc>
+<langUsage>
+<language ident="eng">English</language>
+</langUsage>
+</profileDesc>
+<revisionDesc>
+  <change who="Charles Pletcher" when="2026-08-26">Add citeStructure refsDecl</change>
+</revisionDesc>
+</teiHeader>
+<text xml:lang="eng">
+<body xml:base="urn:cts:greekLit:tlg0062.tlg042.perseus-eng4">
+<div n="urn:cts:greekLit:tlg0062.tlg042.perseus-eng4" type="translation" xml:lang="eng">
+<head>THE DEATH OF PEREGRINE</head>
+
+<div type="textpart" subtype="section" xml:base="urn:cts:greekLit:tlg0062.tlg042.perseus-eng4:" n="11">
+<p>'It was now that he came across the priests and scribes of the Christians, in Palestine, and picked up their queer creed. I
+can tell you, he pretty soon convinced them of his superiority; prophet, elder, ruler of the Synagogue—he was everything at once; expounded their books, commented on them, wrote books himself. They took him for a God, accepted his laws, and declared him their president. The Christians, you know, worship a man to this day,—the distinguished personage who introduced their novel rites, and was crucified on that account.
+</p></div>
+
+<div type="textpart" subtype="section" xml:base="urn:cts:greekLit:tlg0062.tlg042.perseus-eng4:" n="12">
+<p>Well, the end of it was that Proteus was arrested and thrown into prison, This was the very thing to lend an air to his favourite arts of clap-trap and wonder-working; he was now amade man. The Christians took it all very seriously: he was no sooner in prison, thaa they began trying every means to get him out again,—but without success. Everything else that could be done for him they most devoutly did. They thought of nothing else. Orphans and ancient widows might be seen hanging about the prison from break of day. Their officials bribed the gaolers to let them sleep inside with him. Elegant dinners were conveyed in; their sacred writings were read; and our old friend Peregrine (as he was still called in those days)
+became for them “the modern Socrates.”
+</p></div>
+
+<div type="textpart" subtype="section" xml:base="urn:cts:greekLit:tlg0062.tlg042.perseus-eng4:" n="13"><p>In some of the Asiatic cities, too, the Christian communities put themszlves to the expense of sending deputations, with offers of sympathy,
+
+<pb n="v.4.p.83"/>
+
+assistance, and legal advice. The activity of these people, in dealing with any matter that affects their community, is something extraordinary; they spare no trouble, no expense. Peregrine, all this time, was making quite an income on the strength of his bondage; money came pouring in. You see, these misguided creatures start with the general conviction that they are immortal for all time, which explains the contempt of death and voluntary self-devotion which are so common among them; and then it was impressed on them by their original lawgiver that they are all brothers, from the moment that they are converted, and deny the gods of Greece, and worship the crucified sage, and live after his laws. All this they take quite on trust, with the result that they despise all worldly goods alike, regarding them merely as common property. Now an adroit, unscrupulous fellow, who has seen the world, has only to get among these simple souls, and his fortune is pretty soon made; he plays with them.
+
+</p></div>
+</div></body></text></TEI>

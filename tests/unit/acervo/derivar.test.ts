@@ -221,3 +221,90 @@ describe("derivarParaDisco", () => {
     expect(() => derivarParaDisco("josefo-antiguidades", opcoes)).toThrow(/bruto ausente/);
   });
 });
+
+describe("derivarParaDisco: Tácito com publicavel falso (D-18b)", () => {
+  const brutoTacito = readFileSync(path.join(FIXTURES, "perseus-tacito-trecho.xml"));
+  const ARQ = "phi1351.phi005.perseus-eng2.xml";
+
+  function montarTacito(publicavel: boolean) {
+    const raiz = mkdtempSync(path.join(tmpdir(), "jnf-tacito-"));
+    temporarios.push(raiz);
+    const o = origem({
+      nome: "Perseus (Tácito, teste)",
+      fonte: "https://github.com/PerseusDL/canonical-latinLit",
+      commit: "8cef51623130f2412da410858e32c322eb796c0a",
+      publicavel,
+      motivo: "conferência de 1895 pendente",
+      arquivos: [
+        {
+          id: ARQ,
+          url: `https://raw.githubusercontent.com/PerseusDL/canonical-latinLit/8cef51623130f2412da410858e32c322eb796c0a/x.xml`,
+          slug: "tacito-anais",
+          idioma: "en",
+        },
+      ],
+      verificador: {
+        tradutores: ["Alfred John Church", "William Jackson Brodribb"],
+        licenca: "Attribution-ShareAlike 4.0",
+      },
+      esperado: {
+        secoes: 1,
+        paragrafos: [{ ref: "15.44", contem: ["Christus", "Pontius Pilatus"], nao_contem: [] }],
+        notas_fora_do_texto: true,
+      },
+    });
+    const pastaBruto = path.join(raiz, "raw");
+    mkdirSync(path.join(pastaBruto, "perseus-latinlit-tacito"), { recursive: true });
+    writeFileSync(path.join(pastaBruto, "perseus-latinlit-tacito", ARQ), brutoTacito);
+    const origens = path.join(raiz, "origens.yaml");
+    writeFileSync(origens, JSON.stringify({ "perseus-latinlit-tacito": o }));
+    const lockBruto = path.join(raiz, "acervo.lock.json");
+    writeFileSync(
+      lockBruto,
+      JSON.stringify({ arquivos: { [`perseus-latinlit-tacito/${ARQ}`]: sha(brutoTacito) } }),
+    );
+    const lockDerivados = path.join(raiz, "derivados.lock.json");
+    writeFileSync(
+      lockDerivados,
+      JSON.stringify({
+        orcamento_arquivo_bytes: 8_388_608,
+        orcamento_total_bytes: 31_457_280,
+        derivados: {},
+      }),
+    );
+    return {
+      origens,
+      lockBruto,
+      bruto: pastaBruto,
+      derivados: path.join(raiz, "derivados"),
+      lockDerivados,
+    };
+  }
+
+  it("com publicavel falso o derivador recusa e não escreve arquivo nem lock", () => {
+    const opcoes = montarTacito(false);
+    expect(() => derivarParaDisco("tacito-anais", opcoes)).toThrow(/não é publicável/);
+    expect(existsSync(path.join(opcoes.derivados, "tacito-anais.json"))).toBe(false);
+    expect(JSON.parse(readFileSync(opcoes.lockDerivados, "utf8")).derivados).toEqual({});
+  });
+
+  it("controle positivo: com publicavel verdadeiro a mesma origem deriva o capítulo 15.44", () => {
+    const opcoes = montarTacito(true);
+    derivarParaDisco("tacito-anais", opcoes);
+    const d = JSON.parse(readFileSync(path.join(opcoes.derivados, "tacito-anais.json"), "utf8"));
+    expect(d.secoes[0].paragrafos.map((p: { ref: string }) => p.ref)).toContain("15.44");
+  });
+});
+
+describe("derivar: `esperado` por arquivo vale mais que o da origem", () => {
+  it("o esperado do arquivo substitui o da origem (a Guerra tem 7 livros, as Antiguidades 20)", () => {
+    const o = origem();
+    const arquivo = {
+      ...(o.arquivos[0] as OrigemAcervo["arquivos"][number]),
+      esperado: { ...o.esperado, secoes: 99 },
+    };
+    expect(() => derivar({ ...entrada(o), arquivo })).toThrow(/esperadas 99 seções/);
+    // sem o esperado do arquivo, vale o da origem (2 seções) e passa
+    expect(() => derivar(entrada(o))).not.toThrow();
+  });
+});

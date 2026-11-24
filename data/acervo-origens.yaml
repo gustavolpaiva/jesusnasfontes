@@ -2,7 +2,8 @@
 # O sha256 de cada arquivo BRUTO fica em acervo.lock.json (gravado só por `pnpm acervo:baixar --fixar`).
 # `publicavel: false` faz o derivador RECUSAR a origem: nada dela chega ao repositório público.
 # `verificador` é o que o cabeçalho do próprio arquivo tem de dizer (tradutor e licença); `esperado` são os
-# fatos que a leitura real tem de confirmar (`pnpm acervo:verify`).
+# fatos que a leitura real tem de confirmar (`pnpm acervo:verify`); um arquivo pode trazer o seu `esperado`, que
+# vale mais que o da origem (as Antiguidades têm 20 livros, a Guerra 7).
 perseus-greeklit-josefo:
   nome: Perseus Digital Library, canonical-greekLit (Antiquities of the Jews, de Flávio Josefo)
   autores:
@@ -25,6 +26,23 @@ perseus-greeklit-josefo:
       url: https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/dacb04909e43dc47738828d33cc3d2b0635bc54c/data/tlg0526/tlg001/tlg0526.tlg001.perseus-eng2.xml
       slug: josefo-antiguidades
       idioma: en
+    - id: tlg0526.tlg004.perseus-eng2.xml
+      url: https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/dacb04909e43dc47738828d33cc3d2b0635bc54c/data/tlg0526/tlg004/tlg0526.tlg004.perseus-eng2.xml
+      slug: josefo-guerra-judaica
+      idioma: en
+      # A Guerra dos Judeus (Whiston): 7 livros; 2.169 a 177 é a passagem de Pilatos.
+      esperado:
+        secoes: 7
+        paragrafos:
+          - ref: "2.169"
+            contem: ["Pilate", "ensigns"]
+            ref_inicio: 169
+            ref_fim: 171
+          - ref: "2.175"
+            contem: ["Pilate", "Corban"]
+            ref_inicio: 175
+            ref_fim: 177
+        notas_fora_do_texto: true
   verificador:
     tradutores:
       - William Whiston
@@ -42,4 +60,82 @@ perseus-greeklit-josefo:
         nao_contem: ["It hence evidently appears", "Reland"]
         ref_inicio: 197
         ref_fim: 203
+    notas_fora_do_texto: true
+
+perseus-latinlit-tacito:
+  nome: Perseus Digital Library, canonical-latinLit (The Annals, de Públio Cornélio Tácito)
+  autores:
+    - Alfred John Church e William Jackson Brodribb (tradução, 1869)
+    - Perseus Digital Library, Universidade de Tufts (edição digital)
+  # Licença da EDIÇÃO DIGITAL (lida no cabeçalho). A tradução de 1869 é de domínio público, mas o `editorialDecl`
+  # do arquivo diz que o texto parece seguir a reimpressão de 1942, "com alterações significativas".
+  licenca: CC BY-SA 4.0 (edição digital); tradução de Church e Brodribb (1869) em domínio público
+  url_licenca: https://creativecommons.org/licenses/by-sa/4.0/
+  fonte: https://github.com/PerseusDL/canonical-latinLit
+  commit: 8cef51623130f2412da410858e32c322eb796c0a
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor e cabeçalhos de livro removidos do texto; numeração livro.capítulo mantida da edição. As linhas
+    de cada capítulo foram unidas e as citações marcadas no arquivo viram aspas curvas; as lacunas ficam com o sinal
+    que a própria edição usa; o texto das palavras não foi reescrito.
+  formato: tei
+  publicavel: false
+  motivo: conferência de 1895 pendente
+  arquivos:
+    - id: phi1351.phi005.perseus-eng2.xml
+      url: https://raw.githubusercontent.com/PerseusDL/canonical-latinLit/8cef51623130f2412da410858e32c322eb796c0a/data/phi1351/phi005/phi1351.phi005.perseus-eng2.xml
+      slug: tacito-anais
+      idioma: en
+  verificador:
+    tradutores:
+      - Alfred John Church
+      - William Jackson Brodribb
+    licenca: Attribution-ShareAlike 4.0
+  esperado:
+    # Os livros 1 a 6 e 11 a 16 (os demais se perderam).
+    secoes: 12
+    paragrafos:
+      - ref: "15.44"
+        contem: ["Christus", "Pontius Pilatus", "called Christians by the populace"]
+        nao_contem: ["BOOK XV"]
+        ref_inicio: 44
+        ref_fim: 44
+    notas_fora_do_texto: true
+
+perseus-greeklit-luciano:
+  nome: Perseus Digital Library, canonical-greekLit (The Death of Peregrine, de Luciano de Samósata)
+  autores:
+    - Henry Watson Fowler e Francis George Fowler (tradução, 1905)
+    - Perseus Digital Library, Universidade de Tufts (edição digital)
+  # Só o `perseus-eng4` (Fowler e Fowler, Clarendon Press, 1905). O `perseus-eng2` do mesmo diretório é a tradução
+  # Loeb de Harmon (1936), PROTEGIDA, apesar do cabeçalho CC BY-SA: o verificador a recusa pelo tradutor.
+  licenca: CC BY-SA (edição digital); tradução de Fowler e Fowler (1905) em domínio público
+  url_licenca: https://creativecommons.org/licenses/by-sa/4.0/
+  fonte: https://github.com/PerseusDL/canonical-greekLit
+  commit: dacb04909e43dc47738828d33cc3d2b0635bc54c
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor e marcadores de página removidos do texto; numeração de seções mantida da edição. As linhas
+    de cada seção foram unidas; a obra inteira fica numa só seção; o texto das palavras não foi reescrito.
+  formato: tei
+  publicavel: true
+  motivo: tradução de Fowler e Fowler (1905), domínio público; edição digital do Perseus sob CC BY-SA, lida no cabeçalho
+  arquivos:
+    - id: tlg0062.tlg042.perseus-eng4.xml
+      url: https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/dacb04909e43dc47738828d33cc3d2b0635bc54c/data/tlg0062/tlg042/tlg0062.tlg042.perseus-eng4.xml
+      slug: luciano-peregrino
+      idioma: en
+  verificador:
+    tradutores:
+      - Henry Watson Fowler
+      - Francis George Fowler
+    licenca: CC BY-SA
+  esperado:
+    secoes: 1
+    paragrafos:
+      - ref: "11"
+        contem: ["priests and scribes of the Christians", "was crucified on that account"]
+      - ref: "13"
+        contem: ["Christian communities", "worship the crucified sage"]
+        nao_contem: ["v.4.p.83"]
     notas_fora_do_texto: true

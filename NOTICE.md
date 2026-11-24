@@ -56,3 +56,24 @@ edição de Alden and Beardsley, 1856), commit `dacb04909e43dc47738828d33cc3d2b0
 (<https://www.perseus.tufts.edu/>), sob a licença Creative Commons Atribuição-CompartilhaIgual
 (<https://creativecommons.org/licenses/by-sa/4.0/>). Serve de entrada de teste do leitor; o arquivo completo é
 baixado só na máquina de quem desenvolve e nunca entra no repositório.
+
+### Perseus Digital Library: fixtures de Luciano e de Tácito (`tests/fixtures/acervo/perseus-luciano-*.xml`, `perseus-tacito-trecho.xml`)
+
+Recortes de teste do leitor TEI e do verificador de licença, sem nenhuma alteração do texto, de arquivos do
+Perseus Digital Library (Universidade de Tufts, <https://www.perseus.tufts.edu/>), edição digital sob a licença
+Creative Commons Atribuição-CompartilhaIgual (<https://creativecommons.org/licenses/by-sa/4.0/>):
+
+- `perseus-luciano-eng4-trecho.xml`: o cabeçalho TEI inteiro e as seções 11 a 13 de `tlg0062.tlg042.perseus-eng4.xml`
+  (*The Death of Peregrine*, de Luciano, tradução de Henry Watson Fowler e Francis George Fowler, Clarendon Press,
+  1905), commit `dacb04909e43dc47738828d33cc3d2b0635bc54c` de <https://github.com/PerseusDL/canonical-greekLit>.
+  A tradução é de domínio público.
+- `perseus-luciano-eng2-cabecalho.xml`: **só o cabeçalho TEI** de `tlg0062.tlg042.perseus-eng2.xml`, mesmo commit. É
+  a tradução de Austin Morris Harmon (Loeb, 1936), **protegida por direitos autorais** apesar de o cabeçalho dizer
+  CC BY-SA; o arquivo existe só como controle negativo do verificador, que o reprova pelo tradutor. Nenhum trecho
+  da tradução de Harmon está no repositório.
+- `perseus-tacito-trecho.xml`: o cabeçalho TEI inteiro e os capítulos 43 a 45 do livro 15 de
+  `phi1351.phi005.perseus-eng2.xml` (*The Annals*, de Tácito, tradução de Alfred John Church e William Jackson
+  Brodribb, Macmillan, 1869), commit `8cef51623130f2412da410858e32c322eb796c0a` de
+  <https://github.com/PerseusDL/canonical-latinLit>. A tradução de 1869 é de domínio público; o cabeçalho avisa
+  que o texto parece seguir a reimpressão de 1942, e por isso o Tácito completo **não** é publicado até a conferência
+  contra a edição de 1895.
