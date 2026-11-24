@@ -1,0 +1,32 @@
+# Fonte de TESTE (nunca vai ao banco real): dispara o aviso de tradução (D-07), traz um endereço de origem
+# longo para provar que ele não estoura a tela em 320 px e dá resumo às seções. O texto vem do mesmo derivado
+# da fixture do Josefo, com slug próprio (tests/support/acervo-extras.ts).
+slug: fonte-traduzida-teste
+titulo: Fonte traduzida de teste
+autor: Autor de Teste
+epoca: século de teste
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-dedicado
+licenca_url: https://creativecommons.org/publicdomain/zero/1.0/
+origem_nome: Origem de teste com um nome razoavelmente comprido para quebrar linha
+origem_url: https://origem-de-teste.example.org/colecao-de-textos-antigos/volume-um/capitulo-tres/parte-dois/texto-integral-sem-quebra-possivel-em-nenhum-ponto-da-url.html
+tradutor: Equipe de teste
+traducao_ano: 2026
+edicao: Edição de teste, 2026
+traduzida_por_nos: true
+limites_pt: >-
+  Texto de teste: serve só para provar a tela. Nada aqui é conteúdo do centro.
+secoes:
+  - slug: "18"
+    titulo: Seção um de teste
+    resumo_pt: >-
+      Resumo de teste da primeira seção, escrito só para provar o rótulo que o acompanha.
+    palavras_chave_pt: [teste, rótulo]
+  - slug: "20"
+    titulo: Seção dois de teste
+    resumo_pt: >-
+      Resumo de teste da segunda seção.
+    palavras_chave_pt: [teste]

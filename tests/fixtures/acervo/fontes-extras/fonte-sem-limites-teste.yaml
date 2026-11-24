@@ -1,0 +1,20 @@
+# Fonte de TESTE sem `limites_pt` e sem resumo nas seções: a seção "O que esta Fonte não pode dizer" e o
+# bloco de resumo auxiliar não são renderizados, e não deixam título solto.
+slug: fonte-sem-limites-teste
+titulo: Fonte sem limites, de teste
+autor: Autor de Teste
+epoca: século de teste
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: aberta-cc-by-4.0
+licenca_url: https://creativecommons.org/licenses/by/4.0/
+origem_nome: Origem de teste
+origem_url: https://origem-de-teste.example.org/
+traduzida_por_nos: false
+secoes:
+  - slug: "18"
+    titulo: Seção sem resumo
+  - slug: "20"
+    titulo: Outra seção sem resumo

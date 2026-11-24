@@ -75,7 +75,7 @@ test("lê o parágrafo 18.63 com a referência, o crédito e o parágrafo-alvo d
 
   // Crédito do texto.
   await expect(page.getByText("Texto: Perseus Digital Library.")).toContainText(
-    "Licença: CC BY-SA 4.0. Tradução de William Whiston.",
+    "Licença: Edição digital: CC BY-SA. Tradução de William Whiston, 1737: domínio público.",
   );
 
   // Parágrafo-alvo do endereço: forma (preenchimento e filete), não cor.

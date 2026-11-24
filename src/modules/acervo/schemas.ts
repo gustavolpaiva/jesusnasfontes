@@ -1,5 +1,6 @@
 import { parse as lerYaml } from "yaml";
 import { z } from "zod";
+import { licencaCitaATraducao, licencaValida } from "./licenca-exibida";
 
 // Contrato do Acervo (ACER-02, ACER-08): o YAML de uma Fonte (metadados e resumos escritos por nós) e o
 // derivado (o texto já interpretado, versionado no produto). Erro de contrato carrega o NOME do campo e o
@@ -127,9 +128,10 @@ export const esquemaFonteYaml = z
     tipo_texto: z.enum(["integral", "ficha"]),
     idioma: z.enum(IDIOMAS),
     publicada: z.boolean(),
+    // Vocabulário fechado (licenca-exibida.ts): o texto de licença na tela é jurídico e não varia por redação.
     licenca: z
       .string()
-      .regex(/^[a-z0-9][a-z0-9.-]*$/, "código de licença inválido")
+      .refine(licencaValida, "código de licença fora do vocabulário (ver licenca-exibida.ts)")
       .nullish(),
     licenca_url: https.nullish(),
     origem_nome: z.string().min(1).nullish(),
@@ -162,6 +164,21 @@ export const esquemaFonteYaml = z
           code: "custom",
           path: ["origem_nome"],
           message: "texto integral exige o nome da origem",
+        });
+    }
+    // A licença da edição digital nomeia o tradutor e o ano na tela: sem eles o texto jurídico sai pela metade.
+    if (f.licenca && licencaCitaATraducao(f.licenca)) {
+      if (!f.tradutor)
+        ctx.addIssue({
+          code: "custom",
+          path: ["tradutor"],
+          message: "esta licença cita o tradutor: informe `tradutor`",
+        });
+      if (f.traducao_ano == null)
+        ctx.addIssue({
+          code: "custom",
+          path: ["traducao_ano"],
+          message: "esta licença cita o ano da tradução: informe `traducao_ano`",
         });
     }
     const vistos = new Set<string>();
@@ -304,18 +321,4 @@ export function interpretarFonteYaml(conteudo: string, rotulo: string): FonteYam
   const r = esquemaFonteYaml.safeParse(bruto);
   if (!r.success) throw new ErroContrato(`YAML ${rotulo} fora do contrato: ${descrever(r.error)}`);
   return r.data;
-}
-
-// ───────────────────────── exibição ─────────────────────────
-
-const ROTULO_LICENCA: Record<string, string> = {
-  "dominio-publico": "domínio público",
-  "dominio-publico-dedicado": "domínio público, dedicado pelo tradutor",
-  "cc-by-sa-4.0": "CC BY-SA 4.0",
-  "cc-by-4.0": "CC BY 4.0",
-};
-
-/** Texto da licença para a tela; código desconhecido aparece como está (nunca some). */
-export function rotuloDaLicenca(codigo: string): string {
-  return ROTULO_LICENCA[codigo] ?? codigo;
 }

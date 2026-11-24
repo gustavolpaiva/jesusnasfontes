@@ -2,51 +2,35 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ParagrafoFonte } from "@/components/acervo/paragrafo-fonte";
+import { ResumoAuxiliar } from "@/components/acervo/resumo-auxiliar";
 import { SeloNivel } from "@/components/acervo/selo-nivel";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { lerSecao, type SecaoLida } from "@/modules/acervo/consultas";
-import { rotuloDaLicenca } from "@/modules/acervo/schemas";
+import { licencaCitaATraducao, textoDaLicenca } from "@/modules/acervo/licenca-exibida";
 import { exigirSessao } from "@/modules/identidade/sessao";
 
 // Leitura de uma seção de Fonte (ACER-02, ACER-04): uma página por seção, com âncora por parágrafo. O texto
 // da Fonte entra como texto React (nunca marcação) e só Fonte publicada chega aqui.
 export const dynamic = "force-dynamic";
 
-function linhaDeCredito(f: SecaoLida["fonte"]): string {
-  const partes = [
-    f.origemNome ? `Texto: ${f.origemNome}.` : null,
-    f.licenca ? `Licença: ${rotuloDaLicenca(f.licenca)}.` : null,
-    f.tradutor ? `Tradução de ${f.tradutor}.` : null,
-  ];
-  return partes.filter(Boolean).join(" ");
+function comPonto(texto: string): string {
+  return texto.endsWith(".") ? texto : `${texto}.`;
 }
 
-// Resumo e palavras-chave em português (D-18): auxiliar de busca, escrito por IA. O rótulo fica SEMPRE
-// visível e nunca recolhido: sem ele o resumo passaria por revisado.
-function ResumoAuxiliar({ secao }: { secao: SecaoLida["secao"] }) {
-  if (!secao.resumoPt) return null;
-  return (
-    <section
-      lang="pt-BR"
-      aria-labelledby="resumo-auxiliar"
-      data-slot="resumo-auxiliar"
-      className="flex flex-col gap-2 bg-paper-soft p-4"
-    >
-      <h2 id="resumo-auxiliar" className="text-label text-ink-muted">
-        Resumo auxiliar
-      </h2>
-      <p className="text-meta text-ink-muted">
-        Resumo auxiliar de busca, escrito por IA. Não é tradução nem foi revisado.
-      </p>
-      <p className="text-leitura">{secao.resumoPt}</p>
-      {secao.palavrasChavePt.length > 0 ? (
-        <p className="text-meta text-ink-muted">
-          Palavras-chave: {secao.palavrasChavePt.join(", ")}
-        </p>
-      ) : null}
-    </section>
-  );
+// "Texto: {origem}. Licença: {licença}. Tradução de {tradutor}." A licença da edição digital já nomeia o
+// tradutor e o ano: nesse caso a última frase não se repete.
+function linhaDeCredito(f: SecaoLida["fonte"]): string {
+  const partes = [
+    f.origemNome ? `Texto: ${comPonto(f.origemNome)}` : null,
+    f.licenca
+      ? `Licença: ${comPonto(textoDaLicenca(f.licenca, { tradutor: f.tradutor, ano: f.traducaoAno }))}`
+      : null,
+    f.tradutor && !(f.licenca && licencaCitaATraducao(f.licenca))
+      ? `Tradução de ${comPonto(f.tradutor)}`
+      : null,
+  ];
+  return partes.filter(Boolean).join(" ");
 }
 
 function PassoDeSecao({
@@ -119,7 +103,7 @@ export default async function PaginaDeSecao({
         <SeloNivel nivel={fonte.nivel} />
       </header>
 
-      <ResumoAuxiliar secao={secao} />
+      <ResumoAuxiliar resumoPt={secao.resumoPt} palavrasChavePt={secao.palavrasChavePt} />
 
       {fonte.traduzidaPorNos ? (
         <StatusMessage tipo="informacao">

@@ -1,0 +1,24 @@
+# Fonte de TESTE de uma só seção: o texto aparece na própria página da Fonte, sem sumário.
+slug: fonte-uma-secao-teste
+titulo: Obra de uma seção, de teste
+autor: Autor de Teste
+epoca: século de teste
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-anterior-1929
+licenca_url: https://creativecommons.org/publicdomain/mark/1.0/
+origem_nome: Origem de teste
+origem_url: https://origem-de-teste.example.org/
+tradutor: Tradutor de teste
+traducao_ano: 1885
+traduzida_por_nos: false
+limites_pt: >-
+  Texto de teste de uma só seção.
+secoes:
+  - slug: "18"
+    titulo: Única seção de teste
+    resumo_pt: >-
+      Resumo de teste da única seção, que aparece logo antes do texto.
+    palavras_chave_pt: [teste]
