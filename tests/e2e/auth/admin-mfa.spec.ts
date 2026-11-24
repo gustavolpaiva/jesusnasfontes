@@ -370,6 +370,9 @@ const EXEMPLOS: Record<string, string> = {
   // O recorte do Josefo semeado de tests/fixtures/acervo pelo executor de e2e.
   "/acervo/[slug]": "/acervo/josefo-antiguidades",
   "/acervo/[slug]/[secao]": "/acervo/josefo-antiguidades/18",
+  // Painel de Fontes do Admin (plano 02-17): a Fonte do arquivo e a seção do recorte do Josefo.
+  "/admin/acervo/fontes/[slug]": "/admin/acervo/fontes/josefo-antiguidades",
+  "/admin/acervo/fontes/[slug]/secoes/[id]": "/admin/acervo/fontes/josefo-antiguidades/secoes/18",
 };
 
 function rotasDoApp(): string[] {
