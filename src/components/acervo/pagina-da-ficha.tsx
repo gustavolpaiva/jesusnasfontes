@@ -2,6 +2,7 @@ import { ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
 import { ItemDeFicha } from "@/components/acervo/item-de-ficha";
 import { SeloNivel } from "@/components/acervo/selo-nivel";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import type { FichaLida } from "@/modules/acervo/consultas-ficha";
 
@@ -66,7 +67,7 @@ export function PaginaDaFicha({
           <span>
             Verificada em{" "}
             <time dateTime={ficha.verificadaEm.toISOString()}>
-              {DATA_POR_EXTENSO.format(ficha.verificadaEm)}
+              <Algarismos>{DATA_POR_EXTENSO.format(ficha.verificadaEm)}</Algarismos>
             </time>
           </span>
         </p>

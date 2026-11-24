@@ -94,8 +94,9 @@ describe("CorpoEstudo: Afirmação e chip (TRIL-07)", () => {
     const saida = html(estudo(corpo));
     expect(saida.match(/data-slot="chip-fonte"/g)).toHaveLength(4);
     expect(saida).toContain("Fonte em preparação</span>");
-    expect(saida).toContain("Fonte em preparação · 1</span>");
-    expect(saida).toContain("Fonte em preparação · 2</span>");
+    // O algarismo vai num span `.algarismos` (fora do versalete), o texto visível é o mesmo.
+    expect(saida).toContain('Fonte em preparação · <span class="algarismos">1</span></span>');
+    expect(saida).toContain('Fonte em preparação · <span class="algarismos">2</span></span>');
     // O chip vem depois do texto da frase do mesmo bloco.
     expect(saida.indexOf("Pilatos governou a Judeia")).toBeLessThan(saida.indexOf("chip-fonte"));
     // A frase leva o mesmo número em sup quando há mais de uma no bloco, e só aí.

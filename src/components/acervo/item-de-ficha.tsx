@@ -1,3 +1,4 @@
+import { Algarismos } from "@/components/ui/algarismos";
 import type { ItemLido, PaginaDoItem } from "@/modules/acervo/consultas-ficha";
 
 // Um argumento ou um trecho de ficha (ACER-03, D-11, D-19). O texto em português entra em Corpo de leitura; o trecho
@@ -50,7 +51,9 @@ export function ItemDeFicha({ item }: { item: ItemLido }) {
         data-slot="pagina-do-item"
         className="text-label text-ink-muted [font-variant-numeric:tabular-nums]"
       >
-        <span aria-hidden="true">{visivel}</span>
+        <span aria-hidden="true">
+          <Algarismos>{visivel}</Algarismos>
+        </span>
         <span className="sr-only">{falada}</span>
       </p>
     </div>

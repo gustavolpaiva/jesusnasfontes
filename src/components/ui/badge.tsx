@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
+import { Algarismos } from "@/components/ui/algarismos";
 import { cn } from "@/lib/utils";
 
 // Chips: versalete, canto de 2 px. O estado nunca depende só da cor: a borda muda de forma.
@@ -22,10 +23,13 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant,
+  children,
   ...props
 }: React.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
   return (
-    <span data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
+    <span data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props}>
+      <Algarismos>{children}</Algarismos>
+    </span>
   );
 }
 

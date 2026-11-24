@@ -1,5 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -38,7 +39,7 @@ export function ChipFonte(props: ChipProps) {
           : "border-solid border-ink"
       }`}
     >
-      {rotulo}
+      <Algarismos>{rotulo}</Algarismos>
     </span>
   );
 }

@@ -1,4 +1,5 @@
 import type * as React from "react";
+import { Algarismos } from "@/components/ui/algarismos";
 import { cn } from "@/lib/utils";
 
 // Moldura de mensagem: contorno de 1 px --rule-strong e filete esquerdo de 4 px. A cor do filete
@@ -16,8 +17,12 @@ function Alert({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="alert-title" className={cn("text-label", className)} {...props} />;
+function AlertTitle({ className, children, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div data-slot="alert-title" className={cn("text-label", className)} {...props}>
+      <Algarismos>{children}</Algarismos>
+    </div>
+  );
 }
 
 function AlertDescription({ className, ...props }: React.ComponentProps<"div">) {

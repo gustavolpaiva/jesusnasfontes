@@ -5,6 +5,7 @@ import { FiltroNivel } from "@/components/acervo/filtro-nivel";
 import { LinhaFonte } from "@/components/acervo/linha-fonte";
 import { EmptyState } from "@/components/estado/empty-state";
 import { StatusMessage } from "@/components/estado/status-message";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
 import { lerCarta } from "@/modules/acervo/carta";
@@ -97,7 +98,10 @@ export default async function PaginaDoAcervo({
               data-slot="grupo-nivel"
             >
               <h2 id={id} className="text-label">
-                {NOME_DO_NIVEL[g.nivel]} <span data-slot="contagem-grupo">({g.fontes.length})</span>
+                {NOME_DO_NIVEL[g.nivel]}{" "}
+                <span data-slot="contagem-grupo">
+                  (<Algarismos>{String(g.fontes.length)}</Algarismos>)
+                </span>
               </h2>
               <p className="text-meta mb-2 text-ink-muted">{FRASE_DO_NIVEL[g.nivel]}</p>
               <ul>

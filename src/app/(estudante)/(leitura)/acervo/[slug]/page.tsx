@@ -10,6 +10,7 @@ import { ParagrafoFonte } from "@/components/acervo/paragrafo-fonte";
 import { ResumoAuxiliar } from "@/components/acervo/resumo-auxiliar";
 import { RolarAteAncora } from "@/components/acervo/rolar-ate-ancora";
 import { SeloNivel } from "@/components/acervo/selo-nivel";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
 import { lerCarta } from "@/modules/acervo/carta";
@@ -98,7 +99,7 @@ export default async function PaginaDaFonte({ params }: { params: Promise<{ slug
       ) : secoes.length > 0 ? (
         <section aria-labelledby="sumario" data-slot="sumario">
           <h2 id="sumario" className="text-label">
-            Seções ({secoes.length})
+            <Algarismos>{`Seções (${secoes.length})`}</Algarismos>
           </h2>
           <ul className="mt-2">
             {secoes.map((s) => (

@@ -7,6 +7,7 @@ import { ParagrafoFonte } from "@/components/acervo/paragrafo-fonte";
 import { ResumoAuxiliar } from "@/components/acervo/resumo-auxiliar";
 import { RolarAteAncora } from "@/components/acervo/rolar-ate-ancora";
 import { SeloNivel } from "@/components/acervo/selo-nivel";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { lerSecao, type SecaoLida } from "@/modules/acervo/consultas";
 import { licencaCitaATraducao, textoDaLicenca } from "@/modules/acervo/licenca-exibida";
@@ -58,7 +59,7 @@ export default async function PaginaDeSecao({
           </Link>
         </Button>
         <p className="text-label text-balance text-rubric">
-          Acervo · {fonte.titulo} · seção {secao.indice} de {secao.total}
+          <Algarismos>{`Acervo · ${fonte.titulo} · seção ${secao.indice} de ${secao.total}`}</Algarismos>
         </p>
         <h1 className="text-display text-balance [overflow-wrap:anywhere]">{secao.titulo}</h1>
         <SeloNivel nivel={fonte.nivel} />

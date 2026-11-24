@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Algarismos } from "@/components/ui/algarismos";
 import type { EntradaDoCaderno } from "@/modules/caderno/caderno";
 import { dividirTrecho } from "@/modules/caderno/trecho";
 import { formatarData, formatarHora, mesmoDia } from "@/modules/sessao/formato";
@@ -26,7 +27,9 @@ export function EntradaCaderno({ entrada }: { entrada: EntradaDoCaderno }) {
       data-tipo={entrada.tipo}
       className="flex flex-col gap-2 border-b border-rule py-4 last:border-b-0"
     >
-      <p className="text-label text-rubric">{eyebrow(entrada)}</p>
+      <p className="text-label text-rubric">
+        <Algarismos>{eyebrow(entrada)}</Algarismos>
+      </p>
       {entrada.tipo === "anotacao" && entrada.slug ? (
         <h2 className="text-heading text-balance [overflow-wrap:anywhere]">
           <Link

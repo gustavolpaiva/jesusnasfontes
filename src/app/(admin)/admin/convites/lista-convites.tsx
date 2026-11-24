@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/estado/empty-state";
 import { StatusMessage } from "@/components/estado/status-message";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { reenviarConvite, revogarConvite } from "@/modules/convites/acoes";
@@ -94,7 +95,7 @@ export function ListaConvites({ convites }: Props) {
   return (
     <section aria-labelledby="titulo-convidados" className="flex flex-col gap-4">
       <h2 id="titulo-convidados" className="text-label text-ink-muted">
-        Convidados ({convites.length})
+        <Algarismos>{`Convidados (${convites.length})`}</Algarismos>
       </h2>
       {mensagem ? (
         <div ref={aviso} tabIndex={-1} className="outline-none">

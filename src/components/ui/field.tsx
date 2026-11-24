@@ -1,5 +1,6 @@
 import type * as React from "react";
 import { StatusMessage } from "@/components/estado/status-message";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -10,9 +11,11 @@ function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   );
 }
 
-function FieldLegend({ className, ...props }: React.ComponentProps<"legend">) {
+function FieldLegend({ className, children, ...props }: React.ComponentProps<"legend">) {
   return (
-    <legend data-slot="field-legend" className={cn("text-label mb-2", className)} {...props} />
+    <legend data-slot="field-legend" className={cn("text-label mb-2", className)} {...props}>
+      <Algarismos>{children}</Algarismos>
+    </legend>
   );
 }
 

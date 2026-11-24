@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { lerCarta } from "@/modules/acervo/carta";
 import { exigirSessao } from "@/modules/identidade/sessao";
@@ -43,7 +44,7 @@ export default async function PaginaDaCarta() {
             className="flex flex-col gap-2 border-t border-rule py-4 first:border-t-0 first:pt-0"
           >
             <h2 id={`carta-${i}`} className="text-label text-ink-muted">
-              {secao.titulo}
+              <Algarismos>{secao.titulo}</Algarismos>
             </h2>
             {secao.paragrafos.map((p) => (
               <p key={p} className="text-leitura [overflow-wrap:anywhere]">

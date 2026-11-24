@@ -5,6 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Algarismos } from "@/components/ui/algarismos";
 import { registrarErro } from "@/lib/registro";
 import { lerPrimeiroEstudo } from "@/modules/conteudo/estudo";
 import { exigirSessao } from "@/modules/identidade/sessao";
@@ -109,7 +110,7 @@ export default async function PaginaTrilhas() {
                   {t.ordem}. {t.nome}
                 </span>
                 <span className="text-label ml-auto text-ink-muted">
-                  {t.concluidos} de {t.total}
+                  <Algarismos>{`${t.concluidos} de ${t.total}`}</Algarismos>
                 </span>
               </AccordionTrigger>
               <ProgressRule
@@ -124,7 +125,9 @@ export default async function PaginaTrilhas() {
                   <>
                     {porLivro(t, atualPorTrilha.get(t.id)).map((g) => (
                       <div key={g.nome} className="flex flex-col gap-2 pb-4">
-                        <h4 className="text-label mt-2 text-ink-muted">{g.nome}</h4>
+                        <h4 className="text-label mt-2 text-ink-muted">
+                          <Algarismos>{g.nome}</Algarismos>
+                        </h4>
                         <CapituloGrid livro={g.nome} casas={g.casas} />
                       </div>
                     ))}
@@ -136,7 +139,9 @@ export default async function PaginaTrilhas() {
                   emGrupos(t.estudos).map((g) => (
                     <div key={g.grupo ?? "sem-grupo"} className="flex flex-col">
                       {g.grupo ? (
-                        <h4 className="text-label mt-4 mb-1 text-ink-muted">{g.grupo}</h4>
+                        <h4 className="text-label mt-4 mb-1 text-ink-muted">
+                          <Algarismos>{g.grupo}</Algarismos>
+                        </h4>
                       ) : null}
                       <ul>
                         {g.itens.map((e) => (

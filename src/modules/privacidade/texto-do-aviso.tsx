@@ -1,3 +1,4 @@
+import { Algarismos } from "@/components/ui/algarismos";
 import { linhaDaVersao, secoesDoAviso } from "./aviso";
 
 // O texto do aviso, igual na página pública (/privacidade) e na de consentimento. Os sete blocos têm
@@ -13,7 +14,7 @@ export function TextoDoAviso() {
           className="flex flex-col gap-2 border-t border-rule py-4 first:border-t-0 first:pt-0"
         >
           <h2 id={`aviso-${secao.id}`} className="text-label text-ink-muted">
-            {secao.titulo}
+            <Algarismos>{secao.titulo}</Algarismos>
           </h2>
           {secao.paragrafos.map((p) => (
             <p

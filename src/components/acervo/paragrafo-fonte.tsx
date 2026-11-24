@@ -1,3 +1,5 @@
+import { Algarismos } from "@/components/ui/algarismos";
+
 // Parágrafo de uma Fonte, com a referência da obra e âncora `#p-<ref>` (as Citações apontam para cá).
 // O texto da Fonte é texto de terceiros: entra SEMPRE como texto React, nunca como marcação. A referência
 // é Rótulo, não é link; o leitor de tela ouve "Parágrafo 18.63". O parágrafo-alvo do endereço ganha
@@ -19,7 +21,7 @@ export function ParagrafoFonte({ id, ref_, texto, idioma }: Props) {
         className="text-label mr-2 inline-block text-ink-muted [font-variant-numeric:tabular-nums]"
       >
         <span className="sr-only">Parágrafo </span>
-        {ref_}
+        <Algarismos>{ref_}</Algarismos>
       </span>
       {texto}
     </p>

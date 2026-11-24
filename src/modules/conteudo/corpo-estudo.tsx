@@ -1,6 +1,7 @@
 import Markdown, { type Components } from "react-markdown";
 import remarkDirective from "remark-directive";
 import remarkGfm from "remark-gfm";
+import { Algarismos } from "@/components/ui/algarismos";
 import { cn } from "@/lib/utils";
 import { Afirmacao, ChipFonte, ResumoFonteEmPreparacao } from "./afirmacao";
 import { Divergencia } from "./divergencia";
@@ -38,9 +39,21 @@ const ELEMENTOS = [
 
 const componentes: Components = {
   // Título de seção em Rótulo (versalete); `h1` do Markdown não existe: a tela tem um só `h1`.
-  h1: ({ children }) => <h2 className="text-label mt-2 text-ink-muted">{children}</h2>,
-  h2: ({ children }) => <h2 className="text-label mt-2 text-ink-muted">{children}</h2>,
-  h3: ({ children }) => <h3 className="text-label text-ink-muted">{children}</h3>,
+  h1: ({ children }) => (
+    <h2 className="text-label mt-2 text-ink-muted">
+      <Algarismos>{children}</Algarismos>
+    </h2>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-label mt-2 text-ink-muted">
+      <Algarismos>{children}</Algarismos>
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-label text-ink-muted">
+      <Algarismos>{children}</Algarismos>
+    </h3>
+  ),
   p: ({ children }) => <p className="text-leitura">{children}</p>,
   ul: ({ children }) => (
     <ul className="text-leitura flex list-disc flex-col gap-2 pl-6">{children}</ul>

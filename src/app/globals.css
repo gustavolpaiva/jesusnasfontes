@@ -214,6 +214,13 @@
     font-variant-caps: small-caps;
     letter-spacing: 0.12em;
   }
+  /* Algarismos dentro de um Rótulo (ver components/ui/algarismos.tsx): o versalete os desenha como letras
+     ("p. 101" vira "p. ioi"). Aqui o versalete sai e ficam algarismos de altura de maiúscula, de largura
+     fixa, que não se confundem com letra. O espaçamento do Rótulo (letter-spacing) é herdado. */
+  .algarismos {
+    font-variant-caps: normal;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
   /* Variante "meta" do Rótulo: ajuda, data e estado; itálico 400, sem versalete. */
   .text-meta {
     font-family: var(--font-sans);

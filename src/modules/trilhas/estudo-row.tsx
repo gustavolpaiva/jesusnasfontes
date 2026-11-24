@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
+import { Algarismos } from "@/components/ui/algarismos";
 
 // Linha de Estudo nas Trilhas Base histórica e Pontos centrais: número, título e a marca de concluído.
 // 56 px no mínimo; o título quebra em até três linhas, sem corte; separada da seguinte por um filete,
@@ -20,7 +21,7 @@ export function EstudoRow({ numero, slug, titulo, concluido }: Props) {
         className="flex min-h-14 items-start gap-4 rounded-sm py-3 no-underline transition-colors duration-150 hover:bg-paper-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <span className="text-label w-8 shrink-0 pt-1 text-ink-muted" aria-hidden="true">
-          {numero}
+          <Algarismos>{String(numero)}</Algarismos>
         </span>
         <span className="text-ui min-w-0 flex-1 text-balance [overflow-wrap:anywhere]">
           <span className="sr-only">{numero}. </span>
