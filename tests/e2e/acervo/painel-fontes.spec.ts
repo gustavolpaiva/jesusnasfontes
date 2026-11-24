@@ -470,3 +470,82 @@ test("formulário com a Fonte já alterada por outra aba é recusado com aviso e
     .poll(() => lerTexto("select autor as t from acervo.fonte where slug = $1", [slug]))
     .toBe("Autor, de novo");
 });
+
+test("com o salvamento no ar a lista de seções não muda: nem entra, nem sai seção; cada seção fica com o endereço da própria resposta", async ({
+  page,
+}) => {
+  await entrarComoAdmin(page, `painel-voo-${sufixo}`);
+  await abrirFormularioNovo(page);
+  const slug = `em-voo-${sufixo}`;
+  criadas.push(slug);
+  await page.getByLabel("Título", { exact: true }).fill(`Em voo ${sufixo}`);
+  await page.getByLabel("Origem do texto (endereço https)").fill("https://exemplo.invalid/obra");
+  await page.getByLabel("Licença (código)").fill("dp-declarado-pela-origem");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page).toHaveURL(/\?salvo=1/);
+  await esperarHidratado(page.getByRole("button", { name: "Salvar Fonte" }));
+
+  // Duas seções novas, A e B, em um só envio.
+  for (const [i, nome] of ["A", "B"].entries()) {
+    await page.getByRole("button", { name: "Adicionar seção" }).click();
+    await page
+      .getByLabel("Título", { exact: true })
+      .nth(i + 1)
+      .fill(`Seção ${nome}`);
+    await page
+      .getByLabel("Texto (parágrafos separados por uma linha em branco)")
+      .nth(i)
+      .fill(`Primeiro de ${nome}.\n\nSegundo de ${nome}.\n\nTerceiro de ${nome}.`);
+  }
+
+  // A resposta do servidor demora: durante esse tempo tenta mexer na lista.
+  await page.route("**/admin/acervo/fontes/**", async (rota) => {
+    if (rota.request().method() === "POST" && rota.request().headers()["next-action"])
+      await new Promise((resolver) => setTimeout(resolver, 2500));
+    await rota.continue();
+  });
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(page.getByRole("button", { name: "Salvando…" })).toBeVisible();
+  // A lista está congelada: adicionar e remover seção ficam desabilitados enquanto o pedido está no ar.
+  await expect(page.getByRole("button", { name: "Adicionar seção" })).toBeDisabled();
+  const remover = page.getByRole("button", { name: "Remover esta seção" });
+  await expect(remover).toHaveCount(2);
+  for (const b of await remover.all()) await expect(b).toBeDisabled();
+  // Mesmo forçando o clique na primeira, nada sai da lista.
+  await remover
+    .first()
+    .click({ force: true, trial: false })
+    .catch(() => {});
+  await expect(page.getByText("Fonte salva.")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator("legend", { hasText: "Seção 1" })).toBeVisible();
+  await expect(page.locator("legend", { hasText: "Seção 2" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remover esta seção" })).toHaveCount(0);
+
+  const titulo = (n: number) =>
+    lerTexto("select titulo as t from acervo.fonte_secao where id = $1", [`${slug}/secao-${n}`]);
+  await expect.poll(() => titulo(1)).toBe("Seção A");
+  await expect.poll(() => titulo(2)).toBe("Seção B");
+
+  // Salvar de novo: cada seção cai no próprio endereço (os parágrafos de A não são tocados por B).
+  await page
+    .getByLabel("Texto (parágrafos separados por uma linha em branco)")
+    .nth(1)
+    .fill("Só um de B agora.");
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect
+    .poll(() =>
+      lerTexto(
+        "select string_agg(texto, '|' order by ordem) as t from acervo.fonte_paragrafo where secao_id = $1",
+        [`${slug}/secao-2`],
+      ),
+    )
+    .toBe("Só um de B agora.");
+  await expect
+    .poll(() =>
+      lerTexto(
+        "select string_agg(texto, '|' order by ordem) as t from acervo.fonte_paragrafo where secao_id = $1",
+        [`${slug}/secao-1`],
+      ),
+    )
+    .toBe("Primeiro de A.|Segundo de A.|Terceiro de A.");
+});

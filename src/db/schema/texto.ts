@@ -149,6 +149,8 @@ export const fonteSecao = acervo.table(
     palavrasChavePt: text("palavras_chave_pt").array().notNull().default([]),
     hashUltimaCarga: text("hash_ultima_carga"),
     valoresArquivo: jsonb("valores_arquivo"),
+    // 0024: sobe a cada edição da seção pelo painel; o formulário a devolve e o banco recusa a velha.
+    revisao: integer("revisao").notNull().default(0),
   },
   (tabela) => [unique().on(tabela.fonteId, tabela.ordem)],
 );

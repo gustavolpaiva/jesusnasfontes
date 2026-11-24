@@ -25,6 +25,8 @@ export type SecaoDoPainel = {
   id: string;
   slug: string;
   ordem: number;
+  /** Revisão da seção: o formulário a devolve ao editar (0024). */
+  revisao: number;
   titulo: string | null;
   resumoPt: string | null;
   palavrasChavePt: string[];
@@ -143,6 +145,7 @@ export async function lerFonteDoPainel(slug: string): Promise<FonteDoPainel | nu
         id: s.id,
         slug: s.slug,
         ordem: s.ordem,
+        revisao: s.revisao,
         titulo: s.titulo,
         resumoPt: s.resumoPt,
         palavrasChavePt: s.palavrasChavePt,

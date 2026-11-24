@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { comAdmin } from "@/db/com-admin";
-import { fonte } from "@/db/schema/texto";
+import { fonte, fonteSecao } from "@/db/schema/texto";
 import { registrarErro } from "@/lib/registro";
 import { exigirAdmin, ROTA_SEGUNDO_FATOR } from "@/modules/identidade/sessao";
 import { traduzirErroDoPainel } from "./erros-painel";
@@ -61,8 +61,9 @@ export async function salvarFonte(dados: unknown): Promise<ResultadoDeSalvar> {
   // Seção que o formulário já conhece (tem endereço) é EDIÇÃO; a nova vai SEM endereço e o banco gera o primeiro livre.
   // O banco recusa "criar" sobre endereço que existe, então um formulário com estado velho nunca sobrescreve seção.
   const secoes = comSecoes.map((s) => ({
+    cid: s.cid,
     modo: s.slug ? "editar" : "criar",
-    ...(s.slug ? { slug: s.slug } : {}),
+    ...(s.slug ? { slug: s.slug, revisao: s.revisao } : {}),
     titulo: s.titulo,
     texto: s.texto,
     resumo_pt: s.resumo_pt,
@@ -77,23 +78,29 @@ export async function salvarFonte(dados: unknown): Promise<ResultadoDeSalvar> {
         await tx.execute(
           sql`select acervo.salvar_fonte(${sessao.sessao.id}::uuid, ${JSON.stringify({ ...campos, modo: f.modo, slug })}::jsonb)`,
         );
-        const enderecos: string[] = [];
-        for (const s of secoes) {
+        // Cada seção volta com o `cid` que o formulário mandou: o casamento no cliente é por ele, nunca pela posição.
+        const salvas: { cid: string; slug: string; revisao: number }[] = [];
+        for (const { cid, ...secaoDoBanco } of secoes) {
           const r = await tx.execute(
-            sql`select acervo.salvar_secao_painel(${sessao.sessao.id}::uuid, ${slug}, ${JSON.stringify(s)}::jsonb) as id`,
+            sql`select acervo.salvar_secao_painel(${sessao.sessao.id}::uuid, ${slug}, ${JSON.stringify(secaoDoBanco)}::jsonb) as id`,
           );
           const id = String((r.rows[0] as { id: string } | undefined)?.id ?? "");
-          enderecos.push(id.slice(slug.length + 1));
+          const endereco = id.slice(slug.length + 1);
+          const lida = await tx
+            .select({ revisao: fonteSecao.revisao })
+            .from(fonteSecao)
+            .where(eq(fonteSecao.id, id));
+          salvas.push({ cid, slug: endereco, revisao: lida[0]?.revisao ?? 0 });
         }
         const atual = await tx
           .select({ revisao: fonte.revisao })
           .from(fonte)
           .where(eq(fonte.slug, slug));
-        return { enderecos, revisao: atual[0]?.revisao ?? 0 };
+        return { salvas, revisao: atual[0]?.revisao ?? 0 };
       });
       revalidatePath(LISTA);
       revalidatePath(`${LISTA}/${slug}`);
-      return { ok: true, slug, revisao: salvo.revisao, secoes: salvo.enderecos };
+      return { ok: true, slug, revisao: salvo.revisao, secoes: salvo.salvas };
     } catch (erro) {
       const t = traduzirErroDoPainel(erro);
       if (t.tipo === "slug-repetido" && i < tentativas) continue;

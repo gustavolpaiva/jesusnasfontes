@@ -41,8 +41,12 @@ const textoOpcional = (max: number) => z.string().trim().max(max, `No máximo ${
 
 const esquemaSecaoFormulario = z
   .object({
+    /** Id do cliente: o servidor o devolve com o endereço dado, e o formulário casa a resposta por ele, nunca pela posição. */
+    cid: z.string().min(1).max(64),
     /** Seção que já existe: o slug fica; a nova não o tem (o servidor gera `secao-<n>`). */
     slug: z.string().regex(SLUG).optional(),
+    /** Revisão da seção que o formulário viu; obrigatória quando há `slug` (o banco recusa a velha). */
+    revisao: z.number().int().min(0).max(2_000_000_000).optional(),
     titulo: z
       .string()
       .trim()
@@ -55,7 +59,11 @@ const esquemaSecaoFormulario = z
     resumo_pt: textoOpcional(2000),
     palavras_chave_pt: z.string().max(2000),
   })
-  .strict();
+  .strict()
+  .refine((s) => s.slug === undefined || s.revisao !== undefined, {
+    message: MENSAGENS.servidor,
+    path: ["revisao"],
+  });
 
 export const esquemaFonteFormulario = z
   .object({
@@ -130,8 +138,8 @@ export type ResultadoDeSalvar =
       slug: string;
       /** A revisão depois de salvar: o formulário passa a mandar esta. */
       revisao: number;
-      /** Os endereços das seções enviadas, na ordem em que foram enviadas (as novas ganham o gerado pelo banco). */
-      secoes: string[];
+      /** Por seção enviada: o `cid` que o servidor recebeu, o endereço dado e a revisão depois de salvar. */
+      secoes: { cid: string; slug: string; revisao: number }[];
     }
   | { ok: false; erros: Record<string, string>; geral?: string };
 

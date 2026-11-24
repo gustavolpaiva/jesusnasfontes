@@ -95,7 +95,7 @@ describe("contrato do formulário de Fonte", () => {
   it("seção sem título ou sem texto é recusada com o caminho do campo", () => {
     const r = esquemaFonteFormulario.safeParse({
       ...valido,
-      secoes: [{ titulo: "", texto: "  ", resumo_pt: "", palavras_chave_pt: "" }],
+      secoes: [{ cid: "c1", titulo: "", texto: "  ", resumo_pt: "", palavras_chave_pt: "" }],
     });
     expect(r.success).toBe(false);
     if (!r.success)
@@ -103,6 +103,16 @@ describe("contrato do formulário de Fonte", () => {
         "secoes-0-texto",
         "secoes-0-titulo",
       ]);
+  });
+
+  it("seção que já tem endereço precisa da revisão que o formulário viu; a nova não tem nenhum dos dois; o cid é obrigatório", () => {
+    const base = { cid: "c1", titulo: "S", texto: "x", resumo_pt: "", palavras_chave_pt: "" };
+    const com = (secao: Record<string, unknown>) =>
+      esquemaFonteFormulario.safeParse({ ...valido, secoes: [secao] }).success;
+    expect(com(base)).toBe(true);
+    expect(com({ ...base, slug: "secao-1" })).toBe(false);
+    expect(com({ ...base, slug: "secao-1", revisao: 0 })).toBe(true);
+    expect(com({ titulo: "S", texto: "x", resumo_pt: "", palavras_chave_pt: "" })).toBe(false);
   });
 
   it("ajudantes: endereço da Fonte, palavras-chave e nomes dos campos em conflito", () => {

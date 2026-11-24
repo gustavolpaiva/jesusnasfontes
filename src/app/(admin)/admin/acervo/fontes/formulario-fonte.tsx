@@ -25,19 +25,16 @@ import type { FonteDoPainel } from "@/modules/acervo/consultas-admin";
 import { CODIGOS_FIXOS_DE_LICENCA } from "@/modules/acervo/licenca-exibida";
 import { NIVEIS_NA_ORDEM, NOME_DO_NIVEL } from "@/modules/acervo/niveis";
 import { MENSAGENS, type ResultadoDeSalvar } from "@/modules/acervo/schemas-painel";
+import {
+  aplicarSalvamento,
+  novoCid,
+  type SecaoEmEdicao,
+} from "@/modules/acervo/secoes-do-formulario";
 
 // Formulário de Fonte DO PAINEL (incluir e editar), UI-SPEC tela 11: uma coluna, um `Field` por campo, grupos com título
 // em Rótulo. Nada aqui decide ACER-09: o banco recusa e este formulário só mostra a mensagem do contrato no campo, com o
 // foco movido para ele. "Salvar Fonte" nunca é desabilitado (só troca o rótulo enquanto salva). O texto digitado fica
 // no formulário em qualquer erro. A Fonte que vem do arquivo usa outro formulário (`formulario-fonte-do-arquivo.tsx`).
-
-type SecaoEmEdicao = {
-  slug?: string;
-  titulo: string;
-  texto: string;
-  resumo_pt: string;
-  palavras_chave_pt: string;
-};
 
 type Estado = {
   titulo: string;
@@ -85,7 +82,9 @@ function estadoInicial(f?: FonteDoPainel): Estado {
     publicada: f?.publicada ?? false,
     revisao: f?.revisao,
     secoes: (f?.secoes ?? []).map((s) => ({
+      cid: novoCid(),
       slug: s.slug,
+      revisao: s.revisao,
       titulo: s.titulo ?? "",
       texto: s.texto,
       resumo_pt: s.resumoPt ?? "",
@@ -137,11 +136,27 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
 
   const mudar = <K extends keyof Estado>(campo: K, valor: Estado[K]) =>
     setEstado((e) => ({ ...e, [campo]: valor }));
-  const mudarSecao = (i: number, parte: Partial<SecaoEmEdicao>) =>
+  // Toda mudança numa seção é endereçada pelo `cid` da linha, nunca pela posição na lista.
+  const mudarSecao = (cid: string, parte: Partial<SecaoEmEdicao>) =>
     setEstado((e) => ({
       ...e,
-      secoes: e.secoes.map((s, j) => (j === i ? { ...s, ...parte } : s)),
+      secoes: e.secoes.map((s) => (s.cid === cid ? { ...s, ...parte } : s)),
     }));
+  // Com o pedido no ar a lista não muda (nem entra nem sai seção): o que está na tela é o que está sendo salvo.
+  const adicionarSecao = () => {
+    if (pendente) return;
+    setEstado((e) => ({
+      ...e,
+      secoes: [
+        ...e.secoes,
+        { cid: novoCid(), titulo: "", texto: "", resumo_pt: "", palavras_chave_pt: "" },
+      ],
+    }));
+  };
+  const removerSecao = (cid: string) => {
+    if (pendente) return;
+    setEstado((e) => ({ ...e, secoes: e.secoes.filter((s) => s.cid !== cid) }));
+  };
 
   // O envio com erro move o foco para o primeiro campo inválido, na ordem do formulário.
   useEffect(() => {
@@ -167,17 +182,12 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
       if (resultado.ok) {
         setErros({});
         setGeral(null);
-        // O estado passa a ser o que está salvo: a revisão nova e o endereço que o banco deu a cada seção enviada. Sem isto uma
-        // seção recém-criada seguiria "nova" na tela, e a seguinte reaproveitaria o endereço dela.
+        // O estado passa a ser o que está salvo: a revisão nova e, por seção, o endereço e a revisão que o banco deu. O
+        // casamento é pelo `cid` que o pedido levou, nunca pela posição.
         setEstado((e) => ({
           ...e,
           revisao: resultado.revisao,
-          secoes:
-            resultado.secoes.length === enviadas.length
-              ? e.secoes.map((x, i) =>
-                  i < enviadas.length ? { ...x, slug: resultado.secoes[i] ?? x.slug } : x,
-                )
-              : e.secoes,
+          secoes: aplicarSalvamento(e.secoes, resultado.secoes),
         }));
         if (editando) {
           setSalva(true);
@@ -187,7 +197,14 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
         }
         return;
       }
-      setErros(resultado.erros);
+      // O servidor aponta o erro pela posição da seção no pedido; a tela o guarda pelo `cid`, que não muda se a lista mudar.
+      const porCid: Erros = {};
+      for (const [chave, texto] of Object.entries(resultado.erros)) {
+        const m = /^secoes-(\d+)-(.+)$/.exec(chave);
+        const alvo = m ? enviadas[Number(m[1])] : undefined;
+        porCid[alvo && m ? `secoes-${alvo.cid}-${m[2]}` : chave] = texto;
+      }
+      setErros(porCid);
       setGeral(resultado.geral ?? null);
       setVersaoDosErros((v) => v + 1);
     } catch (erro) {
@@ -419,18 +436,13 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
           <div className="flex flex-col gap-6">
             {estado.secoes.map((s, i) => (
               <SecaoDoFormulario
-                // A chave é a posição: a seção nova ainda não tem endereço.
-                // biome-ignore lint/suspicious/noArrayIndexKey: seções não se reordenam nem se removem depois de salvas
-                key={i}
-                i={i}
+                key={s.cid}
+                numero={i + 1}
                 secao={s}
-                mudar={(parte) => mudarSecao(i, parte)}
+                mudar={(parte) => mudarSecao(s.cid, parte)}
                 erros={erros}
-                aoRemover={
-                  s.slug === undefined
-                    ? () => setEstado((e) => ({ ...e, secoes: e.secoes.filter((_, j) => j !== i) }))
-                    : undefined
-                }
+                congelada={pendente}
+                aoRemover={s.slug === undefined ? () => removerSecao(s.cid) : undefined}
               />
             ))}
             <ErroDoCampo id="secoes" erros={erros} />
@@ -438,15 +450,8 @@ export function FormularioFonte({ fonte }: { fonte?: FonteDoPainel }) {
               type="button"
               variant="secondary"
               className="self-start"
-              onClick={() =>
-                setEstado((e) => ({
-                  ...e,
-                  secoes: [
-                    ...e.secoes,
-                    { titulo: "", texto: "", resumo_pt: "", palavras_chave_pt: "" },
-                  ],
-                }))
-              }
+              disabled={pendente}
+              onClick={adicionarSecao}
             >
               Adicionar seção
             </Button>
@@ -512,19 +517,22 @@ function podeTerSecoes(e: Estado): boolean {
 }
 
 function SecaoDoFormulario({
-  i,
+  numero,
   secao,
   mudar,
   erros,
+  congelada,
   aoRemover,
 }: {
-  i: number;
+  numero: number;
   secao: SecaoEmEdicao;
   mudar: (parte: Partial<SecaoEmEdicao>) => void;
   erros: Erros;
+  /** Pedido no ar: a seção não sai da lista enquanto o servidor responde. */
+  congelada: boolean;
   aoRemover?: () => void;
 }) {
-  const id = (c: string) => `secoes-${i}-${c}`;
+  const id = (c: string) => `secoes-${secao.cid}-${c}`;
   const inv = (c: string) => (erros[id(c)] ? true : undefined);
   const desc = (c: string) => (erros[id(c)] ? `erro-${id(c)}` : undefined);
   return (
@@ -533,7 +541,7 @@ function SecaoDoFormulario({
       className="flex flex-col gap-4 border-t border-rule pt-4"
     >
       <legend className="text-label mb-2">
-        <Algarismos>{`Seção ${i + 1}`}</Algarismos>
+        <Algarismos>{`Seção ${numero}`}</Algarismos>
       </legend>
       <Field>
         <FieldLabel htmlFor={`campo-${id("titulo")}`}>Título</FieldLabel>
@@ -591,7 +599,13 @@ function SecaoDoFormulario({
         </FieldDescription>
       </Field>
       {aoRemover ? (
-        <Button type="button" variant="secondary" className="self-start" onClick={aoRemover}>
+        <Button
+          type="button"
+          variant="secondary"
+          className="self-start"
+          disabled={congelada}
+          onClick={aoRemover}
+        >
           Remover esta seção
         </Button>
       ) : null}

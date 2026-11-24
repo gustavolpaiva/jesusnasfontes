@@ -105,10 +105,23 @@ const salvarSecao = async (
         )
       ).rows[0].n,
     ) > 0;
+  const revisao = existe
+    ? Number(
+        (
+          await superusuario.query("select revisao from acervo.fonte_secao where id = $1", [
+            `${slug}/${secao.slug}`,
+          ])
+        ).rows[0].revisao,
+      )
+    : undefined;
   return c.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb) as id", [
     sessao,
     slug,
-    JSON.stringify({ modo: existe ? "editar" : "criar", ...secao }),
+    JSON.stringify({
+      modo: existe ? "editar" : "criar",
+      ...(revisao === undefined ? {} : { revisao }),
+      ...secao,
+    }),
   ]);
 };
 
@@ -747,6 +760,7 @@ describe.skipIf(emNeon())(
       await secaoBruta(slug, {
         modo: "editar",
         slug: "secao-1",
+        revisao: 0,
         titulo: "A editada",
         texto: "Texto novo de A.",
       });
@@ -889,6 +903,103 @@ describe.skipIf(emNeon())(
         { idioma: "pt", indexado: false },
         { idioma: "pt", indexado: false },
       ]);
+    });
+  },
+);
+
+describe.skipIf(emNeon())(
+  "a seção tem revisão própria: escrita mal endereçada nunca apaga parágrafos de outra seção (2ª revisão cruzada)",
+  () => {
+    const bruta = (slug: string, secao: Record<string, unknown>) =>
+      app.query("select acervo.salvar_secao_painel($1::uuid, $2, $3::jsonb) as id", [
+        admin(),
+        slug,
+        JSON.stringify(secao),
+      ]);
+    const paragrafosDe = async (id: string) =>
+      (
+        await superusuario.query(
+          "select texto from acervo.fonte_paragrafo where secao_id = $1 order by ordem",
+          [id],
+        )
+      ).rows.map((r) => r.texto);
+    const revisaoDaSecao = async (id: string) =>
+      Number(
+        (await superusuario.query("select revisao from acervo.fonte_secao where id = $1", [id]))
+          .rows[0].revisao,
+      );
+
+    it("editar sem a revisão da seção é 22023; com revisão velha ou de outra seção é 40001; nada é escrito nem apagado", async () => {
+      const slug = slugNovo();
+      await criar(slug, { ...INTEGRAL_VALIDA });
+      await bruta(slug, { modo: "criar", titulo: "A", texto: "A1.\n\nA2.\n\nA3." });
+      await bruta(slug, { modo: "criar", titulo: "B", texto: "B1." });
+      const idA = `${slug}/secao-1`;
+      expect(await revisaoDaSecao(idA)).toBe(0);
+
+      // O caso do defeito: o conteúdo de B enviado ao endereço de A (resposta casada com a linha errada), sem revisão.
+      await expect(
+        bruta(slug, { modo: "editar", slug: "secao-1", titulo: "B", texto: "B1." }),
+      ).rejects.toMatchObject({ code: "22023" });
+      expect(await paragrafosDe(idA)).toEqual(["A1.", "A2.", "A3."]);
+
+      // Com uma revisão que não é a de A: 40001, e os três parágrafos de A seguem lá.
+      await expect(
+        bruta(slug, { modo: "editar", slug: "secao-1", revisao: 7, titulo: "B", texto: "B1." }),
+      ).rejects.toMatchObject({ code: "40001" });
+      expect(await paragrafosDe(idA)).toEqual(["A1.", "A2.", "A3."]);
+      expect(
+        (await superusuario.query("select titulo from acervo.fonte_secao where id = $1", [idA]))
+          .rows[0],
+      ).toEqual({ titulo: "A" });
+
+      // Controle positivo: com a revisão atual passa, a revisão sobe e o excedente sai como sempre.
+      await bruta(slug, {
+        modo: "editar",
+        slug: "secao-1",
+        revisao: 0,
+        titulo: "A2",
+        texto: "A1 nova.",
+      });
+      expect(await revisaoDaSecao(idA)).toBe(1);
+      expect(await paragrafosDe(idA)).toEqual(["A1 nova."]);
+      // E a mesma revisão velha (0) agora é recusada: o formulário que não viu a edição não grava por cima.
+      await expect(
+        bruta(slug, {
+          modo: "editar",
+          slug: "secao-1",
+          revisao: 0,
+          titulo: "Velho",
+          texto: "Velho.",
+        }),
+      ).rejects.toMatchObject({ code: "40001" });
+      expect(await paragrafosDe(idA)).toEqual(["A1 nova."]);
+      // B não foi tocada em nada disso.
+      expect(await paragrafosDe(`${slug}/secao-2`)).toEqual(["B1."]);
+    });
+
+    it("o resumo da seção também sobe a revisão dela: o formulário com a revisão anterior é recusado", async () => {
+      const slug = slugNovo();
+      await criar(slug, { ...INTEGRAL_VALIDA });
+      await bruta(slug, { modo: "criar", titulo: "A", texto: "A1." });
+      const id = `${slug}/secao-1`;
+      await app.query("select acervo.salvar_resumo_secao($1::uuid, $2, $3, $4::text[])", [
+        admin(),
+        id,
+        "Resumo.",
+        ["x"],
+      ]);
+      expect(await revisaoDaSecao(id)).toBe(1);
+      await expect(
+        bruta(slug, {
+          modo: "editar",
+          slug: "secao-1",
+          revisao: 0,
+          titulo: "A",
+          texto: "Texto do formulário velho.",
+        }),
+      ).rejects.toMatchObject({ code: "40001" });
+      expect(await paragrafosDe(id)).toEqual(["A1."]);
     });
   },
 );
