@@ -385,6 +385,29 @@ export const TELAS: Tela[] = [
       ).toBeVisible();
     },
   },
+  // Acervo: Fonte e seção (plano 02-06)
+  {
+    id: "acervo-fonte",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/acervo/josefo-antiguidades");
+      await h1(page, "Antiguidades Judaicas");
+      await expect(page.locator('[data-slot="bloco-proveniencia"]')).toBeVisible();
+      await expect(page.locator('[data-slot="linha-secao"]').first()).toBeVisible();
+    },
+  },
+  {
+    id: "acervo-secao",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/acervo/josefo-antiguidades/18#p-18.63");
+      await h1(page, "Livro 18");
+      await expect(page.locator("#p-18\\.63")).toBeVisible();
+      await expect(page.locator('[data-slot="resumo-auxiliar"]')).toBeVisible();
+    },
+  },
   // Caderno
   {
     id: "caderno-vazio",

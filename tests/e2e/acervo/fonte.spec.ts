@@ -173,6 +173,19 @@ test("a Fonte de várias seções mostra proveniência, limites e sumário, e se
   await expect(page).toHaveURL(/\/acervo\/josefo-antiguidades\/20$/);
 });
 
+test("o clique numa Fonte da lista do Acervo cai na página da Fonte (ACER-01)", async ({
+  page,
+}) => {
+  await entrar(page);
+  await page.goto("/acervo");
+  await page.getByRole("link", { name: "Antiguidades Judaicas" }).click();
+  await expect(page).toHaveURL(/\/acervo\/josefo-antiguidades$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Antiguidades Judaicas" }),
+  ).toBeVisible();
+  await expect(page.locator('[data-slot="bloco-proveniencia"]')).toBeVisible();
+});
+
 test("o aviso de tradução aparece acima do bloco de proveniência na Fonte traduzida por nós", async ({
   page,
 }) => {

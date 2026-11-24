@@ -158,3 +158,29 @@ export async function semearAcervo(
     });
   return comCarga(env, (cliente) => carregarFontes(itens, { cliente }));
 }
+
+/**
+ * Carrega no banco da execução as Fontes REAIS do repositório (`content/acervo/fontes` com o derivado conferido pelo
+ * lock), como o `acervo:load`. Só para a conferência visual com `E2E_ACERVO_REAL=1`: sobrescreve a fixture do mesmo
+ * slug (o Josefo) pelo texto completo.
+ */
+export async function semearAcervoReal(env: FonteDeEnv = process.env): Promise<ResultadoFontes> {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const path = await import("node:path");
+  const { carregarFontes } = await import("../../scripts/acervo/carregar");
+  const { CAMINHO_LOCK, PASTA_DERIVADOS, lerDerivado, lerLock, verificarDerivados } = await import(
+    "../../scripts/acervo/derivados"
+  );
+  const { interpretarFonteYaml } = await import("../../src/modules/acervo/schemas");
+  const lock = lerLock(CAMINHO_LOCK);
+  verificarDerivados(PASTA_DERIVADOS, lock);
+  const dir = path.resolve("content", "acervo", "fontes");
+  const itens = readdirSync(dir)
+    .filter((nome) => nome.endsWith(".yaml"))
+    .sort()
+    .map((nome) => {
+      const fonte = interpretarFonteYaml(readFileSync(path.join(dir, nome), "utf8"), nome);
+      return { fonte, derivado: lerDerivado(PASTA_DERIVADOS, lock, fonte.slug) };
+    });
+  return comCarga(env, (cliente) => carregarFontes(itens, { cliente }));
+}

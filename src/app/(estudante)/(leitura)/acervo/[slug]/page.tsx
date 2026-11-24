@@ -7,6 +7,7 @@ import { ErroDoAcervo } from "@/components/acervo/erro-do-acervo";
 import { LinhaSecao } from "@/components/acervo/linha-fonte";
 import { ParagrafoFonte } from "@/components/acervo/paragrafo-fonte";
 import { ResumoAuxiliar } from "@/components/acervo/resumo-auxiliar";
+import { RolarAteAncora } from "@/components/acervo/rolar-ate-ancora";
 import { SeloNivel } from "@/components/acervo/selo-nivel";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
@@ -79,6 +80,7 @@ export default async function PaginaDaFonte({ params }: { params: Promise<{ slug
             Texto
           </h2>
           <ResumoAuxiliar resumoPt={unica.resumoPt} palavrasChavePt={unica.palavrasChavePt} />
+          <RolarAteAncora />
           <div className="flex flex-col gap-4" data-slot="texto-da-fonte">
             {unica.paragrafos.map((p) => (
               <ParagrafoFonte key={p.id} id={p.id} ref_={p.ref} texto={p.texto} idioma={p.idioma} />

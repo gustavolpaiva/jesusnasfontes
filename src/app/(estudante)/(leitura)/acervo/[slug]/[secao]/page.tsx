@@ -1,10 +1,12 @@
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AvisoDeTraducao } from "@/components/acervo/aviso-de-traducao";
+import { NavegacaoSecao } from "@/components/acervo/navegacao-secao";
 import { ParagrafoFonte } from "@/components/acervo/paragrafo-fonte";
 import { ResumoAuxiliar } from "@/components/acervo/resumo-auxiliar";
+import { RolarAteAncora } from "@/components/acervo/rolar-ate-ancora";
 import { SeloNivel } from "@/components/acervo/selo-nivel";
-import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { lerSecao, type SecaoLida } from "@/modules/acervo/consultas";
 import { licencaCitaATraducao, textoDaLicenca } from "@/modules/acervo/licenca-exibida";
@@ -33,47 +35,6 @@ function linhaDeCredito(f: SecaoLida["fonte"]): string {
   return partes.filter(Boolean).join(" ");
 }
 
-function PassoDeSecao({
-  sentido,
-  alvo,
-  slugDaFonte,
-}: {
-  sentido: "anterior" | "proxima";
-  alvo: { slug: string } | null;
-  slugDaFonte: string;
-}) {
-  const anterior = sentido === "anterior";
-  const rotulo = anterior ? "Seção anterior" : "Próxima seção";
-  const motivo = anterior ? "Primeira seção" : "Última seção";
-  const icone = anterior ? (
-    <ArrowLeft aria-hidden="true" strokeWidth={1.5} />
-  ) : (
-    <ArrowRight aria-hidden="true" strokeWidth={1.5} />
-  );
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      {alvo ? (
-        <Button asChild variant="secondary" className="px-3">
-          <Link href={`/acervo/${slugDaFonte}/${alvo.slug}`}>
-            {anterior ? icone : null}
-            {rotulo}
-            {anterior ? null : icone}
-          </Link>
-        </Button>
-      ) : (
-        <>
-          <Button type="button" variant="secondary" aria-disabled="true" className="px-3">
-            {anterior ? icone : null}
-            {rotulo}
-            {anterior ? null : icone}
-          </Button>
-          <span className="text-meta text-ink-muted">{motivo}</span>
-        </>
-      )}
-    </div>
-  );
-}
-
 export default async function PaginaDeSecao({
   params,
 }: {
@@ -99,19 +60,15 @@ export default async function PaginaDeSecao({
         <p className="text-label text-balance text-rubric">
           Acervo · {fonte.titulo} · seção {secao.indice} de {secao.total}
         </p>
-        <h1 className="text-display">{secao.titulo}</h1>
+        <h1 className="text-display text-balance [overflow-wrap:anywhere]">{secao.titulo}</h1>
         <SeloNivel nivel={fonte.nivel} />
       </header>
 
+      {fonte.traduzidaPorNos ? <AvisoDeTraducao /> : null}
+
       <ResumoAuxiliar resumoPt={secao.resumoPt} palavrasChavePt={secao.palavrasChavePt} />
 
-      {fonte.traduzidaPorNos ? (
-        <StatusMessage tipo="informacao">
-          Esta tradução foi feita por nós e ainda não foi revisada por especialista. Confira com a
-          edição de referência antes de citar.
-        </StatusMessage>
-      ) : null}
-
+      <RolarAteAncora />
       <div className="flex flex-col gap-4" data-slot="texto-da-fonte">
         {paragrafos.map((p) => (
           <ParagrafoFonte key={p.id} id={p.id} ref_={p.ref} texto={p.texto} idioma={p.idioma} />
@@ -120,22 +77,21 @@ export default async function PaginaDeSecao({
 
       <footer className="flex flex-col gap-6">
         {credito ? (
-          <p className="text-meta text-ink-muted [overflow-wrap:anywhere]">
-            {credito}{" "}
-            <Link href={`/acervo/${fonte.slug}#origem`} className="text-rubric underline">
+          <div className="flex flex-col items-start">
+            <p className="text-meta text-ink-muted [overflow-wrap:anywhere]">{credito}</p>
+            <Link
+              href={`/acervo/${fonte.slug}#origem`}
+              className="text-meta inline-flex min-h-11 items-center text-rubric underline"
+            >
               Origem e licença
             </Link>
-          </p>
-        ) : null}
-        <nav aria-label="Seções desta Fonte" className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            <PassoDeSecao sentido="anterior" alvo={secao.anterior} slugDaFonte={fonte.slug} />
-            <PassoDeSecao sentido="proxima" alvo={secao.proxima} slugDaFonte={fonte.slug} />
           </div>
-          <Button asChild variant="ghost" className="-ml-4 self-start">
-            <Link href={`/acervo/${fonte.slug}`}>Voltar ao sumário</Link>
-          </Button>
-        </nav>
+        ) : null}
+        <NavegacaoSecao
+          slugDaFonte={fonte.slug}
+          anterior={secao.anterior}
+          proxima={secao.proxima}
+        />
       </footer>
     </article>
   );

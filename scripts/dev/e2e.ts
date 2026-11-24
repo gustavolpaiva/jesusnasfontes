@@ -4,7 +4,12 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import path from "node:path";
 import { criarBancoPreparado, removerBancoDeExecucao } from "../../tests/support/banco-local";
-import { semearAcervo, semearConteudo, semearTexto } from "../../tests/support/preparar-banco";
+import {
+  semearAcervo,
+  semearAcervoReal,
+  semearConteudo,
+  semearTexto,
+} from "../../tests/support/preparar-banco";
 
 // Executor de e2e isolado: cada execução tem banco, porta e diretório de build próprios,
 // então duas execuções ao mesmo tempo não se atrapalham.
@@ -42,6 +47,8 @@ async function main(): Promise<number> {
     await semearConteudo(path.resolve(process.env.E2E_CONTEUDO_DIR ?? "content"), envBanco);
     // O recorte real do Josefo (Fonte, seções e parágrafos) para as telas do Acervo.
     await semearAcervo(path.resolve("tests/fixtures/acervo"), envBanco);
+    // Conferência visual sobre o texto REAL (Josefo inteiro): só quando pedida; os e2e comuns seguem no recorte.
+    if (process.env.E2E_ACERVO_REAL === "1") await semearAcervoReal(envBanco);
     const porta = await portaLivre();
     const filho = spawn("pnpm", ["exec", "playwright", "test", ...process.argv.slice(2)], {
       stdio: "inherit",
