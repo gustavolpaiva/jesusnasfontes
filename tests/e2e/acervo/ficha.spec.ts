@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { lerCarta } from "../../../src/modules/acervo/carta";
 import {
   ESPERADO_DA_COMPLETA,
   type FichasSemeadas,
@@ -16,6 +17,11 @@ import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/lo
 // rodam o mesmo arquivo ao mesmo tempo no mesmo banco).
 
 test.describe.configure({ mode: "default" });
+
+// A carta é do dono: o que a ficha mostra do link depende de ela existir (a fixture de `CARTA_DIR_PARA_TESTE` ou o
+// arquivo real publicado). A suíte fica verde antes e depois de o dono publicar: o cenário de ausência e o de
+// presença são testes separados, e cada um só roda no estado dele.
+const HA_CARTA = lerCarta() !== null;
 
 let sufixo = "";
 let semeadas: FichasSemeadas;
@@ -189,9 +195,16 @@ test("seção sem conteúdo não é renderizada e não deixa título solto", asy
   await expect(page.getByRole("heading", { level: 2 })).toHaveText(["Tese", "Argumentos"]);
   await expect(page.getByText("Trechos citados")).toHaveCount(0);
   await expect(page.getByText("O que esta obra não pode dizer")).toHaveCount(0);
-  // Sem citação, a nota dos trechos entre aspas também não aparece; e não sobra um rodapé vazio.
+  // Sem citação, a nota dos trechos entre aspas também não aparece. O rodapé nunca fica vazio: sem a carta publicada
+  // não existe; com ela, traz só o link.
   await expect(page.getByText("Trechos entre aspas pertencem")).toHaveCount(0);
-  await expect(page.locator('[data-slot="rodape-da-ficha"]')).toHaveCount(0);
+  const rodape = page.locator('[data-slot="rodape-da-ficha"]');
+  if (HA_CARTA) {
+    await expect(rodape).toHaveCount(1);
+    await expect(rodape.getByRole("link", { name: /Por que estas obras/ })).toHaveCount(1);
+  } else {
+    await expect(rodape).toHaveCount(0);
+  }
   await expect(page.locator("q")).toHaveCount(0);
   await expect(page.locator('[data-slot="pagina-do-item"] [aria-hidden="true"]')).toHaveText([
     "p. 5",
@@ -201,12 +214,30 @@ test("seção sem conteúdo não é renderizada e não deixa título solto", asy
 test("sem a carta de neutralidade publicada, a ficha não oferece o link 'Por que estas obras?'", async ({
   page,
 }) => {
+  test.skip(HA_CARTA, "cenário de ausência: só sem a carta publicada");
   await entrar(page);
   await page.goto(`/acervo/${semeadas.slugs.completa}`);
   await expect(
     page.getByRole("heading", { level: 1, name: "Obra de Teste Completa" }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: /Por que estas obras/ })).toHaveCount(0);
+});
+
+test("com a carta de neutralidade publicada, a ficha oferece o link e ele leva à carta", async ({
+  page,
+}) => {
+  test.skip(
+    !HA_CARTA,
+    "cenário de presença: só com a carta publicada (fixture ou arquivo do dono)",
+  );
+  await entrar(page);
+  await page.goto(`/acervo/${semeadas.slugs.completa}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Obra de Teste Completa" }),
+  ).toBeVisible();
+  const link = page.getByRole("link", { name: /Por que estas obras/ });
+  await expect(link).toHaveCount(1);
+  await expect(link).toHaveAttribute("href", "/acervo/carta-de-neutralidade");
 });
 
 test("a rota da Fonte de texto integral continua funcionando", async ({ page }) => {

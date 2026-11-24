@@ -143,3 +143,42 @@ describe.skipIf(emNeon())("leitura da ficha pelo Estudante", () => {
     expect(await lerFicha("obra-de-teste")).toBeNull();
   });
 });
+
+describe.skipIf(emNeon())(
+  "corrida: alteração confirmada no meio da leitura (revisão cruzada do 02-16)",
+  () => {
+    const ALTERADO = "Argumento mudado no meio da leitura.";
+
+    it("a página nunca mostra ficha verificada com itens sumidos: a versão verificada inteira, ou nada", async () => {
+      // Estado de partida: ficha verificada de novo, e a leitura comum a traz inteira (controle positivo).
+      await verificarFichaParaTeste(envDoBanco, "obra-de-teste");
+      const inteira = await lerFicha("obra-de-teste");
+      expect(inteira?.argumentos).toHaveLength(2);
+      expect(inteira?.trechos).toHaveLength(1);
+
+      // Outra conexão confirma a mudança de um item DEPOIS de lida a verificação e ANTES da leitura dos itens.
+      const lida = await lerFicha("obra-de-teste", {
+        entreLeituras: async () => {
+          await dono.query("update acervo.ficha_item set texto_pt = $1 where id = $2", [
+            ALTERADO,
+            "obra-de-teste/argumento-1",
+          ]);
+        },
+      });
+      // Controle de que a mudança foi confirmada: o banco já a tem.
+      const noBanco = await dono.query<{ texto_pt: string }>(
+        "select texto_pt from acervo.ficha_item where id = 'obra-de-teste/argumento-1'",
+      );
+      expect(noBanco.rows[0]?.texto_pt).toBe(ALTERADO);
+
+      // Nunca a ficha verificada com seções faltando: ou inteira (a versão verificada, anterior à mudança) ou null.
+      if (lida !== null) {
+        expect(lida.argumentos).toHaveLength(2);
+        expect(lida.trechos).toHaveLength(1);
+        expect(lida.argumentos.map((a) => a.textoPt)).not.toContain(ALTERADO);
+      }
+      // Depois da mudança confirmada, a leitura seguinte já não vê a ficha (voltou a rascunho).
+      expect(await lerFicha("obra-de-teste")).toBeNull();
+    });
+  },
+);

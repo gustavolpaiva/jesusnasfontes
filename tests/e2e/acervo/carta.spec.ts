@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { lerCarta } from "../../../src/modules/acervo/carta";
 import { removerFichas, semearFichas } from "../../support/ficha-e2e";
 import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/login-e2e";
 
@@ -11,7 +12,8 @@ import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/lo
 
 test.describe.configure({ mode: "default" });
 
-const COM_CARTA = Boolean(process.env.CARTA_DIR_PARA_TESTE);
+// Presença medida pelo mesmo leitor do produto: vale para a fixture e para o arquivo real publicado pelo dono.
+const COM_CARTA = lerCarta() !== null;
 let sufixo = "";
 let slugFicha = "";
 
@@ -36,7 +38,7 @@ async function entrar(page: Page): Promise<void> {
 const LINK = /Por que estas obras\?/;
 
 test.describe("sem a carta publicada", () => {
-  test.skip(COM_CARTA, "estado sem carta: roda sem CARTA_DIR_PARA_TESTE");
+  test.skip(COM_CARTA, "estado sem carta: só sem a carta publicada");
 
   test("a rota da carta mostra 'Página não encontrada'", async ({ page }) => {
     await entrar(page);
@@ -67,11 +69,16 @@ test.describe("sem a carta publicada", () => {
 });
 
 test.describe("com a carta publicada (fixture)", () => {
-  test.skip(!COM_CARTA, "estado com carta: só com CARTA_DIR_PARA_TESTE");
+  test.skip(!COM_CARTA, "estado com carta: só com a carta publicada (fixture ou arquivo do dono)");
 
   test("a página mostra h1, seções com título e a versão e a data no rodapé; texto é texto", async ({
     page,
   }) => {
+    // O conteúdo (títulos, versão, texto) é o da fixture: com a carta real do dono só o link, abaixo, é conferido.
+    test.skip(
+      !process.env.CARTA_DIR_PARA_TESTE,
+      "conteúdo da fixture: só com CARTA_DIR_PARA_TESTE",
+    );
     await entrar(page);
     await page.goto("/acervo/carta-de-neutralidade");
     await expect(
