@@ -49,17 +49,40 @@ function lerRgb(css: string): Rgb {
 const sobraHorizontal = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-const cortados = (page: Page) =>
-  page.evaluate(
-    () =>
-      Array.from(document.querySelectorAll<HTMLElement>("main *")).filter(
-        (e) =>
-          e.scrollWidth > e.clientWidth + 1 &&
-          getComputedStyle(e).display !== "inline" &&
-          !e.classList.contains("sr-only") &&
-          getComputedStyle(e).overflow !== "hidden",
-      ).length,
-  );
+// O medidor do critério g: conta, dentro de `raiz`, os elementos cujo conteúdo é mais largo que a caixa. Texto CORTADO
+// (`overflow:hidden`, com ou sem reticências) conta como falha: é justamente o corte que esconde texto. Só ficam de fora
+// os blocos que rolam de propósito (`overflow-x: auto|scroll`: o conteúdo continua alcançável), o que é inline e o que é
+// só para leitor de tela. É UMA função só: a medição real e o controle positivo passam por ela (o `page.evaluate` a
+// serializa, então ela não pode usar nada de fora do próprio corpo).
+function medirCortados(raiz: string): number {
+  return Array.from(document.querySelectorAll<HTMLElement>(`${raiz} *`)).filter((e) => {
+    const css = getComputedStyle(e);
+    return (
+      e.scrollWidth > e.clientWidth + 1 &&
+      css.display !== "inline" &&
+      !e.classList.contains("sr-only") &&
+      css.overflowX !== "auto" &&
+      css.overflowX !== "scroll"
+    );
+  }).length;
+}
+
+const cortados = (page: Page) => page.evaluate(medirCortados, "main");
+
+/** Controle positivo do critério g: insere em `main` um texto cortado (largura 40 px, sem quebra, `overflow:hidden`) e roda o MESMO medidor. */
+async function cortadosComControle(page: Page): Promise<{ antes: number; com: number }> {
+  const antes = await cortados(page);
+  await page.evaluate(() => {
+    const d = document.createElement("div");
+    d.id = "controle-texto-cortado";
+    d.textContent = "textosemnenhumpontodequebranemmesmocomalgumaboavontade";
+    d.style.cssText = "width:40px;white-space:nowrap;overflow:hidden";
+    document.querySelector("main")?.append(d);
+  });
+  const com = await cortados(page);
+  await page.evaluate(() => document.getElementById("controle-texto-cortado")?.remove());
+  return { antes, com };
+}
 
 let sufixo = "";
 // biome-ignore lint/correctness/noEmptyPattern: o Playwright exige o padrão de desestruturação no primeiro argumento
@@ -114,15 +137,6 @@ for (const variante of ["projeto", "390-claro"] as const) {
     // ── Controles positivos dos medidores ──
     await page.goto("/admin/acervo/fichas");
     const controle = await page.evaluate(() => {
-      const d = document.createElement("div");
-      d.style.cssText = "width:40px;overflow:hidden;position:absolute;left:0;top:0";
-      const f = document.createElement("div");
-      f.textContent = "textosemnenhumpontodequebranemmesmocomalgumaboavontade";
-      f.style.cssText = "white-space:nowrap";
-      d.append(f);
-      document.body.append(d);
-      const estoura = d.scrollWidth > d.clientWidth + 1;
-      d.remove();
       const b = document.createElement("button");
       b.style.cssText = "height:30px;width:30px";
       document.body.append(b);
@@ -139,12 +153,13 @@ for (const variante of ["projeto", "390-claro"] as const) {
       c.click();
       const aposUm = efeito;
       c.remove();
-      return { estoura, alvo, aposUm };
+      return { alvo, aposUm };
     });
+    const corte = await cortadosComControle(page);
     registrar(
-      "g: controle positivo, o medidor de texto cortado acusa bloco que estoura",
-      controle.estoura,
-      `${controle.estoura}`,
+      "g: controle positivo, o MESMO medidor de texto cortado (também o de overflow:hidden) acusa o bloco inserido em main",
+      corte.com === corte.antes + 1,
+      `${corte.antes} cortados antes do controle, ${corte.com} com ele`,
     );
     registrar(
       "d: controle positivo, o medidor de alvo acusa botão de 30 px",
