@@ -1,0 +1,37 @@
+# Fonte do Acervo: Martírio de Policarpo, na tradução inglesa de Lightfoot (edição CCEL). O relato é escrito
+# em nome da igreja de Esmirna (a própria abertura o diz) e não tem autor individual nomeado.
+# O texto vem do derivado `data/acervo-derivados/martirio-de-policarpo.json`, gerado por `pnpm acervo:derivar`
+# a partir da origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): do volume único de Lightfoot, a
+# divisão ii.xi. O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: martirio-de-policarpo
+titulo: Martírio de Policarpo
+autor: null
+epoca: meados do século II (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Relato em grego, escrito em nome da igreja de Esmirna e endereçado à de Filomélio, sobre a prisão, o
+  julgamento e a morte de Policarpo; a data dos fatos é debatida e situada em meados do século II. Narra os
+  acontecimentos como testemunho enviado às demais comunidades. O texto chegou por manuscritos gregos e por
+  uma versão latina antiga, e o colofão declara que Pionius o copiou de exemplares mais antigos.
+secoes:
+  - slug: ii-xi
+    titulo: Texto
+    resumo_pt: >-
+      Relato da perseguição em Esmirna, da prisão de Policarpo por traição de gente da própria casa e do seu
+      interrogatório diante do procônsul, no estádio, onde se recusa a negar o Senhor. Registra o exemplo
+      negativo de Quinto, que se apresentou por vontade própria e recuou diante das feras, e descreve a morte
+      de Policarpo no fogo e pelo punhal, quando o fogo não o consumia. Fecha com o recolhimento dos ossos
+      pela comunidade e a lembrança anual do dia do martírio, e com o colofão de Pionius.
+    palavras_chave_pt: [Policarpo, Esmirna, martírio, procônsul, estádio, Quinto, Pionius]

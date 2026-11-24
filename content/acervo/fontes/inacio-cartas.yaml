@@ -1,0 +1,80 @@
+# Fonte do Acervo: as sete cartas de Inácio de Antioquia, na tradução inglesa de Lightfoot (edição CCEL).
+# O texto vem do derivado `data/acervo-derivados/inacio-cartas.json`, gerado por `pnpm acervo:derivar` a
+# partir da origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): do volume único de Lightfoot, as
+# divisões ii.iii a ii.ix, na ordem da coleção — uma seção por carta. O resumo auxiliar é escrita automática
+# de busca (D-18) e nunca substitui o texto.
+slug: inacio-cartas
+titulo: Cartas de Inácio de Antioquia
+autor: Inácio de Antioquia
+epoca: por volta de 110 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10). O arquivo não menciona recensões; nada
+# se afirma sobre a forma textual das cartas além do que a coleção traz.
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Sete cartas escritas em grego por Inácio, bispo de Antioquia, durante a viagem em que era levado preso da
+  Síria a Roma para ser lançado às feras; a maior parte dos estudiosos as data nos primeiros anos do século
+  II. Dirigem-se às comunidades de Éfeso, Magnésia, Trales, Roma, Filadélfia e Esmirna, e a Policarpo, bispo
+  de Esmirna. Foram transmitidas pelo mesmo conjunto manuscrito que conserva a carta de Policarpo aos
+  Filipenses.
+secoes:
+  - slug: ii-iii
+    titulo: Aos Efésios
+    resumo_pt: >-
+      Carta que exorta a igreja de Éfeso a permanecer unida ao bispo, aos presbíteros e aos diáconos, e a não
+      se ausentar das assembleias da congregação. Agradece os mensageiros recebidos no caminho e pede orações
+      pela igreja da Síria, de onde o autor escreve como prisioneiro a caminho de Roma.
+    palavras_chave_pt: [Éfeso, bispo, unidade, presbíteros, diáconos, prisioneiro]
+  - slug: ii-iv
+    titulo: Aos Magnésios
+    resumo_pt: >-
+      Carta à igreja de Magnésia que pede reverência ao bispo, ainda que jovem, e concórdia entre a comunidade
+      e os presbíteros. Adverte contra doutrinas estranhas e fábula antigas, e contra viver segundo o modo
+      judaico, exortando a viver em Cristo.
+    palavras_chave_pt: [Magnésia, bispo, juventude do bispo, doutrinas estranhas, modo judaico]
+  - slug: ii-v
+    titulo: Aos Tralianos
+    resumo_pt: >-
+      Carta à igreja de Trales que manda nada fazer sem o bispo e ser obediente aos presbíteros como aos
+      apóstolos, e aos diáconos como ao serviço de Deus. O autor reconhece a própria condição de preso e
+      ainda aprendiz, adverte contra quem ensina outra coisa e fecha pedindo orações, pois segue em perigo.
+    palavras_chave_pt: [Trales, bispo, presbíteros, obediência, doutrinas estranhas]
+  - slug: ii-vi
+    titulo: Aos Romanos
+    resumo_pt: >-
+      Carta à igreja de Roma pedindo que ninguém impeça o caminho do autor ao martírio: quer ser derramado
+      como libação a Deus, antes de um altar que já não o achará, e diz morrer por Deus de própria vontade.
+      Pede apenas que a comunidade ore para que ele alcance a Deus e despede-se com a data da carta.
+    palavras_chave_pt: [Roma, martírio, feras, libação, livre vontade]
+  - slug: ii-vii
+    titulo: Aos Filadélfios
+    resumo_pt: >-
+      Carta à igreja da Filadélfia que exorta à união, para que os lobos enganadores, que arrebatam os que
+      correm a carreira de Deus, não achem lugar. Pede fugir das artes e ciladas do príncipe deste mundo e
+      reunir-se em assembleia, e saúda os irmãos de Trôade, de onde escreve pela mão de Burro.
+    palavras_chave_pt: [Filadélfia, união, lobos enganadores, assembleia, Trôade]
+  - slug: ii-viii
+    titulo: Aos Esmirniotas
+    resumo_pt: >-
+      Carta à igreja de Esmirna que afirma conhecer e crer que Cristo esteve na carne também depois da
+      ressurreição, contra os que negam a realidade da sua paixão. Manda vigiar os que sustentam doutrina
+      estranha e não têm caridade, e saúda as casas e as pessoas da comunidade pelo nome.
+    palavras_chave_pt: [Esmirna, carne de Cristo, paixão, ressurreição, doutrina estranha]
+  - slug: ii-ix
+    titulo: A Policarpo
+    resumo_pt: >-
+      Carta pessoal a Policarpo, bispo de Esmirna, com conselhos pastorais: atrair pela mansidão os mais
+      rebeldes, não descuidar das viúvas, nada fazer sem o consentimento da comunidade e não desprezar
+      escravos e escravas. Recomenda constância na oração e pede vigilância contra o adversário, despedindo-se
+      na unidade de Deus.
+    palavras_chave_pt: [Policarpo, conselhos pastorais, mansidão, viúvas, escravos, Esmirna]

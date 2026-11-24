@@ -1,0 +1,37 @@
+# Fonte do Acervo: Primeira Carta de Clemente aos Coríntios, na tradução inglesa de Lightfoot (edição CCEL).
+# O texto vem do derivado `data/acervo-derivados/1-clemente.json`, gerado por `pnpm acervo:derivar` a partir
+# da origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): do volume único de Lightfoot, a divisão ii.i.
+# O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: 1-clemente
+titulo: Primeira Carta de Clemente aos Coríntios
+autor: Clemente de Roma
+epoca: por volta de 95 d.C. (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Carta escrita em grego, em nome da igreja de Roma, e atribuída pela tradição antiga a Clemente, que a mesma
+  tradição coloca entre os primeiros líderes dessa comunidade; a maior parte dos estudiosos a data por volta
+  de 95 a 97 d.C. Foi escrita para apaziguar um levante contra os presbíteros em Corinto. O texto grego
+  chegou incompleto pelos manuscritos (entre eles o Códice Alexandrino) e foi completado pela versão siríaca
+  e por uma tradução latina.
+secoes:
+  - slug: ii-i
+    titulo: Texto
+    resumo_pt: >-
+      Carta da igreja de Roma à de Corinto por causa de uma sedição em que alguns, por causa de uma ou duas
+      pessoas, se levantaram contra os presbíteros da comunidade. Desenvolve longa exortação contra o ciúme e
+      a inveja, com exemplos das escrituras hebraicas e dos apóstolos Pedro e Paulo, e defende que os bispos e
+      diáconos foram instituídos pelos apóstolos. Fecha pedindo a reconciliação e anunciando mensageiros
+      enviados de Roma, cuja volta também pede.
+    palavras_chave_pt: [Corinto, sedição, ciúme, presbíteros, igreja de Roma, apóstolos, reconciliação]

@@ -1,0 +1,35 @@
+# Fonte do Acervo: Carta de Policarpo aos Filipenses, na tradução inglesa de Lightfoot (edição CCEL).
+# O texto vem do derivado `data/acervo-derivados/policarpo-filipenses.json`, gerado por `pnpm acervo:derivar`
+# a partir da origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml): do volume único de Lightfoot, a
+# divisão ii.x. O resumo auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: policarpo-filipenses
+titulo: Carta de Policarpo aos Filipenses
+autor: Policarpo de Esmirna
+epoca: primeira metade do século II (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Carta escrita em grego por Policarpo, bispo de Esmirna, à comunidade de Filipos, e datada pela maior parte
+  dos estudiosos na primeira metade do século II. Responde a um pedido dos filipenses com exortações de
+  conduta e com a remessa das cartas de Inácio que tinha consigo. O texto chegou junto com as cartas de
+  Inácio, na mesma tradição manuscrita.
+secoes:
+  - slug: ii-x
+    titulo: Texto
+    resumo_pt: >-
+      Carta de exortação a permanecer na fé e na conduta ensinadas desde o princípio, com instruções para
+      viúvas, diáconos, presbíteros e jovens, e o aviso de que o amor ao dinheiro é o começo de todos os
+      males. Lamenta o desvio de Valens, que foi presbítero entre eles, e pede a sua correção. Fecha com a
+      remessa das cartas de Inácio que a comunidade pedira e com orações pelos presos e perseguidos.
+    palavras_chave_pt: [Filipos, Policarpo, viúvas, presbíteros, amor ao dinheiro, Valens, cartas de Inácio]

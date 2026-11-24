@@ -1,0 +1,36 @@
+# Fonte do Acervo: Segunda Carta de Clemente, na tradução inglesa de Lightfoot (edição CCEL). A própria
+# origem a titula "homilia antiga de autor desconhecido" (o título de editor da divisão ii.ii do volume).
+# O texto vem do derivado `data/acervo-derivados/2-clemente.json`, gerado por `pnpm acervo:derivar` a partir
+# da origem `ccel-lightfoot-fathers` (data/acervo-origens.yaml). O resumo auxiliar é escrita automática de
+# busca (D-18) e nunca substitui o texto.
+slug: 2-clemente
+titulo: Segunda Carta de Clemente
+autor: null
+epoca: meados do século II (estimativa)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/lightfoot/fathers.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/lightfoot/fathers
+tradutor: Lightfoot, Joseph Barber (1828-1889)
+traduzida_por_nos: false
+# A origem não declara a edição (pubHistory vazio): só cita a reimpressão de Baker Book House, 1956. Nenhum
+# ano de edição ou de tradução é atribuído de memória (plano 02-10).
+edicao: "edição não declarada pela origem; o cabeçalho cita apenas a reimpressão de Baker Book House, 1956"
+limites_pt: >-
+  Homilia anônima em grego, do século II, transmitida junto com a Primeira Carta de Clemente e conhecida por
+  isso como Segunda Clemente; a própria origem a apresenta como homilia antiga de autor desconhecido. Dirige-se
+  a uma comunidade como pregação, lendo as escrituras e as palavras do Senhor em tom de exortação. Chegou pelos
+  mesmos manuscritos da Primeira Carta, entre eles o Códice Alexandrino.
+secoes:
+  - slug: ii-ii
+    titulo: Texto
+    resumo_pt: >-
+      Sermão que exorta os ouvintes ao arrependimento e à vida santa enquanto há tempo, tratando as coisas
+      deste mundo como estranhas ao cristão. Desenvolve a guarda da carne em pureza e a recompensa prometida a
+      quem faz a vontade do Pai, adverte contra os que duvidam com o coração dividido e acolhe a repreensão
+      que desvia da injustiça. Encerra com louvor ao Deus invisível, Pai da verdade.
+    palavras_chave_pt: [arrependimento, santidade, pureza, recompensa, coração dividido, sermão]
