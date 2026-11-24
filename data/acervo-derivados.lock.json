@@ -26,6 +26,10 @@
       "sha256": "eb826a444cf19b940ee814fdb51501004dfc9d1a3d3d3f4ea0dc4dba100305d5",
       "bytes": 29006
     },
+    "eusebio-historia-eclesiastica": {
+      "sha256": "0b9d8233c950ae26b36ed8ca7c21d9591ab5e49d936e53189ab16059fb31ad1d",
+      "bytes": 921604
+    },
     "evangelho-de-tome": {
       "sha256": "1adf025d041574f6800098789c7f8fb082c8bc797c78b23dc2e5c8b22c559c74",
       "bytes": 33871
@@ -38,6 +42,10 @@
       "sha256": "dbd0292c2b17965f10bb6949a7dcc77c0334495eda5cfad5b4db67bbdc1741a7",
       "bytes": 77145
     },
+    "ireneu-contra-heresias": {
+      "sha256": "962bb95ff06e939610fa6ae13f9949143f795c806d017d2b25b8bd44c7e86581",
+      "bytes": 1264601
+    },
     "josefo-antiguidades": {
       "sha256": "1d3d83162fceb012bb30cfb739c1fc6dff3b9598bcb8399bc4302405436af6f8",
       "bytes": 2743226
@@ -45,6 +53,10 @@
     "josefo-guerra-judaica": {
       "sha256": "2feb12b514cba3d9dabac33d4530e3cfdf6296bf318ab3b1cd3da2ac0c9b4141",
       "bytes": 1264496
+    },
+    "julio-africano-fragmentos": {
+      "sha256": "f8dd0cc7baeec55ad392670ffec69d7f737fa17a96d2935ee3f55472457124d5",
+      "bytes": 40079
     },
     "justino-1-apologia": {
       "sha256": "1ec5470da55e8abac495cb45ec7b37d98bc842e376356697ab3ffce0faaca004",
@@ -69,6 +81,10 @@
     "martirio-de-policarpo": {
       "sha256": "7e963755b840b1a9442217e96d6203d8d783881801bb0a937e2433fe7179ea10",
       "bytes": 25219
+    },
+    "origenes-contra-celso": {
+      "sha256": "c70b733968949df04030758d50626d32ee8a54adedb0ddf9d4656995178a0f65",
+      "bytes": 1464933
     },
     "papias-fragmentos": {
       "sha256": "558bbc63779b9af6fdb2cae881330ee0fad85b822f8d97529546aa7f2af0fd82",
