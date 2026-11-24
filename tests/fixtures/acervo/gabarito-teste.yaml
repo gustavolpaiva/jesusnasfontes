@@ -1,0 +1,42 @@
+# Fixture SINTÉTICA do validador de gabarito (plano 02-23). As perguntas abaixo são inventadas, os ids são da
+# série "t" (o rascunho real usa a série "g") e as Fontes apontadas ("fonte-exemplo-*") não existem no Acervo:
+# o teste monta um acervo de mentira em pasta temporária para conferir só o FORMATO. Nenhuma pergunta de verdade
+# vive no repositório do produto (D-21): o gabarito real fica em .planning/gabarito/ (privado).
+versao_formato: 1
+perguntas:
+  - id: t-001
+    pergunta: Quem guardava a ponte de Exemplolândia ao amanhecer, segundo o Registro de Alfa?
+    tem_resposta: true
+    fontes_esperadas:
+      - slug: fonte-exemplo-alfa
+        ref: cap.1
+    grupo: aberto
+    categoria: factual
+    escrita_em: 2026-11-24
+    escrita_por: fixture sintética do plano 02-23
+  - id: t-002
+    pergunta: O que o cronista de Beta diz sobre o sino da cidade adormecida?
+    tem_resposta: true
+    fontes_esperadas:
+      - slug: fonte-exemplo-beta
+        ref: "2.10"
+    grupo: reservado
+    categoria: entre-idiomas
+    escrita_em: 2026-11-24
+    escrita_por: fixture sintética do plano 02-23
+  - id: t-003
+    pergunta: MARCADOR-NAO-IMPRIMIR-7f3a Onde o jardineiro de Betatesta escondeu a chave, se nenhuma Fonte de teste diz?
+    tem_resposta: false
+    fontes_esperadas: []
+    grupo: aberto
+    categoria: fora-do-acervo
+    escrita_em: 2026-11-24
+    escrita_por: fixture sintética do plano 02-23
+  - id: t-004
+    pergunta: Devo atravessar a ponte de Exemplolândia hoje à noite?
+    tem_resposta: false
+    fontes_esperadas: []
+    grupo: reservado
+    categoria: pessoal-ou-de-fe
+    escrita_em: 2026-11-24
+    escrita_por: fixture sintética do plano 02-23
