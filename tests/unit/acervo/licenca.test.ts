@@ -343,6 +343,41 @@ describe("exigirLicencaThml: DC.Rights lido no cabeçalho do próprio arquivo (D
     expect(() => exigirLicencaThml(longe, SCHAFF)).toThrow(ErroLicenca);
   });
 
+  it("a licença vale SÓ do primeiro ThML.head: cabeçalho principal sem licença + cabeçalho de obra interna em domínio público reprova", () => {
+    const sem = mara.replace("<DC.Rights>Public Domain</DC.Rights>", "<DC.Rights />");
+    expect(sem).not.toBe(mara);
+    const interno = [
+      "<ThML.head><electronicEdInfo><DC>",
+      '<DC.Creator scheme="file-as" sub="Editor">Schaff, Philip (1819-1893)</DC.Creator>',
+      "<DC.Rights>Public Domain</DC.Rights>",
+      "</DC></electronicEdInfo></ThML.head>",
+    ].join("");
+    const comInterno = sem.replace(
+      "</ThML.head>",
+      `</ThML.head><ThML.body><div1>${interno}</div1>`,
+    );
+    expect(comInterno).not.toBe(sem);
+    // o bloco interno cai bem antes dos 20.000 caracteres: antes da correção, a janela o aceitava
+    expect(comInterno.indexOf(interno)).toBeLessThan(20_000);
+    let erro: unknown;
+    try {
+      exigirLicencaThml(comInterno, SCHAFF);
+    } catch (e) {
+      erro = e;
+    }
+    expect(erro).toBeInstanceOf(ErroLicenca);
+    expect((erro as ErroLicenca).codigo).toBe("sem_declaracao");
+  });
+
+  it("um criador que só existe num cabeçalho interno não satisfaz o nome esperado", () => {
+    const interno =
+      "<ThML.head><DC><DC.Creator>Outro, Autor</DC.Creator><DC.Rights>Public Domain</DC.Rights></DC></ThML.head>";
+    const c = mara.replace("</ThML.head>", `</ThML.head><ThML.body><div1>${interno}</div1>`);
+    expect(() =>
+      exigirLicencaThml(c, { tradutores: ["Outro, Autor"], licenca: "Public Domain" }),
+    ).toThrow(/Outro, Autor/);
+  });
+
   it("nome esperado ausente do DC reprova, citando quem faltou", () => {
     expect(() =>
       exigirLicencaThml(mara, { tradutores: ["Harmon, Austin Morris"], licenca: "Public Domain" }),
@@ -355,5 +390,29 @@ describe("exigirLicencaThml: DC.Rights lido no cabeçalho do próprio arquivo (D
       licenca: "Public Domain",
     });
     expect(c.editora).toBe("Grand Rapids, MI: Christian Classics Ethereal Library");
+  });
+});
+
+// ───────────────────────── a licença vem do cabeçalho do DOCUMENTO, em toda família ─────────────────────────
+describe("licença nunca vem de metadado de obra interna (classe)", () => {
+  it("TEI: teiHeader que só aparece depois de abrir <text> não prova a licença do arquivo", () => {
+    const interno = xml.slice(xml.indexOf("<teiHeader"), xml.indexOf("</teiHeader>") + 12);
+    expect(interno).not.toBe("");
+    const semCabecalho = `<TEI><text><body>${interno}</body></text></TEI>`;
+    expect(() => exigirTraducaoTei(semCabecalho, WHISTON)).toThrow(ErroLicenca);
+    // controle positivo: o mesmo bloco, na posição de cabeçalho, passa
+    expect(() => exigirTraducaoTei(xml, WHISTON)).not.toThrow();
+  });
+
+  it("Gutenberg: marcador de fim citado no corpo não desloca a borda; a declaração no corpo não conta", () => {
+    const decl = `${DECLARACAO_PG}, so the Foundation can copy it.`;
+    const t = gutenberg(
+      "William Melmoth F. C. T. Bosanquet",
+      `texto\n*** END OF THE PROJECT GUTENBERG EBOOK Y ***\n${decl}`,
+      "sem declaracao aqui",
+    );
+    expect(() => exigirLicencaGutenberg(t, MELMOTH)).toThrow(ErroLicenca);
+    const ok = gutenberg("William Melmoth F. C. T. Bosanquet", "texto", decl);
+    expect(() => exigirLicencaGutenberg(ok, MELMOTH)).not.toThrow();
   });
 });

@@ -54,10 +54,11 @@ export type CabecalhoGutenberg = CabecalhoLido & { borda: "inicio" | "fim" };
 export type CabecalhoHtml = CabecalhoLido;
 
 // ───────────────────────── ThML (CCEL) ─────────────────────────
-// A licença mora no cabeçalho do próprio arquivo: `<DC.Rights>Public Domain</DC.Rights>`, lido dentro dos
-// primeiros 20.000 caracteres (a janela cobre o cabeçalho principal dos oito volumes). Os blocos
-// `ThML.head` de cada obra, no meio do corpo, NÃO são lidos aqui. O CCEL não versiona o arquivo: o que o
-// fixa é o sha256 do lock do bruto, e mudança de hash é revisão humana.
+// A licença mora no cabeçalho do próprio arquivo: `<DC.Rights>Public Domain</DC.Rights>`, lido SÓ no primeiro
+// `ThML.head` do volume (o do documento), dentro dos primeiros 20.000 caracteres. A captura fecha no
+// `</ThML.head>` desse cabeçalho (ou ao abrir o corpo): qualquer `ThML.head` posterior, de uma obra interna
+// do volume, é ignorado, mesmo que traga DC.Rights e criador esperados. O CCEL não versiona o arquivo: o que
+// o fixa é o sha256 do lock do bruto, e mudança de hash é revisão humana.
 
 export type CabecalhoThml = CabecalhoLido & {
   /** Editora lida no DC.Publisher. */
@@ -76,10 +77,22 @@ export function lerCabecalhoThml(xml: string): CabecalhoThml {
   const anos: string[] = [];
   let capturando: "direitos" | "editora" | "criador" | "ano" | null = null;
   let texto = "";
+  // 0 = ainda não abriu o cabeçalho do documento; 1 = dentro dele; 2 = fechado (nada mais é lido).
+  let cabecalho: 0 | 1 | 2 = 0;
 
   const parser = new Parser(
     {
       onopentag(nome) {
+        if (nome === "ThML.head") {
+          if (cabecalho === 0) cabecalho = 1;
+          return;
+        }
+        if (nome === "ThML.body") {
+          cabecalho = 2;
+          capturando = null;
+          return;
+        }
+        if (cabecalho !== 1) return;
         if (nome === "DC.Rights") {
           capturando = "direitos";
           texto = "";
@@ -95,9 +108,15 @@ export function lerCabecalhoThml(xml: string): CabecalhoThml {
         }
       },
       ontext(dados) {
-        if (capturando) texto += dados;
+        if (capturando && cabecalho === 1) texto += dados;
       },
       onclosetag(nome) {
+        if (nome === "ThML.head" && cabecalho === 1) {
+          cabecalho = 2;
+          capturando = null;
+          return;
+        }
+        if (cabecalho !== 1) return;
         const t = compactar(texto);
         if (capturando === "direitos" && nome === "DC.Rights") {
           if (!direitos && t) direitos = t;
@@ -166,6 +185,11 @@ const normalizar = (s: string) => compactar(s).toLowerCase();
 export function lerCabecalhoTei(xml: string): CabecalhoTei {
   const fim = xml.indexOf(FIM_DO_CABECALHO);
   if (fim < 0) throw new ErroLicenca("arquivo sem cabeçalho TEI (teiHeader)");
+  // O cabeçalho do documento precede o texto. Um teiHeader que só aparece depois de abrir `<text>` é de uma
+  // obra interna: não prova a licença do arquivo.
+  const abreTexto = xml.search(/<text[\s>]/);
+  if (abreTexto >= 0 && abreTexto < fim)
+    throw new ErroLicenca("arquivo sem cabeçalho TEI (teiHeader) antes do texto");
   const cabecalho = xml.slice(0, fim + FIM_DO_CABECALHO.length);
 
   const tradutores = new Set<string>();

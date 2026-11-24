@@ -42,7 +42,10 @@ const MARCA_FIM = /^\*\*\* END OF (?:THE|THIS) PROJECT GUTENBERG E(?:BOOK|TEXT) 
 const semCR = (l: string) => (l.endsWith("\r") ? l.slice(0, -1) : l);
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
 
-/** Separa o arquivo pelas duas marcas do próprio arquivo. Sem uma delas não há borda para ler a licença. */
+/**
+ * Separa o arquivo pelas duas marcas do próprio arquivo: a PRIMEIRA de início e a ÚLTIMA de fim, de modo que uma
+ * marca citada dentro do corpo não desloque as bordas. Sem uma delas não há borda para ler a licença.
+ */
 export function separarGutenberg(texto: string): PartesGutenberg {
   const linhas = texto.split("\n");
   let iInicio = -1;
@@ -52,7 +55,7 @@ export function separarGutenberg(texto: string): PartesGutenberg {
     if (iInicio < 0) {
       // A marca de ordem de byte (U+FEFF) só pode estar na primeira linha.
       if (MARCA_INICIO.test(i === 0 ? l.replace(/^\uFEFF/, "") : l)) iInicio = i;
-    } else if (iFim < 0 && MARCA_FIM.test(l)) iFim = i;
+    } else if (MARCA_FIM.test(l)) iFim = i; // a ÚLTIMA marca de fim é a do arquivo; uma citada no corpo não fecha a borda
   }
   if (iInicio < 0)
     throw new ErroGutenberg(
