@@ -10,13 +10,25 @@
       "sha256": "78ae152adc40696bfe851996191f83ac5ef3c9fabb33009f93e53bdcdecbd562",
       "bytes": 30629
     },
+    "barnabe": {
+      "sha256": "7c3d8c74e1d36b8342d1e11a9eb98e70f350fa0fd9daab8f6a20ed8929fb98f2",
+      "bytes": 65356
+    },
     "didaque": {
       "sha256": "9e7170ae9396ccff04ccfa083a7c387a01cbf9901ff2b96e3cf1cea015b620f9",
       "bytes": 21481
     },
+    "diogneto": {
+      "sha256": "eb826a444cf19b940ee814fdb51501004dfc9d1a3d3d3f4ea0dc4dba100305d5",
+      "bytes": 29006
+    },
     "evangelho-de-tome": {
       "sha256": "75fe0a1f6419a26ec864a6bbdc43174120d5522f4be743d0a52b8fc50715235d",
       "bytes": 33707
+    },
+    "hermas": {
+      "sha256": "bcbfc2e87503bfa437de28c91bb85f4b5d5f6acd6799d901d5a7ce7e0f8d07f3",
+      "bytes": 258857
     },
     "inacio-cartas": {
       "sha256": "dbd0292c2b17965f10bb6949a7dcc77c0334495eda5cfad5b4db67bbdc1741a7",
