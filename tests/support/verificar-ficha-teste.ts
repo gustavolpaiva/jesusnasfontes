@@ -66,3 +66,41 @@ export async function verificarFichaParaTeste(
     await dono.end().catch(() => {});
   }
 }
+
+/**
+ * Confere (só confere; nunca verifica) os primeiros `quantos` itens com página de uma ficha já carregada, pelas funções
+ * reais do banco e com uma sessão de Admin com segundo fator semeada. Serve às varreduras e à conferência visual do painel
+ * de fichas (plano 02-18), que precisam de uma ficha "em conferência" ou "pronta" sem passar pela tela.
+ */
+export async function conferirParaTeste(
+  env: Record<string, string | undefined>,
+  slugDaFicha: string,
+  quantos = Number.POSITIVE_INFINITY,
+): Promise<{ conferidos: number }> {
+  const urlDoDono = env.DATABASE_URL_OWNER;
+  if (!urlDoDono) throw new Error("conferirParaTeste: ambiente sem DATABASE_URL_OWNER");
+  const dono = new pg.Client({ connectionString: urlDoDono });
+  const app = new pg.Client({ connectionString: urlDoPapel("app", { agrupada: false }, env) });
+  await dono.connect();
+  try {
+    await app.connect();
+    const { sessaoId } = await criarSessaoDeTeste(dono, "admin-com-segundo-fator");
+    const itens = await dono.query<{ id: string; conteudo_hash: string }>(
+      `select i.id, i.conteudo_hash from acervo.ficha_item i join acervo.fonte o on o.id = i.ficha_id
+        where o.slug = $1 and (i.pagina_inicio is not null or i.pagina_texto is not null)
+        order by i.tipo, i.ordem`,
+      [slugDaFicha],
+    );
+    const alvo = itens.rows.slice(0, quantos);
+    for (const item of alvo)
+      await app.query("select acervo.conferir_item($1::uuid, $2, $3)", [
+        sessaoId,
+        item.id,
+        item.conteudo_hash,
+      ]);
+    return { conferidos: alvo.length };
+  } finally {
+    await app.end().catch(() => {});
+    await dono.end().catch(() => {});
+  }
+}

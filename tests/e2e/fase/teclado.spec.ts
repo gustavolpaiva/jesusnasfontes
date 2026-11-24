@@ -11,6 +11,7 @@ const COM_DIALOGO = new Set([
   "menu-aberto",
   "menu-aberto-admin",
   "conta-dialogo-apagar",
+  "admin-ficha-dialogo",
 ]);
 const MAXIMO_DE_TABS = 70;
 

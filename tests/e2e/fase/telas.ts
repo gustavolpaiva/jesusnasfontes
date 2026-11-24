@@ -3,7 +3,11 @@ import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { falharFala, instalarFalaFalsa, VOZ_PT_BR } from "../../support/fala-falsa";
-import { semearFichas } from "../../support/ficha-e2e";
+import {
+  semearFichas,
+  semearFichasParaConferir,
+  type slugsParaConferir,
+} from "../../support/ficha-e2e";
 import { cargarFonteDoArquivo } from "../../support/fonte-painel-e2e";
 import { esperarHidratado } from "../../support/hidratacao";
 import { entrarComoAdmin } from "../../support/login-admin-e2e";
@@ -16,6 +20,7 @@ import {
   lerTexto,
   semearAdminParaTeste,
 } from "../../support/login-e2e";
+import { conferirParaTeste } from "../../support/verificar-ficha-teste";
 
 // Lista única das telas e estados da fase (plano 01-19, Tarefa 2), usada pelos quatro testes de
 // varredura: axe, reflow, teclado e escala de cinza. Roda sobre o conteúdo REAL (`content/`) e o banco da
@@ -42,6 +47,22 @@ let fichaDaVarredura: Promise<string> | undefined;
 function fichaVerificadaDaVarredura(): Promise<string> {
   fichaDaVarredura ??= semearFichas(`varredura-${process.pid}`).then((s) => s.slugs.completa);
   return fichaDaVarredura;
+}
+
+// As fichas do painel de fichas do Admin (plano 02-18), UMA vez por processo, nos cinco estados: a verificada e a alterada
+// vêm de `semearFichas`; as outras entram como rascunho e são conferidas pelas funções reais do banco (nunca por evidência
+// inserida direto): "conferir" fica em conferência (2 de 4), "umapagina" fica pronta, "confirmar" segue rascunho.
+let fichasDoPainel: Promise<ReturnType<typeof slugsParaConferir>> | undefined;
+function fichasDoPainelDaVarredura() {
+  fichasDoPainel ??= (async () => {
+    const sufixo = `varredura-${process.pid}`;
+    await fichaVerificadaDaVarredura();
+    const slugs = await semearFichasParaConferir(sufixo);
+    await conferirParaTeste(process.env, slugs.conferir, 2);
+    await conferirParaTeste(process.env, slugs.umapagina);
+    return slugs;
+  })();
+  return fichasDoPainel;
 }
 
 // A carta de neutralidade só tem tela quando o dono a publica (D-08): sem o arquivo a rota é 404 e a tela não entra na
@@ -623,6 +644,49 @@ export const TELAS: Tela[] = [
       await page.goto(`/admin/acervo/fontes/${slug}`);
       await h1(page, `Fonte do arquivo ${slug}`);
       await expect(page.locator('[data-slot="aviso-de-conflito"]')).toBeVisible();
+    },
+  },
+  // Admin: painel de fichas (plano 02-18)
+  {
+    id: "admin-fichas-fila",
+    quem: "admin",
+    cinza: true,
+    abrir: async (page) => {
+      await fichasDoPainelDaVarredura();
+      await page.goto("/admin/acervo/fichas");
+      await h1(page, "Fichas a verificar");
+      // Os cinco estados na mesma tela: é o que a leitura em cinza precisa distinguir.
+      for (const estado of ["pronta", "em-conferencia", "rascunho", "alterada", "verificada"])
+        await expect(
+          page.locator(`[data-slot="linha-ficha-admin"][data-estado="${estado}"]`).first(),
+        ).toBeVisible();
+    },
+  },
+  {
+    id: "admin-ficha-detalhe",
+    quem: "admin",
+    cinza: true,
+    abrir: async (page) => {
+      const slugs = await fichasDoPainelDaVarredura();
+      await page.goto(`/admin/acervo/fichas/${slugs.conferir}`);
+      await h1(page, /Obra a conferir/);
+      await esperarHidratado(
+        page.getByRole("button", { name: "Marcar como verificada", exact: true }),
+      );
+      await expect(page.getByText("2 de 4 páginas conferidas")).toBeVisible();
+    },
+  },
+  {
+    id: "admin-ficha-dialogo",
+    quem: "admin",
+    cinza: true,
+    abrir: async (page) => {
+      const slugs = await fichasDoPainelDaVarredura();
+      await page.goto(`/admin/acervo/fichas/${slugs.umapagina}`);
+      const botao = page.getByRole("button", { name: "Marcar como verificada", exact: true });
+      await esperarHidratado(botao);
+      await botao.click();
+      await expect(page.getByRole("alertdialog")).toBeVisible();
     },
   },
   {

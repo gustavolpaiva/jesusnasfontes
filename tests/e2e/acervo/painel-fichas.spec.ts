@@ -81,6 +81,24 @@ async function acionar(botao: Locator): Promise<void> {
   await botao.press("Enter");
 }
 
+// Confirma o segundo fator na tela dele. O código da ativação (o passo atual) já foi usado e não vale de novo; o do passo
+// seguinte vale, MAS só enquanto o relógio não andou um passo inteiro desde a ativação (com o servidor de teste ocupado
+// isso acontece). Então tenta o passo atual e, se a tela não sair, o seguinte: nunca depende de a sorte do relógio.
+async function confirmarSegundoFator(page: Page, chave: string): Promise<void> {
+  for (const adiante of [0, 30_000, 60_000]) {
+    await page.getByLabel("Código de 6 dígitos").fill(gerarTotp(chave, Date.now() + adiante));
+    await page.getByRole("button", { name: "Confirmar" }).click();
+    const saiu = await page
+      .waitForURL((url) => !url.pathname.endsWith("/admin/segundo-fator"), {
+        timeout: 8_000,
+        waitUntil: "commit",
+      })
+      .then(() => true)
+      .catch(() => false);
+    if (saiu) return;
+  }
+}
+
 async function abrirFicha(page: Page, slug: string): Promise<void> {
   await page.goto(`/admin/acervo/fichas/${slug}`);
   await esperarHidratado(verificar(page));
@@ -375,8 +393,7 @@ test("segundo fator vencido: a mensagem do contrato com a ação, nada muda, e d
   // Confirmar de novo leva de volta à ficha (e só a ela).
   await acao.click();
   await expect(page).toHaveURL(/\/admin\/segundo-fator\?retorno=/);
-  await page.getByLabel("Código de 6 dígitos").fill(gerarTotp(admin.chave, Date.now() + 30_000));
-  await page.getByRole("button", { name: "Confirmar" }).click();
+  await confirmarSegundoFator(page, admin.chave);
   await expect(page).toHaveURL(new RegExp(`/admin/acervo/fichas/${slug}$`));
   await expect(page.getByRole("heading", { level: 1, name: /Obra de uma página/ })).toBeVisible();
   await expect(page.getByText("1 de 1 página conferida")).toBeVisible();
@@ -393,8 +410,7 @@ test("retorno externo do segundo fator é ignorado: depois de confirmar, o Admin
   await page.goto("/admin/segundo-fator?retorno=https%3A%2F%2Fexterno.invalid%2Fpego");
   // O campo escondido só existe quando o retorno é aceito: o externo nem chega ao formulário.
   await expect(page.locator('input[name="retorno"]')).toHaveCount(0);
-  await page.getByLabel("Código de 6 dígitos").fill(gerarTotp(admin.chave, Date.now() + 30_000));
-  await page.getByRole("button", { name: "Confirmar" }).click();
+  await confirmarSegundoFator(page, admin.chave);
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole("heading", { level: 1, name: "Administração" })).toBeVisible();
 });

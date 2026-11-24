@@ -43,11 +43,16 @@ export function ConferirBotao({
       type="button"
       variant="secondary"
       data-slot="conferir-botao"
-      aria-label={`Conferi a ${paginaFalada} no livro`}
       aria-disabled={ocupado || undefined}
       onClick={aoClicar}
     >
-      Conferi no livro
+      {/* O nome acessível é "Conferi a página 39 a 53 no livro" (UI-SPEC) e nasce do conteúdo, não de `aria-label`: a
+          página vai em texto só para leitor de tela, no meio da frase, e o nome continua contendo o rótulo visível
+          (WCAG 2.5.3). */}
+      {/* Um só filho do botão (que é `flex` com `gap`): senão o `gap` abre um buraco no meio do rótulo visível. */}
+      <span>
+        Conferi <span className="sr-only">a {paginaFalada} </span>no livro
+      </span>
     </Button>
   );
 }
