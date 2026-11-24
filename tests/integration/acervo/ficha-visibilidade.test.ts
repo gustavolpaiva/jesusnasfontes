@@ -219,6 +219,16 @@ describe.skipIf(emNeon())("ficha em rascunho", () => {
 
 describe.skipIf(emNeon())("ficha com evidência de verificação (amarrada ao hash)", () => {
   it("com ficha_hash igual ao conteudo_hash, jnf_app e jnf_assistente leem a ficha; com hash diferente, 0", async () => {
+    // O hash do conteúdo é calculado pelo banco (0018): a carga não o escolhe, então o teste lê o valor vigente.
+    const hashAtual = (
+      await migra.query<{ conteudo_hash: string }>(
+        "select conteudo_hash from acervo.ficha where fonte_id = $1",
+        [fichaId],
+      )
+    ).rows[0]?.conteudo_hash as string;
+    expect(hashAtual).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashAtual).not.toBe(HASH_A);
+
     // A evidência é inserida pelo DONO do esquema (nenhum outro papel tem escrita).
     await migra.query(
       "insert into acervo.verificacao_ficha (ficha_id, ficha_hash) values ($1, $2)",
@@ -231,15 +241,14 @@ describe.skipIf(emNeon())("ficha com evidência de verificação (amarrada ao ha
     // Hash igual: lida por jnf_app (sem sessão alguma) e por jnf_assistente.
     await migra.query("update acervo.verificacao_ficha set ficha_hash = $2 where ficha_id = $1", [
       fichaId,
-      HASH_A,
+      hashAtual,
     ]);
     expect(await leituraDoApp(null)).toEqual({ fonteFicha: 1, ficha: 1, item: 1 });
     expect(await leituraDoAssistente()).toEqual({ fonteFicha: 1, ficha: 1, item: 1 });
 
-    // O conteúdo muda (a carga recalcula o hash): a verificação deixa de valer, em silêncio.
-    await carga.query("update acervo.ficha set conteudo_hash = $2 where fonte_id = $1", [
+    // O conteúdo muda (o banco recalcula o hash): a verificação deixa de valer, em silêncio.
+    await carga.query("update acervo.ficha set tese_pt = 'Tese adulterada.' where fonte_id = $1", [
       fichaId,
-      HASH_B,
     ]);
     expect(await leituraDoApp(null)).toEqual({ fonteFicha: 0, ficha: 0, item: 0 });
     expect(await leituraDoAssistente()).toEqual({ fonteFicha: 0, ficha: 0, item: 0 });
@@ -249,6 +258,11 @@ describe.skipIf(emNeon())("ficha com evidência de verificação (amarrada ao ha
       ficha: 1,
       item: 1,
     });
+    // Desfeita a mudança, o hash volta a ser o da evidência (o hash é função do conteúdo).
+    await carga.query("update acervo.ficha set tese_pt = 'Tese de teste.' where fonte_id = $1", [
+      fichaId,
+    ]);
+    expect(await leituraDoApp(null)).toEqual({ fonteFicha: 1, ficha: 1, item: 1 });
   });
 
   it("o papel de carga e o papel do aplicativo não gravam evidência", async () => {

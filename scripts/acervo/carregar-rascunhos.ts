@@ -187,6 +187,7 @@ async function carregarUma(c: pg.Client, ficha: FichaYaml, total: Contagem): Pro
   }
 
   // ───── os itens: o que saiu do YAML é apagado (e a conferência vai junto, em cascata)
+  // O hash que vale é o que o BANCO calcula (0018): o valor enviado acima é só o esperado e é sobrescrito.
   const atuais = new Map(
     (
       await c.query<LinhaItem>(
@@ -254,6 +255,19 @@ async function carregarUma(c: pg.Client, ficha: FichaYaml, total: Contagem): Pro
       total.atualizadas++;
     }
   }
+
+  // O banco é quem calcula o hash da ficha (0018). Se o formato dele divergir do canônico deste código, a carga para
+  // aqui, alto, em vez de gravar uma ficha que nunca bate com o que o TypeScript espera.
+  const gravado = (
+    await c.query<{ conteudo_hash: string }>(
+      "select conteudo_hash from acervo.ficha where fonte_id = $1",
+      [fonteId],
+    )
+  ).rows[0]?.conteudo_hash;
+  if (gravado !== hashFicha)
+    throw new ErroCarga(
+      `ficha ${ficha.slug}: o hash calculado pelo banco difere do canônico (rode as migrações ou corrija o formato)`,
+    );
 }
 
 // ───────────────────────── comando: pnpm acervo:rascunhos ─────────────────────────
