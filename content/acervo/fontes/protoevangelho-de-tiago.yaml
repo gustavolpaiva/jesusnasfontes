@@ -1,0 +1,39 @@
+# Fonte do Acervo: Protoevangelho de Tiago, na edição do volume 8 da coleção Ante-Nicene Fathers (CCEL,
+# ThML). O texto vem do derivado `data/acervo-derivados/protoevangelho-de-tiago.json`, gerado por `pnpm
+# acervo:derivar` a partir da origem `ccel-anf08` (data/acervo-origens.yaml): esta Fonte é a divisão vii.iv
+# do volume (Protevangelium of James). As traduções do volume foram feitas sobre a edição crítica de
+# Tischendorf, como a introdução da edição declara. O resumo auxiliar é escrita automática de busca (D-18)
+# e nunca substitui o texto.
+slug: protoevangelho-de-tiago
+titulo: Protoevangelho de Tiago
+autor: atribuído pela tradição a Tiago (o texto se assina "eu, Tiago")
+epoca: composição estimada no século II d.C. (datação debatida)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Evangelho apócrifo que não pertence ao cânone do Novo Testamento, de composição posterior aos fatos que
+  narra, estimada no século II d.C. Narra o nascimento e a infância de Maria e o nascimento de Jesus a partir
+  de tradições próprias; o texto reflete a tradição de quem o escreveu e nada mais se afirma sobre o seu
+  valor histórico.
+secoes:
+  - slug: vii-iv
+    titulo: Texto
+    resumo_pt: >-
+      Narra o nascimento e a infância de Maria: Joaquim e Ana concebem na velhice depois de oração e jejum,
+      a menina é entregue ao templo aos três anos e, aos doze, confiada por sorteio ao viúvo José, cuja vara
+      floresce numa pomba. Na casa de José, Maria recebe a anunciação enquanto fia o púrpura; superada a
+      acusação de adultério pela prova da água do juízo, nasce Jesus numa gruta de Belém, com a parteira e
+      Salomé como testemunhas. Seguem-se os magos, a matança dos inocentes, a fuga de Isabel com João, o
+      assassinato de Zacarias no templo e o fecho assinado por Tiago, que diz ter escrito em Jerusalém.
+    palavras_chave_pt: [Maria, Joaquim e Ana, templo, José, anunciação, Belém, gruta, parteira, magos, Zacarias]

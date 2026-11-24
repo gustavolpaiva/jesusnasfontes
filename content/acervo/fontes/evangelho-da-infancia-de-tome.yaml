@@ -1,0 +1,62 @@
+# Fonte do Acervo: Evangelho da Infância de Tomé (as três formas do ANF 8: primeira grega, segunda grega e
+# latina). NÃO confundir com o Evangelho de Tomé dos 114 ditos (Nag Hammadi, tradução de Mattison, plano
+# 02-09): o "Gospel of Thomas" deste volume é o relato da infância (Pitfall 5 da pesquisa; o teste
+# nomes-de-tome.test.ts barra a confusão). O texto vem do derivado
+# `data/acervo-derivados/evangelho-da-infancia-de-tome.json`, gerado por `pnpm acervo:derivar` a partir da
+# origem `ccel-anf08` (divisões vii.viii, vii.ix e vii.x do volume). O resumo auxiliar é escrita automática
+# de busca (D-18) e nunca substitui o texto.
+slug: evangelho-da-infancia-de-tome
+titulo: Evangelho da Infância de Tomé
+autor: atribuído pela tradição a Tomé, "o israelita" (o próprio texto se assina)
+epoca: composição estimada no século II d.C. (citado por autores do século II, como a introdução da edição registra)
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://ccel.org/ccel/schaff/anf08.xml
+origem_nome: Christian Classics Ethereal Library
+origem_url: https://ccel.org/ccel/schaff/anf08
+# O cabeçalho digital do volume (DC.Creator) nomeia só Philip Schaff, editor da série; não declara o ano nem
+# os tradutores do texto (pubHistory ausente). Nada é atribuído de memória (plano 02-10, mesma regra).
+tradutor: Schaff, Philip (1819-1893)
+edicao: "Ante-Nicene Fathers, vol. 8 (impressa em Edimburgo por T&T Clark, sem ano declarado); Christian Classics Ethereal Library (edição digital); o cabeçalho não declara o ano da tradução"
+traduzida_por_nos: false
+limites_pt: >-
+  Relato apócrifo da infância de Jesus atribuído a Tomé, que não pertence ao cânone do Novo Testamento e é
+  de composição posterior aos fatos, estimada no século II d.C. É coleção de milagres da infância entre os
+  cinco e os doze anos, sem parentesco com a coletânea de 114 ditos do Evangelho de Tomé copta; o texto
+  reflete a tradição de quem o escreveu e nada mais se afirma sobre o seu valor histórico.
+secoes:
+  - slug: vii-viii
+    titulo: Primeira forma grega
+    resumo_pt: >-
+      A forma mais longa: abre com o prefácio de Tomé, o israelita, aos irmãos vindos dos gentios, e reúne
+      milagres dos cinco aos doze anos. Aos cinco, Jesus represa as águas de um ribeiro, faz doze pardais de
+      barro em sábado e os faz voar, seca o filho do escriba Anás que derrubou as poças e mata o menino que
+      lhe bate no ombro; os que o acusam ficam cegos. Vêm o mestre Zaccheus, vencido pela alegoria da
+      primeira letra, os mortos que ele revive (Zenão, caído do telhado), o pé cortado pelo machado curado,
+      a água carregada na capa, a colheita de cem coros, a madeira esticada do leito, os outros mestres (um
+      golpeado por bater nele, outro que o vê ensinar a lei) e o achado no templo aos doze anos.
+    palavras_chave_pt: [Tomé o israelita, milagres de infância, doze pardais, sábado, Zaccheus, Zenão, mestres, templo]
+  - slug: vii-ix
+    titulo: Segunda forma grega
+    resumo_pt: >-
+      Forma mais curta, com o mesmo prefácio de Tomé e a sequência reduzida: as poças feitas na chuva, o
+      filho do escriba Anás que as derruba com um salgueiro e morre seco, os doze pardais de barro em sábado
+      que voam à ordem de Jesus, o menino que lhe atira uma pedra e cai morto, e a advertência a José quando
+      este lhe puxa a orelha ("basta-te"). Na escola de Zaccheus, Jesus diz ser anterior às idades e anuncia
+      que hão de crer nele quando virem a sua cruz; recita sozinho as vinte e duas letras. Seguem-se Zenão
+      revivido da queda do telhado, o pé curado, a água na capa aos seis anos e, aos oito, a madeira curta do
+      leito esticada, com o fecho em doxologia de Maria.
+    palavras_chave_pt: [segunda forma grega, poças, salgueiro, pardais, cruz, vinte e duas letras, madeira esticada]
+  - slug: vii-x
+    titulo: Forma latina
+    resumo_pt: >-
+      A forma latina abre antes das demais, com a fuga para o Egito aos dois anos (o menino apanha espigas,
+      revive um peixe seco na bacia e é enxotado da cidade com a mãe por um mestre), antes de voltar a
+      Nazaré. Repete as poças e os doze pardais em sábado, o menino que o empurra e morre, os acusadores
+      cegos e o mestre Zaccheu; traz episódios próprios, como o menino Sinô revivido da queda, a cama cuja
+      madeira curta é esticada e a serpente que morde Tiago e rebenta ao sopro de Jesus. Fecha com o fecho
+      assinado: Tomé, o israelita, diz escrever aos gentios o que viu do menino nascido na terra de Judá.
+    palavras_chave_pt: [forma latina, fuga para o Egito, peixe seco, Sinô, Nazaré, Tiago, serpente, Tomé o israelita]
