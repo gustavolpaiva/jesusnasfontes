@@ -1,0 +1,35 @@
+# Fonte do Acervo: Anais, de Tácito, na tradução inglesa de Church e Brodribb (Perseus Digital Library).
+# EXCERTO (revisão cruzada do plano 02-04, 2026-11-24): o texto do Perseus parece seguir a reimpressão de 1942,
+# "com alterações significativas", possivelmente protegida; só o capítulo 15.44 foi conferido IGUAL à edição de
+# 1895 (medicoes/tacito-1895.md) e só ele entra no derivado — a origem restringe por `unidades_conferidas`.
+# Ampliar = conferir o capítulo contra 1895, registrar e acrescentar a unidade na origem. O resumo auxiliar é
+# escrita automática de busca (D-18) e nunca substitui o texto.
+slug: tacito-anais
+titulo: Anais
+autor: Públio Cornélio Tácito
+epoca: cerca de 116 d.C.
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: edicao-digital-cc-by-sa-4-e-traducao-dp
+licenca_url: https://creativecommons.org/licenses/by-sa/4.0/
+origem_nome: Perseus Digital Library
+origem_url: https://www.perseus.tufts.edu/
+tradutor: Alfred John Church e William Jackson Brodribb
+traducao_ano: 1869
+edicao: Macmillan, Londres, 1869
+traduzida_por_nos: false
+limites_pt: >-
+  Obra escrita em latim por um senador romano nas primeiras décadas do século II, da qual parte dos livros se
+  perdeu. Esta Fonte é um excerto: só o capítulo 15.44, o único conferido igual à edição de 1895 — o restante do
+  texto desta edição digital pode seguir a reimpressão de 1942, com alterações possivelmente protegidas, e por
+  isso não foi incluído.
+secoes:
+  - slug: "15"
+    titulo: Livro 15
+    resumo_pt: >-
+      Capítulo sobre o incêndio de Roma no reinado de Nero: as providências para aplacar os deuses e as medidas
+      do imperador, entre elas a perseguição dos cristãos, com a nota de que Cristo fora executado sob Tibério
+      pelo procurador Pôncio Pilatos e que o nome viera da Judeia.
+    palavras_chave_pt: [Nero, incêndio de Roma, cristãos, Cristo, Pilatos, Tibério, perseguição]

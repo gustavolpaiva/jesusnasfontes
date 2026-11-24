@@ -1,0 +1,75 @@
+# Fonte do Acervo: Guerra dos Judeus, de Josefo, na tradução inglesa de Whiston (Perseus Digital Library). O
+# texto vem do derivado `data/acervo-derivados/josefo-guerra-judaica.json`, gerado por `pnpm acervo:derivar` a
+# partir da origem `perseus-greeklit-josefo` (data/acervo-origens.yaml), a mesma das Antiguidades. O resumo
+# auxiliar é escrita automática de busca (D-18) e nunca substitui o texto.
+slug: josefo-guerra-judaica
+titulo: Guerra dos Judeus
+autor: Flávio Josefo
+epoca: cerca de 75 d.C.
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: edicao-digital-cc-by-sa-e-traducao-dp
+licenca_url: https://creativecommons.org/licenses/by-sa/4.0/
+origem_nome: Perseus Digital Library
+origem_url: https://www.perseus.tufts.edu/
+tradutor: William Whiston
+traducao_ano: 1737
+edicao: The Works of Flavius Josephus, Alden and Beardsley, 1856
+traduzida_por_nos: false
+# Teto próprio de seção (o mesmo caso das Antiguidades, decisão do plano 02-08): a seção é o LIVRO. O maior livro
+# medido tem 275.161 caracteres (Livro 1); o teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 280000
+  motivo: >-
+    a seção é um livro inteiro da Guerra dos Judeus, página de leitura contínua aceita pelo UI-SPEC; o maior
+    livro medido tem 275.161 caracteres, o Livro 1
+limites_pt: >-
+  Obra escrita em grego por um comandante judeu que combateu na guerra e depois passou ao serviço dos vencedores
+  romanos, por volta de 75 d.C.; o relato vem desse ponto de vista. Preservada pela tradição cristã, não pela
+  judaica. O texto lido é a tradução inglesa de Whiston (1737), feita a partir de manuscritos medievais.
+secoes:
+  - slug: "1"
+    titulo: Livro 1
+    resumo_pt: >-
+      Cobre as causas remotas da guerra: as violências de Antíoco Epifânio, a revolta dos Macabeus, as disputas
+      da dinastia asmoneia, a intervenção de Pompeu e a conquista romana, e a ascensão de Antípatro e de Herodes,
+      até a tomada de Jerusalém.
+    palavras_chave_pt: [Antíoco Epifânio, Macabeus, Pompeu, Herodes, tomada de Jerusalém]
+  - slug: "2"
+    titulo: Livro 2
+    resumo_pt: >-
+      Cobre a sucessão de Herodes, a deposição de Arquelau e o governo dos procuradores — entre eles Pôncio
+      Pilatos —, a crise sob Calígula e os começos da revolta da Judeia, até a derrota de Céstio Galo.
+    palavras_chave_pt: [Arquelau, Pilatos, procuradores, revolta da Judeia, Céstio Galo]
+  - slug: "3"
+    titulo: Livro 3
+    resumo_pt: >-
+      Cobre a resposta romana à revolta: a campanha de Vespasiano na Galileia, o cerco e a queda de Jotapata com
+      a captura do próprio autor, e a submissão da região.
+    palavras_chave_pt: [Vespasiano, Galileia, Jotapata, cerco, captura do autor]
+  - slug: "4"
+    titulo: Livro 4
+    resumo_pt: >-
+      Cobre a continuação da campanha de Vespasiano: a rendição das cidades da Galileia, a tomada de Gamala e de
+      Giscala e a ida dos revoltosos para Jerusalém, onde a luta entre facções se agrava.
+    palavras_chave_pt: [Gamala, Giscala, Galileia, Vespasiano, facções de Jerusalém]
+  - slug: "5"
+    titulo: Livro 5
+    resumo_pt: >-
+      Cobre a chegada de Tito e o começo do cerco de Jerusalém: as três facções dentro da cidade, a fome, a
+      tomada das muralhas externas e os preparativos contra o Templo.
+    palavras_chave_pt: [Tito, cerco de Jerusalém, fome, facções, muralhas]
+  - slug: "6"
+    titulo: Livro 6
+    resumo_pt: >-
+      Cobre o auge do cerco: a fome e as mortes dentro de Jerusalém, a tomada da cidade alta e a destruição do
+      Templo pelo fogo, com o destino dos prisioneiros.
+    palavras_chave_pt: [destruição do Templo, Jerusalém, fome, cerco, prisioneiros]
+  - slug: "7"
+    titulo: Livro 7
+    resumo_pt: >-
+      Cobre o fim da guerra: a demolição de Jerusalém, os triunfos em Roma, os últimos redutos da revolta e a
+      queda de Masada.
+    palavras_chave_pt: [Masada, demolição de Jerusalém, triunfo romano, fim da guerra]
