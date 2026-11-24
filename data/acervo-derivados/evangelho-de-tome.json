@@ -12,6 +12,10 @@
       "ordem": 1,
       "paragrafos": [
         {
+          "ref": "prologo",
+          "texto": "These are the hidden sayings that the living Jesus spoke and Didymos Judas Thomas wrote down."
+        },
+        {
           "ref": "1",
           "texto": "And he said, \"Whoever discovers the meaning of these sayings won't taste death.\""
         },
