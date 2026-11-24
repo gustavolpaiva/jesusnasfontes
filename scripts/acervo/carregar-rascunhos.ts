@@ -272,17 +272,20 @@ async function carregarUma(c: pg.Client, ficha: FichaYaml, total: Contagem): Pro
 
 // ───────────────────────── comando: pnpm acervo:rascunhos ─────────────────────────
 
-export type OpcoesDosRascunhos = { fichas: string | undefined };
+export type OpcoesDosRascunhos = {
+  fichas: string | undefined;
+  /** Só confere o contrato de cada YAML: nunca abre conexão com o banco. */
+  soValidar?: boolean;
+};
 export type DependenciasDosRascunhos = {
   /** Abre o cliente `jnf_carga`. Só é chamado depois de TODA conferência passar. */
   abrir?: () => Promise<pg.Client>;
   escrever?: (linha: string) => void;
 };
 
-function lerYamls(pasta: string): FichaYaml[] {
-  let nomes: string[];
+function nomesDosYamls(pasta: string): string[] {
   try {
-    nomes = readdirSync(pasta)
+    return readdirSync(pasta)
       .filter((nome) => nome.endsWith(".yaml"))
       .sort();
   } catch (erro) {
@@ -290,6 +293,40 @@ function lerYamls(pasta: string): FichaYaml[] {
       throw new ErroCarga("a pasta de fichas não existe");
     throw erro;
   }
+}
+
+/**
+ * Modo `--so-validar`: confere o contrato de CADA YAML (não para na primeira reprovada), imprime `OK <slug>` ou o
+ * campo reprovado, e lança se qualquer uma reprovar. Não recebe nem cria cliente de banco.
+ */
+function validarPasta(pasta: string, escrever: (linha: string) => void): FichaYaml[] {
+  const aprovadas: FichaYaml[] = [];
+  let reprovadas = 0;
+  for (const nome of nomesDosYamls(pasta)) {
+    try {
+      const ficha = interpretarFichaYaml(readFileSync(path.join(pasta, nome), "utf8"), nome);
+      if (aprovadas.some((f) => f.slug === ficha.slug)) {
+        reprovadas++;
+        escrever(`REPROVADA ${nome}: ficha repetida na pasta: ${ficha.slug}`);
+        continue;
+      }
+      aprovadas.push(ficha);
+      escrever(`OK ${ficha.slug}`);
+    } catch (erro) {
+      if (!(erro instanceof ErroContrato)) throw erro;
+      reprovadas++;
+      escrever(`REPROVADA ${erro.message}`);
+    }
+  }
+  escrever(
+    `fichas=${aprovadas.length} reprovadas=${reprovadas} (só validação: nada foi aberto no banco)`,
+  );
+  if (reprovadas > 0) throw new ErroCarga(`${reprovadas} ficha(s) reprovada(s) pelo contrato`);
+  return aprovadas;
+}
+
+function lerYamls(pasta: string): FichaYaml[] {
+  const nomes = nomesDosYamls(pasta);
   const fichas = nomes.map((nome) =>
     interpretarFichaYaml(readFileSync(path.join(pasta, nome), "utf8"), nome),
   );
@@ -314,6 +351,10 @@ export async function executarRascunhos(
     throw new ErroCarga(
       "a pasta de fichas é obrigatória: use --fichas <pasta> ou ACERVO_FICHAS_DIR (não há pasta padrão; D-17)",
     );
+  if (opcoes.soValidar) {
+    validarPasta(opcoes.fichas, escrever);
+    return null;
+  }
   const fichas = lerYamls(opcoes.fichas);
   if (fichas.length === 0) {
     escrever("acervo:rascunhos: não há ficha na pasta");
@@ -333,16 +374,17 @@ export async function executarRascunhos(
   }
 }
 
-function lerOpcoes(argumentos: string[], env: NodeJS.ProcessEnv): OpcoesDosRascunhos {
+export function lerOpcoes(argumentos: string[], env: NodeJS.ProcessEnv): OpcoesDosRascunhos {
+  const soValidar = argumentos.includes("--so-validar");
   const i = argumentos.indexOf("--fichas");
   if (i >= 0) {
     const valor = argumentos[i + 1];
     if (!valor || valor.startsWith("--"))
-      throw new ErroCarga("Uso: acervo:rascunhos --fichas <pasta>");
-    return { fichas: path.resolve(valor) };
+      throw new ErroCarga("Uso: acervo:rascunhos --fichas <pasta> [--so-validar]");
+    return { fichas: path.resolve(valor), soValidar };
   }
   const daEnv = env.ACERVO_FICHAS_DIR;
-  return { fichas: daEnv ? path.resolve(daEnv) : undefined };
+  return { fichas: daEnv ? path.resolve(daEnv) : undefined, soValidar };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

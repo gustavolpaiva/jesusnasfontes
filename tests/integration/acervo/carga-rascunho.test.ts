@@ -280,6 +280,112 @@ describe("comando pnpm acervo:rascunhos", () => {
     expect(abriu).toBe(false);
   });
 
+  describe("modo --so-validar (confere o contrato sem abrir conexão)", () => {
+    const tsx = "node_modules/.bin/tsx";
+    const script = "scripts/acervo/carregar-rascunhos.ts";
+    // Sem nenhuma variável de banco: se o modo tentasse conectar, falharia por falta de URL.
+    const semBanco = () => {
+      const limpo = env();
+      for (const chave of Object.keys(limpo))
+        if (/DATABASE|PG|NEON|DB_/i.test(chave)) delete limpo[chave];
+      return limpo;
+    };
+    const comPastaTemporaria = async (
+      arquivos: Record<string, string>,
+      corpo: (pasta: string) => void | Promise<void>,
+    ) => {
+      const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+      const { tmpdir } = await import("node:os");
+      const pasta = mkdtempSync(path.join(tmpdir(), "jnf-so-validar-"));
+      try {
+        for (const [nome, conteudo] of Object.entries(arquivos))
+          writeFileSync(path.join(pasta, nome), conteudo);
+        await corpo(pasta);
+      } finally {
+        rmSync(pasta, { recursive: true, force: true });
+      }
+    };
+
+    it("aprova a pasta de fixtures: imprime OK por slug, sai 0 e não usa banco", () => {
+      const r = spawnSync(tsx, [script, "--fichas", PASTA_FIXTURES, "--so-validar"], {
+        cwd: RAIZ,
+        env: semBanco(),
+        encoding: "utf8",
+      });
+      expect(r.stderr).toBe("");
+      expect(r.status).toBe(0);
+      expect(r.stdout).toMatch(/^OK obra-de-teste$/m);
+      expect(r.stdout).toMatch(/reprovadas=0/);
+      expect(r.stdout).not.toMatch(/inseridas=/);
+    });
+
+    it("reprova a ficha adulterada (estado: verificada) e sai 1 sem parar nas outras", async () => {
+      await comPastaTemporaria(
+        {
+          "boa.yaml": yamlDaFixture(),
+          "adulterada.yaml": yamlDaFixture("obra-de-teste-edicao-pendente.yaml").replace(
+            "estado: rascunho",
+            "estado: verificada",
+          ),
+        },
+        (pasta) => {
+          const r = spawnSync(tsx, [script, "--fichas", pasta, "--so-validar"], {
+            cwd: RAIZ,
+            env: semBanco(),
+            encoding: "utf8",
+          });
+          expect(r.status).toBe(1);
+          expect(r.stdout).toMatch(/^OK obra-de-teste$/m);
+          expect(r.stdout).toMatch(/REPROVADA .*adulterada\.yaml fora do contrato: .*estado/);
+          expect(r.stdout).toMatch(/reprovadas=1/);
+        },
+      );
+    });
+
+    it("exige a pasta como o modo de carga: sem pasta, sai 1", () => {
+      const r = spawnSync(tsx, [script, "--so-validar"], {
+        cwd: RAIZ,
+        env: semBanco(),
+        encoding: "utf8",
+      });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/pasta de fichas é obrigatória/);
+    });
+
+    it("executarRascunhos com soValidar nunca chama abrir()", async () => {
+      let abriu = false;
+      const linhas: string[] = [];
+      const r = await executarRascunhos(
+        { fichas: PASTA_FIXTURES, soValidar: true },
+        {
+          abrir: async () => {
+            abriu = true;
+            throw new Error("não deveria abrir");
+          },
+          escrever: (l) => linhas.push(l),
+        },
+      );
+      expect(r).toBeNull();
+      expect(abriu).toBe(false);
+      expect(linhas).toContain("OK obra-de-teste");
+    });
+
+    it("slug repetido na pasta reprova", async () => {
+      await comPastaTemporaria(
+        { "a.yaml": yamlDaFixture(), "b.yaml": yamlDaFixture() },
+        (pasta) => {
+          const r = spawnSync(tsx, [script, "--fichas", pasta, "--so-validar"], {
+            cwd: RAIZ,
+            env: semBanco(),
+            encoding: "utf8",
+          });
+          expect(r.status).toBe(1);
+          expect(r.stdout).toMatch(/ficha repetida na pasta: obra-de-teste/);
+        },
+      );
+    });
+  });
+
   it("YAML com estado de verificação é recusado antes de abrir conexão", async () => {
     const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
