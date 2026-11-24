@@ -8,6 +8,7 @@ import { obterPool } from "@/db/cliente";
 import { ErroDeBanco } from "@/db/erro-banco";
 import { aprovarAfirmacao } from "@/modules/acervo/aprovacao";
 import { lerPainelDeGraus } from "@/modules/acervo/consultas-graus";
+import { lerLimite } from "@/modules/acervo/painel-graus";
 import { interpretarFichaYaml } from "@/modules/acervo/schemas";
 import { carregarRascunhos } from "../../../scripts/acervo/carregar-rascunhos";
 import { urlDoPapel } from "../../../src/db/url";
@@ -439,6 +440,35 @@ describe.skipIf(emNeon())("aprovar: a porta que o painel usa (hashes lidos, banc
     expect(erro.message).not.toMatch(/select|acervo\.|Frase|invented/i);
   });
 });
+
+describe.skipIf(emNeon())(
+  "paginação: além da primeira página, sem encolher a lista em silêncio",
+  () => {
+    it("'Mostrar mais' além do teto antigo: lerLimite('420') continua 420 e a leitura alcança a proposta além da primeira página", async () => {
+      // 22 pendentes a mais: a última fica além da primeira página (20 por vez).
+      const novos: string[] = [];
+      for (let i = 0; i < 22; i++) novos.push((await afirmacao()).id);
+      const alemDaPrimeira = novos[novos.length - 1] as string;
+
+      // A primeira página, como a rota a lê do endereço sem `?ate=`.
+      const primeira = await lerPainelDeGraus(admin(), "todas", lerLimite(undefined));
+      expect(primeira.propostas).toHaveLength(20);
+      expect(primeira.restantes).toBeGreaterThanOrEqual(2);
+      expect(primeira.propostas.some((p) => p.afirmacaoId === alemDaPrimeira)).toBe(false);
+
+      // O endereço que "Mostrar mais" gera a partir de ate=400: 420, além do teto antigo de 400. Antes do conserto,
+      // lerLimite("420") valia 20 e as propostas além da primeira página ficavam inacessíveis.
+      const ate420 = await lerPainelDeGraus(admin(), "todas", lerLimite("420"));
+      expect(ate420.propostas).toHaveLength(ate420.contagens.todas); // todas, nunca 20
+      expect(ate420.propostas.some((p) => p.afirmacaoId === alemDaPrimeira)).toBe(true);
+      expect(ate420.restantes).toBe(0);
+      // A ordem é estável: a página maior começa exatamente com a primeira página.
+      expect(ate420.propostas.slice(0, 20).map((p) => p.afirmacaoId)).toEqual(
+        primeira.propostas.map((p) => p.afirmacaoId),
+      );
+    });
+  },
+);
 
 describe.skipIf(emNeon())(
   "corrida: a Citação muda enquanto o dono clica (FOR UPDATE no banco)",

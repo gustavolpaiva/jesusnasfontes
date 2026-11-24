@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { unstable_rethrow } from "next/navigation";
-import { EmptyState } from "@/components/estado/empty-state";
 import { StatusMessage } from "@/components/estado/status-message";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
@@ -97,38 +96,23 @@ export default async function PaginaDeGraus({
       ) : (
         <>
           <Filtros painel={painel} />
-          {painel.propostas.length === 0 ? (
-            filtro === "aprovadas" ? (
-              <EmptyState
-                titulo={MENSAGENS_GRAUS.vazioAprovadas}
-                descricao={MENSAGENS_GRAUS.vazioAprovadasDescricao}
-              />
-            ) : (
-              <EmptyState
-                titulo={MENSAGENS_GRAUS.vazio}
-                descricao={MENSAGENS_GRAUS.vazioDescricao}
-              />
-            )
-          ) : (
-            <>
-              {/* O acordeão abre com `h3`: sem este `h2` a ordem dos títulos pularia um nível depois do `h1`. */}
-              <h2 className="sr-only">Propostas</h2>
-              <ListaGraus propostas={painel.propostas} />
-              {painel.restantes > 0 ? (
-                <div>
-                  <Button asChild variant="secondary">
-                    <Link
-                      href={`${BASE}?${new URLSearchParams({ filtro, ate: String(ate + POR_VEZ) })}`}
-                      scroll={false}
-                      data-slot="mais-propostas"
-                    >
-                      {MENSAGENS_GRAUS.maisPropostas}
-                    </Link>
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          )}
+          {/* A lista (e o estado vazio dela) fica SEMPRE montada: aprovar a última pendente esvazia "Pendentes" no
+              meio da revalidação, e a confirmação com o destino de foco mora DENTRO da ListaGraus — o estado vazio é
+              renderizado por ela (o achado da revisão: a mensagem de sucesso e o foco sumiam com a lista). */}
+          <ListaGraus propostas={painel.propostas} filtro={filtro} />
+          {painel.restantes > 0 ? (
+            <div>
+              <Button asChild variant="secondary">
+                <Link
+                  href={`${BASE}?${new URLSearchParams({ filtro, ate: String(ate + POR_VEZ) })}`}
+                  scroll={false}
+                  data-slot="mais-propostas"
+                >
+                  {MENSAGENS_GRAUS.maisPropostas}
+                </Link>
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
     </div>

@@ -143,10 +143,28 @@ describe("mensagens e limites", () => {
     );
     expect(textoDaMeta(3, 66)).toBe("3 de 66 Afirmações com Citação aprovada");
   });
-  it("lerLimite: múltiplo de 20 entre 20 e o teto; o resto vale 20", () => {
+  it("lerLimite: múltiplo de 20 a partir de 20, SEM teto (420 continua além do teto antigo); o resto vale 20", () => {
     expect(lerLimite("40")).toBe(40);
     expect(lerLimite(["60", "x"])).toBe(60);
-    for (const v of [undefined, "", "0", "19", "25", "-20", "1e3", "999999", "420", "20.0", {}])
+    // O achado da revisão: além do teto antigo de 400 a lista continuava inacessível ("Mostrar mais" em ate=400 gerava
+    // 420, que o teto convertia de volta em 20). Agora 420 (e qualquer múltiplo de 20) vale.
+    expect(lerLimite("400")).toBe(400);
+    expect(lerLimite("420")).toBe(420);
+    expect(lerLimite(["420", "40"])).toBe(420);
+    expect(lerLimite("9980")).toBe(9980);
+    for (const v of [
+      undefined,
+      "",
+      "0",
+      "19",
+      "25",
+      "-20",
+      "1e3",
+      "999999",
+      "20.0",
+      "10000000",
+      {},
+    ])
       expect(lerLimite(v)).toBe(20);
   });
 });

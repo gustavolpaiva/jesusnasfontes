@@ -6,6 +6,7 @@ import { mensagemDaFalha } from "@/app/(admin)/admin/convites/mensagens";
 import { ChipDaProposta } from "@/components/acervo/chip-da-proposta";
 import { PropostaGrau } from "@/components/acervo/proposta-grau";
 import { ROTULO_DO_GRAU, SeloGrau } from "@/components/acervo/selo-grau";
+import { EmptyState } from "@/components/estado/empty-state";
 import { StatusMessage } from "@/components/estado/status-message";
 import {
   Accordion,
@@ -16,8 +17,9 @@ import {
 import { Algarismos } from "@/components/ui/algarismos";
 import { aprovarGrauAction } from "@/modules/acervo/acoes-graus";
 import type { PropostaDoPainel } from "@/modules/acervo/consultas-graus";
-import type { GrauDeCerteza } from "@/modules/acervo/estado-da-proposta";
+import type { FiltroDeGraus, GrauDeCerteza } from "@/modules/acervo/estado-da-proposta";
 import {
+  MENSAGENS_GRAUS,
   mensagemDeSucesso,
   type RecusaDaAprovacao,
   type ResultadoDeAprovar,
@@ -31,10 +33,13 @@ import {
 //     estado), e enquanto ela está no ar todos os botões de aprovar ficam `aria-disabled` e recusam o clique;
 //   - o que o cliente guarda é só o que é dele: a mensagem de sucesso, as recusas por id e qual item está salvando.
 // Sem id gerado no cliente: a hidratação usa só o que o servidor mandou (e `useId` do React, estável nos dois lados).
+// O ESTADO VAZIO é renderizado AQUI, pelo mesmo componente que tem a região de status: aprovar a última pendente esvazia
+// a lista na revalidação, e a confirmação com o destino de foco precisa continuar montada (achado da revisão do plano
+// 02-21 — antes, a página trocava a lista pelo estado vazio e a mensagem de sucesso sumia junto).
 
-type Props = { propostas: PropostaDoPainel[] };
+type Props = { propostas: PropostaDoPainel[]; filtro: FiltroDeGraus };
 
-export function ListaGraus({ propostas }: Props) {
+export function ListaGraus({ propostas, filtro }: Props) {
   const roteador = useRouter();
   const [pendente, iniciar] = useTransition();
   const emVoo = useRef(false);
@@ -113,42 +118,62 @@ export function ListaGraus({ propostas }: Props) {
           </StatusMessage>
         ) : null}
       </div>
-      <Accordion type="multiple" data-slot="lista-de-propostas" className="border-t border-border">
-        {propostas.map((p) => (
-          <AccordionItem
-            key={p.afirmacaoId}
-            value={p.afirmacaoId}
-            data-afirmacao={p.afirmacaoId}
-            data-estado={p.estado}
+      {propostas.length === 0 ? (
+        filtro === "aprovadas" ? (
+          <EmptyState
+            titulo={MENSAGENS_GRAUS.vazioAprovadas}
+            descricao={MENSAGENS_GRAUS.vazioAprovadasDescricao}
+          />
+        ) : (
+          <EmptyState titulo={MENSAGENS_GRAUS.vazio} descricao={MENSAGENS_GRAUS.vazioDescricao} />
+        )
+      ) : (
+        <>
+          {/* O acordeão abre com `h3`: sem este `h2` a ordem dos títulos pularia um nível depois do `h1` (e do `h2` do
+              estado vazio, quando a lista esvazia depois de uma aprovação). */}
+          <h2 className="sr-only">Propostas</h2>
+          <Accordion
+            type="multiple"
+            data-slot="lista-de-propostas"
+            className="border-t border-border"
           >
-            <AccordionTrigger className="items-start px-0 py-3" data-slot="proposta-gatilho">
-              <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
-                <span className="text-leitura frase-do-gatilho text-left [overflow-wrap:anywhere]">
-                  {p.frase}
-                </span>
-                <span className="text-meta text-ink-muted [overflow-wrap:anywhere]">
-                  <Algarismos>{`${p.estudoTitulo} · ${p.afirmacaoId}`}</Algarismos>
-                </span>
-                <span className="flex flex-wrap items-center gap-2">
-                  <ChipDaProposta estado={p.estado} grauAprovado={p.grauAprovado} />
-                  <SeloGrau grau={p.grauProposto} />
-                </span>
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <PropostaGrau
-                key={`${p.textoHash}:${p.citacoesHash}:${p.grauProposto}:${p.grauAprovado ?? ""}`}
-                proposta={p}
-                ocupado={ocupado}
-                salvando={salvandoId === p.afirmacaoId}
-                recusa={recusas[p.afirmacaoId] ?? null}
-                aoAprovar={(grau) => void aprovar(p, grau)}
-                aoRecarregar={() => roteador.refresh()}
-              />
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+            {propostas.map((p) => (
+              <AccordionItem
+                key={p.afirmacaoId}
+                value={p.afirmacaoId}
+                data-afirmacao={p.afirmacaoId}
+                data-estado={p.estado}
+              >
+                <AccordionTrigger className="items-start px-0 py-3" data-slot="proposta-gatilho">
+                  <span className="flex min-w-0 flex-1 flex-col items-start gap-2">
+                    <span className="text-leitura frase-do-gatilho text-left [overflow-wrap:anywhere]">
+                      {p.frase}
+                    </span>
+                    <span className="text-meta text-ink-muted [overflow-wrap:anywhere]">
+                      <Algarismos>{`${p.estudoTitulo} · ${p.afirmacaoId}`}</Algarismos>
+                    </span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <ChipDaProposta estado={p.estado} grauAprovado={p.grauAprovado} />
+                      <SeloGrau grau={p.grauProposto} />
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <PropostaGrau
+                    key={`${p.textoHash}:${p.citacoesHash}:${p.grauProposto}:${p.grauAprovado ?? ""}`}
+                    proposta={p}
+                    ocupado={ocupado}
+                    salvando={salvandoId === p.afirmacaoId}
+                    recusa={recusas[p.afirmacaoId] ?? null}
+                    aoAprovar={(grau) => void aprovar(p, grau)}
+                    aoRecarregar={() => roteador.refresh()}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </>
+      )}
     </div>
   );
 }

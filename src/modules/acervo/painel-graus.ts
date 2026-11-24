@@ -66,15 +66,19 @@ export type ResultadoDeAprovar =
 
 export type RecusaDaAprovacao = Extract<ResultadoDeAprovar, { ok: false }>;
 
-/** Quantas propostas por vez, e o teto de quanto "Mostrar mais" pode pedir (o endereço é entrada não confiável). */
+/** Quantas propostas entram por vez em `?ate=` (e quanto cada "Mostrar mais" acrescenta). */
 export const POR_VEZ = 20;
-export const TETO_DA_LISTA = 400;
 
-/** `?ate=` do endereço: um múltiplo de 20 entre 20 e o teto; qualquer outra coisa vale 20. */
+// `?ate=` NÃO tem teto: o endereço é entrada não confiável, mas o formato já limita o pedido (só dígitos, até 6), e a
+// leitura devolve no máximo as propostas que EXISTEM. Recusar acima de um teto com o padrão de 20 encolheria a lista em
+// silêncio (o achado da revisão: `ate=420` virava 20 e as propostas além de 400 ficavam inacessíveis). O que não é um
+// múltiplo de 20 a partir de 20 vale o padrão — o link de "Mostrar mais" só existe enquanto há restantes, então o valor
+// que ele gera cresce de 20 em 20 até o fim da lista, nunca além.
+/** `?ate=` do endereço: um múltiplo de 20 a partir de 20, sem teto; qualquer outra coisa vale 20. */
 export function lerLimite(valor: unknown): number {
   const v = Array.isArray(valor) ? valor[0] : valor;
-  if (typeof v !== "string" || !/^[0-9]{1,4}$/.test(v)) return POR_VEZ;
+  if (typeof v !== "string" || !/^[0-9]{1,6}$/.test(v)) return POR_VEZ;
   const n = Number(v);
-  if (!Number.isInteger(n) || n < POR_VEZ || n > TETO_DA_LISTA || n % POR_VEZ !== 0) return POR_VEZ;
+  if (!Number.isInteger(n) || n < POR_VEZ || n % POR_VEZ !== 0) return POR_VEZ;
   return n;
 }
