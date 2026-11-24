@@ -414,9 +414,11 @@ async function resolverCitacoes(c: pg.Client, p: PropostaYaml): Promise<AlvoDeCi
 }
 
 /**
- * Carga das propostas numa transação só, com a trava da carga do Acervo. Para cada Afirmação (por id, em ordem fixa):
- * trava a linha (`for update`, o mesmo que `aprovar_afirmacao` faz), confere que o texto do banco é o da proposta,
- * PULA a que já tem aprovação gravada, grava `proposta_grau` com o `texto_hash` lido do banco e troca o conjunto de
+ * Carga das propostas numa transação só (TUDO OU NADA: uma entrada ruim numa Afirmação não aprovada desfaz o lote
+ * inteiro, em voz alta; a Afirmação APROVADA é pulada logo depois da trava, antes de qualquer conferência, e nunca
+ * faz o lote falhar, nem com o texto da proposta divergente), com a trava da carga do Acervo. Para cada Afirmação
+ * (por id, em ordem fixa): trava a linha (`for update`, o mesmo que `aprovar_afirmacao` faz), PULA a que já tem
+ * aprovação gravada, confere que o texto do banco é o da proposta, grava `proposta_grau` com o `texto_hash` lido do banco e troca o conjunto de
  * Citações só quando ele mudou. Qualquer erro desfaz tudo.
  */
 export async function carregarPropostas(
@@ -462,11 +464,6 @@ export async function carregarPropostas(
         throw new ErroCarga(
           `proposta ${p.afirmacao}: a Afirmação não existe no banco (carregue o conteúdo dos Estudos antes)`,
         );
-      if (normalizarEspaco(af.texto) !== normalizarEspaco(p.texto))
-        throw new ErroCarga(
-          `proposta ${p.afirmacao}: o texto da Afirmação no banco difere do da proposta`,
-        );
-
       const aprovada = await c.query(
         "select 1 from acervo.aprovacao_afirmacao where afirmacao_id = $1",
         [p.afirmacao],
@@ -475,6 +472,11 @@ export async function carregarPropostas(
         r.jaAprovadas.push(p.afirmacao);
         continue;
       }
+      // Só a Afirmação NÃO aprovada tem o texto conferido (e uma proposta divergente falha em voz alta, desfazendo o lote).
+      if (normalizarEspaco(af.texto) !== normalizarEspaco(p.texto))
+        throw new ErroCarga(
+          `proposta ${p.afirmacao}: o texto da Afirmação no banco difere do da proposta`,
+        );
 
       // ───── a proposta de Grau
       const justificativa = p.justificativa.trim();
@@ -690,7 +692,7 @@ export async function executarRascunhos(
       try {
         const r = await carregarPropostas(propostas, { cliente });
         escrever(
-          `propostas: inseridas=${r.inseridas} atualizadas=${r.atualizadas} inalteradas=${r.inalteradas} removidas=${r.removidas} ja-aprovadas=${r.jaAprovadas.length}`,
+          `propostas: inseridas=${r.inseridas} atualizadas=${r.atualizadas} inalteradas=${r.inalteradas} removidas=${r.removidas} puladas_aprovadas=${r.jaAprovadas.length}`,
         );
         for (const id of r.jaAprovadas) escrever(`já aprovada, não alterada: ${id}`);
         escrever(

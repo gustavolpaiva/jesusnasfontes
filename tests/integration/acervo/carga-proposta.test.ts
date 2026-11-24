@@ -276,7 +276,7 @@ describe.skipIf(emNeon())("a carga grava a proposta e as Citações, e é idempo
       { abrir: () => conectar("carga"), escrever: (l) => saida.push(l) },
     );
     expect(saida).toContain(
-      "propostas: inseridas=0 atualizadas=0 inalteradas=9 removidas=0 ja-aprovadas=0",
+      "propostas: inseridas=0 atualizadas=0 inalteradas=9 removidas=0 puladas_aprovadas=0",
     );
   });
 
@@ -459,6 +459,77 @@ describe.skipIf(emNeon())("a carga não altera Afirmação com aprovação (T-02
     expect((lida.rows[0] as { n: number }).n).toBe(2);
   });
 });
+
+describe.skipIf(emNeon())(
+  "Afirmação aprovada com texto divergente na proposta é pulada, não derruba o lote",
+  () => {
+    it("aprovada + texto divergente: pulada e relatada, as outras propostas carregam; não aprovada + divergente: falha o lote", async () => {
+      await limpar();
+      await carregarPropostas(lerPropostasConferidas(PASTA_PROPOSTAS), { cliente: carga });
+      const h = (
+        await superusuario.query<{ t: string; c: string }>(
+          "select a.texto_hash as t, acervo.hash_citacoes(a.id) as c from acervo.afirmacao a where a.id = 'pc91-a1'",
+        )
+      ).rows[0] as { t: string; c: string };
+      await app.query("select acervo.aprovar_afirmacao($1::uuid, 'pc91-a1', $2, 'consenso', $3)", [
+        admin(),
+        h.t,
+        h.c,
+      ]);
+      const aprovacaoAntes = (
+        await superusuario.query(
+          "select * from acervo.aprovacao_afirmacao where afirmacao_id = 'pc91-a1'",
+        )
+      ).rows;
+      const grauDeA3 = async () =>
+        (
+          await superusuario.query(
+            "select grau_proposto from acervo.proposta_grau where afirmacao_id = 'pc91-a3'",
+          )
+        ).rows[0];
+      const original = readFileSync(path.join(PASTA_PROPOSTAS, "graus-propostos.yaml"), "utf8");
+      const gravar = (yaml: string) => {
+        const pasta = mkdtempSync(path.join(tmpdir(), "jnf-propostas-"));
+        temporarios.push(pasta);
+        writeFileSync(path.join(pasta, "graus-propostos.yaml"), yaml);
+        return pasta;
+      };
+
+      // pc91-a1 (aprovada) com a frase DIVERGENTE do banco, e pc91-a3 (não aprovada) com grau novo.
+      const divergenteAprovada = original
+        .replace(
+          "texto: Frase sintética um, sobre o testemunho de um historiador antigo.",
+          "texto: Frase sintética um, que o Estudo mudou depois.",
+        )
+        .replace("grau_proposto: consenso", "grau_proposto: disputada");
+      const r = await carregarPropostas(lerPropostasConferidas(gravar(divergenteAprovada)), {
+        cliente: carga,
+      });
+      expect(r.jaAprovadas).toEqual(["pc91-a1"]);
+      expect(r.atualizadas).toBe(1);
+      expect(await grauDeA3()).toEqual({ grau_proposto: "disputada" });
+      expect(
+        (
+          await superusuario.query(
+            "select * from acervo.aprovacao_afirmacao where afirmacao_id = 'pc91-a1'",
+          )
+        ).rows,
+      ).toEqual(aprovacaoAntes);
+
+      // Controle: a divergente NÃO aprovada (pc91-a4) falha em voz alta e desfaz o lote inteiro (pc91-a3 não volta a consenso).
+      const divergenteNaoAprovada = original.replace(
+        "texto: Frase sintética quatro, sem nenhuma Fonte do Acervo.",
+        "texto: Frase sintética quatro, mas o Estudo mudou.",
+      );
+      await expect(
+        carregarPropostas(lerPropostasConferidas(gravar(divergenteNaoAprovada)), {
+          cliente: carga,
+        }),
+      ).rejects.toThrow(/pc91-a4: o texto da Afirmação no banco difere/);
+      expect(await grauDeA3()).toEqual({ grau_proposto: "disputada" });
+    });
+  },
+);
 
 describe.skipIf(emNeon())(
   "a carga recusa o que não confere com o banco, e não grava nada (all-or-nothing)",
