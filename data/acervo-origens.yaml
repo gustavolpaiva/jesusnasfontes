@@ -396,6 +396,70 @@ ccel-anf08:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["ix.xvii"]
+    # ───────── As Fontes apócrifas do plano 02-12, cada uma com as suas divisões div2 (a Parte vii do volume,
+    # "Apocrypha of the New Testament", em tradução feita sobre a edição crítica de Tischendorf, como a
+    # introdução da edição declara). O "Gospel of Thomas" do volume é o Evangelho da INFÂNCIA (Pitfall 5).
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: protoevangelho-de-tiago
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.iv"]
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: evangelho-de-pseudo-mateus
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.v"]
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: historia-de-jose-o-carpinteiro
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.vii"]
+    # As três formas do Evangelho da Infância de Tomé que o volume traz (nunca o dos 114 ditos, que é Mattison)
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: evangelho-da-infancia-de-tome
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.viii", "vii.ix", "vii.x"]
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: evangelho-arabe-da-infancia
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.xi"]
+    # Atos de Pilatos (Parte I do Evangelho de Nicodemos): duas formas gregas e uma latina. A Parte II
+    # (Descida de Cristo ao inferno, vii.xiv e vii.xvi–xvii) é obra distinta e fica de fora desta Fonte.
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: atos-de-pilatos
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.xii", "vii.xiii", "vii.xv"]
+    # A carta de Pilato ao imperador (vii.xviii) e o relatório em duas formas gregas (vii.xix e vii.xx). A
+    # entrega de Pilato (vii.xxi) e a morte de Pilato (vii.xxii) são obras distintas e ficam de fora.
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: cartas-e-relatorio-de-pilatos
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.xviii", "vii.xix", "vii.xx"]
+    - id: anf08.xml
+      url: https://ccel.org/ccel/schaff/anf08.xml
+      slug: atos-de-paulo-e-tecla
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["vii.xxvi"]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -412,6 +476,47 @@ ccel-anf08:
       # Pitfall 5: o "Gospel of Thomas" do ANF 8 (div2 vii.viii) é o Evangelho da INFÂNCIA, nunca o dos 114 ditos
       - ref: "vii.viii-p6"
         contem: ["This child Jesus, when five years old", "twelve sparrows"]
+      # Protoevangelho de Tiago: a voz na fonte ("alegra-te, cheia de graça") e a assinatura de Tiago
+      - ref: "vii.iv-p45"
+        contem: ["Hail, thou who hast received grace"]
+      - ref: "vii.iv-p88"
+        contem: ["I James that wrote this history in Jerusalem"]
+      # Pseudo-Mateus: o nascimento na gruta e as parteiras Zelomi e Salomé
+      - ref: "vii.v.xiv-p5"
+        contem: ["Zelomi and Salome"]
+      # História de José o Carpinteiro: os cento e onze anos e a morte no dia 26 de Abib
+      - ref: "vii.vii-p6"
+        contem: ["one hundred and eleven years", "twenty-sixth of the month Abib"]
+      # Infância de Tomé, segunda forma grega: o filho do escriba Anás e o salgueiro
+      - ref: "vii.ix-p4"
+        contem: ["son of Annas the scribe"]
+      # Infância de Tomé, forma latina: o fecho "eu, Tomé o israelita, escrevi"
+      - ref: "vii.x.xv-p5"
+        contem: ["I Thomas the Israelite have written"]
+      # Evangelho Árabe: o menino fala no berço ("eu sou Jesus, o Filho de Deus, o Logos")
+      - ref: "vii.xi-p5"
+        contem: ["I am Jesus, the Son of God, the Logos"]
+      # Atos de Pilatos, primeira forma grega: os estandartes se dobram diante de Jesus
+      - ref: "vii.xii.ii-p13"
+        contem: ["the tops of the standards were bent down", "adored Jesus"]
+      # Atos de Pilatos, segunda forma grega: Maria aos pés da cruz ("inclina-te, ó cruz")
+      - ref: "vii.xiii.xi-p10"
+        contem: ["Bend down, O cross"]
+      # Atos de Pilatos, forma latina: Verônica testemunha o fluxo de sangue
+      - ref: "vii.xv.viii-p2"
+        contem: ["Veronica"]
+      # Carta de Pilato: o endereçamento a Tibério César
+      - ref: "vii.xviii-p3"
+        contem: ["Pontius Pilate to Tiberius Cæsar"]
+      # Relatório, primeira forma grega: a escuridão e a lua como sangue
+      - ref: "vii.xix-p12"
+        contem: ["the moon, as if turned into blood"]
+      # Relatório, segunda forma grega: as estrelas e Órion
+      - ref: "vii.xx-p9"
+        contem: ["Orion"]
+      # Atos de Paulo e Tecla: a descrição física de Paulo
+      - ref: "vii.xxvi-p6"
+        contem: ["small in size, bald-headed"]
     notas_fora_do_texto: true
 
 ccel-anf01:
@@ -728,6 +833,24 @@ ccel-anf09:
       limite_bytes: 8388608
       divisao_secao: div2
       divisoes: ["xiii.iii", "xiii.iv"]
+    # ───────── Fontes apócrifas do plano 02-12: o fragmento de Akhmîm do Evangelho de Pedro (a introdução do
+    # volume atribui a tradução a J. Armitage Robinson) e o Apocalipse de Pedro com os fragmentos citados por
+    # outros autores (tradução sobre a edição de Harnack, 1893, como a introdução declara). As introduções
+    # (iii.i e v.i) e a tabela sinóptica (iii.iii) ficam de fora.
+    - id: anf09.xml
+      url: https://ccel.org/ccel/schaff/anf09.xml
+      slug: evangelho-de-pedro
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["iii.ii"]
+    - id: anf09.xml
+      url: https://ccel.org/ccel/schaff/anf09.xml
+      slug: apocalipse-de-pedro
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+      divisoes: ["v.ii", "v.iii"]
   verificador:
     tradutores:
       - Schaff, Philip (1819-1893)
@@ -739,6 +862,15 @@ ccel-anf09:
       # Evangelho de Pedro: José de Arimateia pede o corpo do Senhor a Pilatos
       - ref: "iii.ii-p6"
         contem: ["asked the body of the Lord for burial"]
+      # Evangelho de Pedro: da tumba saem três homens e uma cruz que responde dos céus
+      - ref: "iii.ii-p19"
+        contem: ["a cross following them", "Thou hast preached to them that sleep"]
+      # Apocalipse de Pedro: os justos mais brancos que a neve
+      - ref: "v.ii-p10"
+        contem: ["whiter than any snow"]
+      # Apocalipse de Pedro, fragmentos: os nascidos fora de tempo entregues a um anjo
+      - ref: "v.iii-p2"
+        contem: ["care-taking angel"]
       # Apologia de Aristides: os cristãos e o começo da sua religião em Jesus, o Messias
       - ref: "xiii.iv-p17"
         contem: ["trace the beginning of their religion from Jesus the Messiah"]
