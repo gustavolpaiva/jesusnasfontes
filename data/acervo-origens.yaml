@@ -1,0 +1,45 @@
+# Registro das ORIGENS do Acervo: uma entrada por origem (um lugar, uma licença, um commit), não por obra.
+# O sha256 de cada arquivo BRUTO fica em acervo.lock.json (gravado só por `pnpm acervo:baixar --fixar`).
+# `publicavel: false` faz o derivador RECUSAR a origem: nada dela chega ao repositório público.
+# `verificador` é o que o cabeçalho do próprio arquivo tem de dizer (tradutor e licença); `esperado` são os
+# fatos que a leitura real tem de confirmar (`pnpm acervo:verify`).
+perseus-greeklit-josefo:
+  nome: Perseus Digital Library, canonical-greekLit (Antiquities of the Jews, de Flávio Josefo)
+  autores:
+    - William Whiston (tradução, 1737)
+    - Perseus Digital Library, Universidade de Tufts (edição digital)
+  # Licença da EDIÇÃO DIGITAL (lida no cabeçalho). A tradução de Whiston é anterior a 1929, domínio público.
+  licenca: CC BY-SA (edição digital); tradução de Whiston em domínio público
+  url_licenca: https://creativecommons.org/licenses/by-sa/4.0/
+  fonte: https://github.com/PerseusDL/canonical-greekLit
+  commit: dacb04909e43dc47738828d33cc3d2b0635bc54c
+  data_versao: "2026-11-13"
+  alteracoes: >-
+    Notas de editor removidas do texto; numeração de parágrafos mantida da edição. As linhas de cada parágrafo
+    foram unidas e as citações marcadas no arquivo viram aspas curvas; o texto das palavras não foi reescrito.
+  formato: tei
+  publicavel: true
+  motivo: tradução de Whiston (1737), domínio público; edição digital do Perseus sob CC BY-SA, lida no cabeçalho
+  arquivos:
+    - id: tlg0526.tlg001.perseus-eng2.xml
+      url: https://raw.githubusercontent.com/PerseusDL/canonical-greekLit/dacb04909e43dc47738828d33cc3d2b0635bc54c/data/tlg0526/tlg001/tlg0526.tlg001.perseus-eng2.xml
+      slug: josefo-antiguidades
+      idioma: en
+  verificador:
+    tradutores:
+      - William Whiston
+    licenca: CC BY-SA
+  esperado:
+    secoes: 20
+    paragrafos:
+      - ref: "18.63"
+        contem: ["wise man"]
+        nao_contem: ["It hence evidently appears"]
+        ref_inicio: 63
+        ref_fim: 64
+      - ref: "20.197"
+        contem: ["brother of Jesus"]
+        nao_contem: ["It hence evidently appears", "Reland"]
+        ref_inicio: 197
+        ref_fim: 203
+    notas_fora_do_texto: true

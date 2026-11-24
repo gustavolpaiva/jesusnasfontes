@@ -1,0 +1,67 @@
+# Fonte do Acervo: Antiguidades Judaicas, de Josefo, na tradução inglesa de Whiston (Perseus Digital Library).
+# O texto vem do derivado `data/acervo-derivados/josefo-antiguidades.json`, gerado por `pnpm acervo:derivar` a
+# partir da origem `perseus-greeklit-josefo` (data/acervo-origens.yaml). Aqui ficam só os metadados e, no plano
+# 09, o resumo e as palavras-chave de cada livro. O resumo auxiliar nunca substitui o texto.
+slug: josefo-antiguidades
+titulo: Antiguidades Judaicas
+autor: Flávio Josefo
+epoca: cerca de 93 d.C.
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: cc-by-sa-4.0
+licenca_url: https://creativecommons.org/licenses/by-sa/4.0/
+origem_nome: Perseus Digital Library
+origem_url: https://www.perseus.tufts.edu/
+tradutor: William Whiston
+traducao_ano: 1737
+edicao: The Works of Flavius Josephus, Alden and Beardsley, 1856
+traduzida_por_nos: false
+limites_pt: >-
+  Obra escrita em grego por um autor judeu a serviço de Roma, por volta de 93 d.C., e preservada pela tradição
+  cristã, não pela judaica. O texto lido aqui é a tradução inglesa de Whiston (1737), feita a partir de
+  manuscritos medievais. O trecho sobre Jesus (Testimonium Flavianum, 18.63) é discutido há séculos como
+  sujeito a acréscimos de copistas cristãos. A numeração dos parágrafos é a da edição digital: o número de cada
+  parágrafo é o primeiro da numeração de Niese que ele contém.
+secoes:
+  - slug: "1"
+    titulo: Livro 1
+  - slug: "2"
+    titulo: Livro 2
+  - slug: "3"
+    titulo: Livro 3
+  - slug: "4"
+    titulo: Livro 4
+  - slug: "5"
+    titulo: Livro 5
+  - slug: "6"
+    titulo: Livro 6
+  - slug: "7"
+    titulo: Livro 7
+  - slug: "8"
+    titulo: Livro 8
+  - slug: "9"
+    titulo: Livro 9
+  - slug: "10"
+    titulo: Livro 10
+  - slug: "11"
+    titulo: Livro 11
+  - slug: "12"
+    titulo: Livro 12
+  - slug: "13"
+    titulo: Livro 13
+  - slug: "14"
+    titulo: Livro 14
+  - slug: "15"
+    titulo: Livro 15
+  - slug: "16"
+    titulo: Livro 16
+  - slug: "17"
+    titulo: Livro 17
+  - slug: "18"
+    titulo: Livro 18
+  - slug: "19"
+    titulo: Livro 19
+  - slug: "20"
+    titulo: Livro 20
