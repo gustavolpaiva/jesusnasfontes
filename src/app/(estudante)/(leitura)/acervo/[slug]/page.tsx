@@ -5,6 +5,7 @@ import { AvisoDeTraducao } from "@/components/acervo/aviso-de-traducao";
 import { BlocoProveniencia } from "@/components/acervo/bloco-proveniencia";
 import { ErroDoAcervo } from "@/components/acervo/erro-do-acervo";
 import { LinhaSecao } from "@/components/acervo/linha-fonte";
+import { PaginaDaFicha } from "@/components/acervo/pagina-da-ficha";
 import { ParagrafoFonte } from "@/components/acervo/paragrafo-fonte";
 import { ResumoAuxiliar } from "@/components/acervo/resumo-auxiliar";
 import { RolarAteAncora } from "@/components/acervo/rolar-ate-ancora";
@@ -12,11 +13,14 @@ import { SeloNivel } from "@/components/acervo/selo-nivel";
 import { Button } from "@/components/ui/button";
 import { registrarErro } from "@/lib/registro";
 import { type FonteLida, lerFonte } from "@/modules/acervo/consultas";
+import { type FichaLida, lerFicha } from "@/modules/acervo/consultas-ficha";
 import { exigirSessao } from "@/modules/identidade/sessao";
 
 // Página da Fonte de texto integral (ACER-02, ACER-04): proveniência sempre visível, aviso de tradução,
 // limites e sumário de seções. Obra de uma só seção mostra o texto aqui mesmo. Só Fonte publicada chega
-// aqui; Fonte inexistente, não publicada ou de ficha dá "Página não encontrada".
+// aqui. A mesma rota serve a ficha de uma obra da Pesquisa acadêmica (ACER-03, ACER-07): só a ficha
+// verificada, com o hash do conteúdo atual, tem página. Fonte inexistente, não publicada, ficha em rascunho
+// ou ficha alterada depois de verificada dão o mesmo "Página não encontrada" (D-02).
 export const dynamic = "force-dynamic";
 
 function notaDoIdioma(f: FonteLida["fonte"]): string {
@@ -28,8 +32,10 @@ export default async function PaginaDaFonte({ params }: { params: Promise<{ slug
   await exigirSessao();
   const { slug } = await params;
   let lida: FonteLida | null;
+  let ficha: FichaLida | null = null;
   try {
     lida = await lerFonte(slug);
+    if (!lida) ficha = await lerFicha(slug);
   } catch (erro) {
     registrarErro("acervo-fonte", erro);
     return (
@@ -38,6 +44,7 @@ export default async function PaginaDaFonte({ params }: { params: Promise<{ slug
       </div>
     );
   }
+  if (ficha) return <PaginaDaFicha ficha={ficha} />;
   if (!lida) notFound();
   const { fonte, secoes, unica } = lida;
   const meta = [fonte.autor, fonte.epoca].filter(Boolean).join(" · ");

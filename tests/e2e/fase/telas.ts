@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { falharFala, instalarFalaFalsa, VOZ_PT_BR } from "../../support/fala-falsa";
+import { semearFichas } from "../../support/ficha-e2e";
 import { esperarHidratado } from "../../support/hidratacao";
 import { entrarComoAdmin } from "../../support/login-admin-e2e";
 import {
@@ -31,6 +32,14 @@ export type Tela = {
   /** Tela cuja leitura em escala de cinza é conferida (mensagem de status, grade, convites). */
   cinza?: boolean;
 };
+
+// A ficha de teste da varredura: semeada UMA vez por processo, no banco descartável da execução (o e2e inteiro roda
+// num banco que é removido no fim, então não há o que limpar). Obra inventada, verificada pelas funções reais.
+let fichaDaVarredura: Promise<string> | undefined;
+function fichaVerificadaDaVarredura(): Promise<string> {
+  fichaDaVarredura ??= semearFichas(`varredura-${process.pid}`).then((s) => s.slugs.completa);
+  return fichaDaVarredura;
+}
 
 const ESTUDO_COM_PASSAGEM = "batismo-e-tentacao";
 const ESTUDO_COM_DIVERGENCIA = "nicodemos-nascer-de-novo";
@@ -431,6 +440,19 @@ export const TELAS: Tela[] = [
       await h1(page, "Livro 18");
       await expect(page.locator("#p-18\\.63")).toBeVisible();
       await expect(page.locator('[data-slot="resumo-auxiliar"]')).toBeVisible();
+    },
+  },
+  // Acervo: ficha verificada (plano 02-16)
+  {
+    id: "acervo-ficha",
+    quem: "estudante",
+    cinza: true,
+    abrir: async (page) => {
+      const slug = await fichaVerificadaDaVarredura();
+      await page.goto(`/acervo/${slug}`);
+      await h1(page, "Obra de Teste Completa");
+      await expect(page.locator('[data-slot="verificacao"]')).toBeVisible();
+      await expect(page.locator('[data-slot="item-de-ficha"]').first()).toBeVisible();
     },
   },
   // Caderno
