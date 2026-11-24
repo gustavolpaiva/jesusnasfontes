@@ -124,12 +124,12 @@ describe("interpretarOrigem: gutenberg", () => {
 describe("interpretarOrigem: html", () => {
   const tome = lerBruto("gospels-tome-trecho.html");
 
-  it("confere a dedicação na página e devolve os ditos", () => {
+  it("confere a dedicação na página e devolve o prólogo e os ditos", () => {
     const r = interpretarOrigem("html", tome, {
       verificador: MATTISON,
       html: { rotuloUnidade: "Saying" },
     });
-    expect(r.secoes[0]?.paragrafos.map((p) => p.ref)).toEqual(["1", "2", "3"]);
+    expect(r.secoes[0]?.paragrafos.map((p) => p.ref)).toEqual(["prologo", "1", "2", "3"]);
     expect(r.notas.join(" ")).toContain("committed to the public domain");
     expect(r.ausentes).toBeUndefined();
   });
