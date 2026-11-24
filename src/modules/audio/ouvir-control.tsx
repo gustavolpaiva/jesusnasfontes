@@ -12,6 +12,13 @@ import { INSTANTANEO_INICIAL } from "./leitor";
 // ambos falam com o mesmo leitor: iniciar um interrompe o outro. Os botões não mudam de lugar entre os
 // estados: "Ouvir", "Pausar" e "Continuar" são o MESMO botão, com a mesma largura mínima, e "Parar"
 // aparece à direita. Nada toca sozinho: a leitura só começa no toque.
+//
+// A linha de estado ("Procurando voz em português…", "Lendo o Estudo", "Pausado") tem a altura de UMA linha
+// reservada desde o servidor, com ou sem texto: ela aparece e some sem empurrar o que vem abaixo. Antes ela
+// só existia quando havia texto, e o Estudo descia 30,5 px por controle (dois por página) até as vozes
+// chegarem e subia 61 px de uma vez, de 0,5 a 1 s depois de abrir (medido; ver
+// .planning/phases/02-acervo/medicoes/e2e-instavel.md). Mensagem mais longa que uma linha (sem voz, só voz
+// de Portugal) cresce além da reserva: é caso raro e vem de uma vez, não de uma busca que termina.
 
 export const MENSAGENS_DO_OUVIR = {
   procurando: "Procurando voz em português…",
@@ -137,7 +144,7 @@ export function OuvirControl({
         id={idDaMensagem}
         aria-live="polite"
         data-ouvir-mensagem
-        className="text-meta text-ink-muted [&:not(:empty)]:mt-2"
+        className="text-meta mt-2 min-h-[calc(var(--text-label)*1.5)] text-ink-muted"
       >
         {mensagem}
         {mensagem && avisoDePortugal ? ". " : null}

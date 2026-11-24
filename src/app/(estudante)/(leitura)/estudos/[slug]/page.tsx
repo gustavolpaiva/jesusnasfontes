@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { Algarismos } from "@/components/ui/algarismos";
 import { registrarErro } from "@/lib/registro";
 import { OuvirProvider } from "@/modules/audio/contexto";
 import { OuvirControl } from "@/modules/audio/ouvir-control";
@@ -14,6 +15,7 @@ import { decompor, formatarReferencia, LIVROS, referenciaParaFala } from "@/modu
 import { lerPassagem } from "@/modules/texto";
 import { AcoesDoEstudo } from "@/modules/trilhas/acoes-do-estudo";
 import { lerEstadoDoEstudo, TRILHA_LEITURA_CONTINUA } from "@/modules/trilhas/consultas";
+import { estimarVersiculos } from "@/modules/trilhas/estimativa-da-leitura";
 import { eyebrowDoEstudo, vizinhos } from "@/modules/trilhas/navegacao";
 import {
   PassagemBiblica,
@@ -128,7 +130,9 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
     <OuvirProvider key={estudo.id}>
       <article className="coluna-leitura flex flex-col gap-8">
         <header className="flex flex-col gap-3">
-          <p className="text-label text-balance text-rubric">{eyebrow}</p>
+          <p className="text-label text-balance text-rubric">
+            <Algarismos>{eyebrow}</Algarismos>
+          </p>
           <h1 className="text-display">{estudo.titulo}</h1>
           <OuvirControl
             id="estudo"
@@ -142,7 +146,9 @@ export default async function PaginaEstudo({ params }: { params: Promise<{ slug:
           </OuvirControl>
         </header>
         {estudo.passagens.length > 0 ? (
-          <Suspense fallback={<PassagemCarregando />}>
+          <Suspense
+            fallback={<PassagemCarregando versiculos={estimarVersiculos(estudo.passagens)} />}
+          >
             <PassagemDoEstudo estudo={estudo} />
           </Suspense>
         ) : null}

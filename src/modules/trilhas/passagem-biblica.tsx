@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { SkeletonBlock } from "@/components/estado/skeleton-block";
 import { StatusMessage } from "@/components/estado/status-message";
+import { Algarismos } from "@/components/ui/algarismos";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { OuvirControl } from "@/modules/audio/ouvir-control";
@@ -87,7 +88,9 @@ export function PassagemBiblica({ passagem, idDoEstudo }: Props) {
               {trecho.capitulos.map((capitulo) => (
                 <div key={capitulo.versiculos[0]?.chave} className="flex flex-col gap-2">
                   {capitulo.subtitulo ? (
-                    <h4 className="text-label text-ink-muted">{capitulo.subtitulo}</h4>
+                    <h4 className="text-label text-ink-muted">
+                      <Algarismos>{capitulo.subtitulo}</Algarismos>
+                    </h4>
                   ) : null}
                   <p className="text-leitura">
                     {capitulo.versiculos.map((v) => (
@@ -127,10 +130,26 @@ export function PassagemBiblica({ passagem, idDoEstudo }: Props) {
   );
 }
 
-/** Enquanto o texto chega: três barras e o aviso para o leitor de tela. */
-export function PassagemCarregando() {
+/**
+ * Enquanto o texto chega: três barras e o aviso para o leitor de tela.
+ *
+ * A seção reserva altura de acordo com o tamanho da Passagem (`versiculos`, estimado só pelas chaves; ver
+ * `estimarVersiculos`): tudo o que vem abaixo da Leitura (o corpo do Estudo, a Anotação) já começa onde vai
+ * ficar, em vez de descer ~1 mil px quando o texto troca o esqueleto (medido: CLS 0,15 a 0,40 em 390 px).
+ * A reserva é um PISO (1,6 linha de 1,55 por versículo, no máximo a altura da janela): mais baixa que o
+ * texto real, o que vem depois só desce, e fora da tela; mais alta, subiria para dentro dela. O texto
+ * continua chegando por streaming, sem esperar nada.
+ */
+export function PassagemCarregando({ versiculos = 0 }: { versiculos?: number }) {
   return (
-    <section aria-labelledby="leitura-carregando" className="flex flex-col gap-4">
+    <section
+      aria-labelledby="leitura-carregando"
+      className="flex flex-col gap-4"
+      style={{
+        ["--versiculos" as string]: versiculos,
+        minHeight: "min(calc(var(--versiculos) * 2.48 * var(--text-leitura)), 100svh)",
+      }}
+    >
       <h2 id="leitura-carregando" className="text-label text-ink-muted">
         Leitura
       </h2>
