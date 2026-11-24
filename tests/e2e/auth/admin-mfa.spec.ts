@@ -368,6 +368,7 @@ const ROTAS_DE_ARQUIVO = new Set(["/conta/exportar"]);
 const EXEMPLOS: Record<string, string> = {
   "/estudos/[slug]": "/estudos/batismo-e-tentacao",
   // O recorte do Josefo semeado de tests/fixtures/acervo pelo executor de e2e.
+  "/acervo/[slug]": "/acervo/josefo-antiguidades",
   "/acervo/[slug]/[secao]": "/acervo/josefo-antiguidades/18",
 };
 
