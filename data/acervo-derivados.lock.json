@@ -10,6 +10,10 @@
       "sha256": "78ae152adc40696bfe851996191f83ac5ef3c9fabb33009f93e53bdcdecbd562",
       "bytes": 30629
     },
+    "aristides-apologia": {
+      "sha256": "16d7415fa232675e27bf32fa656f834385563e4b19c34374fefb8e13cbdad657",
+      "bytes": 71353
+    },
     "barnabe": {
       "sha256": "7c3d8c74e1d36b8342d1e11a9eb98e70f350fa0fd9daab8f6a20ed8929fb98f2",
       "bytes": 65356
@@ -42,6 +46,18 @@
       "sha256": "2feb12b514cba3d9dabac33d4530e3cfdf6296bf318ab3b1cd3da2ac0c9b4141",
       "bytes": 1264496
     },
+    "justino-1-apologia": {
+      "sha256": "1ec5470da55e8abac495cb45ec7b37d98bc842e376356697ab3ffce0faaca004",
+      "bytes": 120635
+    },
+    "justino-2-apologia": {
+      "sha256": "0d8c87f8e684d3102f9907cc38aa787e984103b5e439eccf8eb1b50a46666ca1",
+      "bytes": 26971
+    },
+    "justino-dialogo-trifao": {
+      "sha256": "585a55d35c65785509597fea03fba75c1b77643cc5c7221c65cdd33fd705c8a9",
+      "bytes": 393298
+    },
     "luciano-peregrino": {
       "sha256": "a44af0d6c19d8b6d6032935b629b83678c2431486ea408901bd798a78136316c",
       "bytes": 37483
@@ -54,6 +70,10 @@
       "sha256": "7e963755b840b1a9442217e96d6203d8d783881801bb0a937e2433fe7179ea10",
       "bytes": 25219
     },
+    "papias-fragmentos": {
+      "sha256": "558bbc63779b9af6fdb2cae881330ee0fad85b822f8d97529546aa7f2af0fd82",
+      "bytes": 11581
+    },
     "plinio-cartas": {
       "sha256": "bf2dd0b35372cd60a05d3266921beb40cda66b8a1b0aef69b24473231a26a7e4",
       "bytes": 470523
@@ -62,9 +82,17 @@
       "sha256": "bdbf70c5edf49ae452c8d2d07987868bfe1691e06361fd890cc86ac6e2e21149",
       "bytes": 15005
     },
+    "taciano-diatessaron": {
+      "sha256": "aff956854cff96068c69dfbfbf2cf029b7a0cdac44e70c1ce719aef1e508916b",
+      "bytes": 394958
+    },
     "tacito-anais": {
       "sha256": "067508cf7bb2aeb0f0962e8579b0a9e9f65d52984769a159764cdd248ed4397b",
       "bytes": 2686
+    },
+    "tertuliano-apologetico": {
+      "sha256": "1f9682fcfc3cb8ff3b42278d5ef73e1718e9fc5934ad42482aa67775cc58b3a8",
+      "bytes": 221254
     }
   }
 }
