@@ -4,6 +4,7 @@ import { expect, type Page } from "@playwright/test";
 import { esperarEstudoAssentado, usarVozImediata } from "../../support/estudo-assentado";
 import { falharFala, instalarFalaFalsa, VOZ_PT_BR } from "../../support/fala-falsa";
 import { semearFichas } from "../../support/ficha-e2e";
+import { cargarFonteDoArquivo } from "../../support/fonte-painel-e2e";
 import { esperarHidratado } from "../../support/hidratacao";
 import { entrarComoAdmin } from "../../support/login-admin-e2e";
 import {
@@ -49,6 +50,23 @@ const HA_CARTA = Boolean(
   process.env.CARTA_DIR_PARA_TESTE ||
     existsSync(path.join(process.cwd(), "content", "acervo", "carta-de-neutralidade.md")),
 );
+
+// A Fonte do arquivo com conflito da varredura (plano 02-17): carregada, editada no painel (limites) e carregada de novo,
+// UMA vez por processo, no banco descartável da execução. Não publicada: nenhuma tela do Estudante a enxerga.
+let conflitoDaVarredura: Promise<string> | undefined;
+function fonteEmConflitoDaVarredura(): Promise<string> {
+  conflitoDaVarredura ??= (async () => {
+    const slug = `varredura-conflito-${process.pid}`;
+    await cargarFonteDoArquivo(slug);
+    await escrever("update acervo.fonte set limites_pt = $2 where slug = $1", [
+      slug,
+      "Limites editados no painel.",
+    ]);
+    await cargarFonteDoArquivo(slug);
+    return slug;
+  })();
+  return conflitoDaVarredura;
+}
 
 const ESTUDO_COM_PASSAGEM = "batismo-e-tentacao";
 const ESTUDO_COM_DIVERGENCIA = "nicodemos-nascer-de-novo";
@@ -562,6 +580,49 @@ export const TELAS: Tela[] = [
       await page.goto("/admin/convites");
       await h1(page, "Convites");
       await expect(page.getByText("Revogado", { exact: true }).first()).toBeVisible();
+    },
+  },
+  // Admin: painel de Fontes (plano 02-17)
+  {
+    id: "admin-fontes-lista",
+    quem: "admin",
+    cinza: true,
+    abrir: async (page) => {
+      await fonteEmConflitoDaVarredura();
+      await page.goto("/admin/acervo/fontes");
+      await h1(page, "Fontes");
+      // Duas origens e o chip de atenção na mesma tela: a Fonte em conflito e a do arquivo sem conflito.
+      await expect(page.getByText("Em conflito com a carga").first()).toBeVisible();
+    },
+  },
+  {
+    id: "admin-fonte-formulario",
+    quem: "admin",
+    cinza: true,
+    abrir: async (page) => {
+      await page.goto("/admin/acervo/fontes/novo");
+      await h1(page, "Incluir Fonte");
+      await esperarHidratado(page.getByRole("button", { name: "Salvar Fonte" }));
+      // O erro de ACER-09 no campo, com o foco movido: o estado mais exigente da tela.
+      await page.getByLabel("Título", { exact: true }).fill("Obra para a varredura");
+      await page
+        .getByLabel("Origem do texto (endereço https)")
+        .fill("https://exemplo.invalid/obra");
+      await page.getByLabel("Licença (código)").fill("dp-declarado-pela-origem");
+      await page.getByRole("checkbox", { name: "Obra protegida" }).click();
+      await page.getByRole("button", { name: "Salvar Fonte" }).click();
+      await expect(page.getByText(/Obra protegida não pode ter texto integral/)).toBeVisible();
+    },
+  },
+  {
+    id: "admin-fonte-conflito",
+    quem: "admin",
+    cinza: true,
+    abrir: async (page) => {
+      const slug = await fonteEmConflitoDaVarredura();
+      await page.goto(`/admin/acervo/fontes/${slug}`);
+      await h1(page, `Fonte do arquivo ${slug}`);
+      await expect(page.locator('[data-slot="aviso-de-conflito"]')).toBeVisible();
     },
   },
   {

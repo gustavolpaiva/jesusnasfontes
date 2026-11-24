@@ -144,17 +144,23 @@ export async function semearAcervo(
     "../../src/modules/acervo/schemas"
   );
   const dirFontes = path.join(pasta, "fontes");
+  const { existsSync } = await import("node:fs");
   const itens = readdirSync(dirFontes)
     .filter((nome) => nome.endsWith(".yaml"))
     .sort()
-    .map((nome) => {
+    .flatMap((nome) => {
       const fonte = interpretarFonteYaml(readFileSync(path.join(dirFontes, nome), "utf8"), nome);
       const arquivo = `${fonte.slug}.json`;
-      const derivado = interpretarDerivado(
-        JSON.parse(readFileSync(path.join(pasta, "derivados", arquivo), "utf8")),
-        arquivo,
-      );
-      return { fonte, derivado };
+      const caminho = path.join(pasta, "derivados", arquivo);
+      // Como o `acervo:load`: Fonte não publicada e sem derivado é pulada (a fixture de Mara bar Serapião, do plano
+      // 02-08, é carregada direto pelo teste dela, com o derivado em memória). Publicada e sem derivado é erro.
+      if (!existsSync(caminho)) {
+        if (fonte.publicada)
+          throw new Error(`semearAcervo: Fonte ${fonte.slug} publicada e sem derivado`);
+        return [];
+      }
+      const derivado = interpretarDerivado(JSON.parse(readFileSync(caminho, "utf8")), arquivo);
+      return [{ fonte, derivado }];
     });
   return comCarga(env, (cliente) => carregarFontes(itens, { cliente }));
 }
