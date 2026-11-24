@@ -118,12 +118,16 @@ export async function faixaDaSessao(
   estudanteId: string,
   { porta = comEstudante }: Opcoes = {},
 ): Promise<{ aberta: SessaoAberta | null; ultima: SessaoDoHistorico | null }> {
-  return porta(estudanteId, async (tx) => {
-    const aberta = await lerSessaoAberta(tx, estudanteId);
-    if (aberta) return { aberta, ultima: null };
-    const [ultima] = await lerHistorico(tx, estudanteId, 1);
-    return { aberta: null, ultima: ultima ?? null };
-  });
+  return porta(
+    estudanteId,
+    async (tx) => {
+      const aberta = await lerSessaoAberta(tx, estudanteId);
+      if (aberta) return { aberta, ultima: null };
+      const [ultima] = await lerHistorico(tx, estudanteId, 1);
+      return { aberta: null, ultima: ultima ?? null };
+    },
+    { instantaneo: true },
+  );
 }
 
 // O Estudo em que a Sessão abre quando a pessoa a abre fora de um Estudo (nas Trilhas): a posição mais

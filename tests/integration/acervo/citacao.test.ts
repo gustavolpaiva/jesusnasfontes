@@ -6,6 +6,7 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { obterPool } from "@/db/cliente";
 import { interpretarFichaYaml } from "@/modules/acervo/schemas";
+import { lerEstudoPorSlug } from "@/modules/conteudo/estudo";
 import { carregarRascunhos } from "../../../scripts/acervo/carregar-rascunhos";
 import { urlDoPapel } from "../../../src/db/url";
 import {
@@ -828,3 +829,64 @@ describe.skipIf(emNeon())("a Afirmação com aprovação ou proposta não some",
     expect(await hashDasCitacoes(`nenhuma-${randomUUID()}`)).toMatch(/^[0-9a-f]{64}$/);
   });
 });
+
+describe.skipIf(emNeon())(
+  "corrida: aprovação nova confirmada no meio da leitura do Estudo (revisão cruzada do 02-19)",
+  () => {
+    // O Estudo lê o Grau e as Citações em consultas separadas, e a política de linha valida cada uma por si. Sem o
+    // instantâneo, uma aprovação confirmada entre as duas juntava o Grau antigo às Citações novas: um par que o Admin
+    // nunca aprovou. Mutação provada: tirar `{ instantaneo: true }` de `lerEstudoSemPassagens` faz este teste reprovar.
+    async function estudoComAfirmacao(afirmacao: string) {
+      const k = proximo();
+      const trilha = `trilha-corrida-${k}`;
+      const slug = `estudo-corrida-${k}`;
+      await superusuario.query(
+        "insert into conteudo.trilha (id, nome, ordem, descricao) values ($1, 'Trilha de teste', $2, 'x')",
+        [trilha, 9000 + k],
+      );
+      const e = await superusuario.query<{ id: string }>(
+        `insert into conteudo.estudo (slug, trilha_id, ordem, titulo, recorte, corpo_md, conteudo_hash)
+         values ($1, $2, 1, 'Estudo da corrida', 'historico', 'Corpo.', $3) returning id`,
+        [slug, trilha, sha(`estudo-${k}`)],
+      );
+      await superusuario.query("update acervo.afirmacao set estudo_id = $2 where id = $1", [
+        afirmacao,
+        (e.rows[0] as { id: string }).id,
+      ]);
+      return slug;
+    }
+
+    const par = async (slug: string, entreLeituras?: () => Promise<void>) => {
+      const estudo = await lerEstudoPorSlug(slug, { entreLeituras });
+      const citacao = estudo?.afirmacoes[0]?.citacao ?? null;
+      return citacao ? { grau: citacao.grau, itens: citacao.itens.length } : null;
+    };
+
+    it("o Grau e as Citações lidos juntos são sempre um par aprovado: o antigo inteiro ou o novo inteiro, nunca a mistura", async () => {
+      const c = await cenario();
+      await citarParagrafo(c.afirmacao, c.paragrafo, 1);
+      await aprovar(app, admin(), c.afirmacao, "consenso");
+      const slug = await estudoComAfirmacao(c.afirmacao);
+      // Controle positivo: sem corrida, a leitura traz o par aprovado (consenso, 1 Citação).
+      expect(await par(slug)).toEqual({ grau: "consenso", itens: 1 });
+
+      let rodou = false;
+      const lido = await par(slug, async () => {
+        rodou = true;
+        // Outra conexão confirma, entre a leitura do Grau e a das Citações: uma 2ª Citação e a aprovação nova.
+        await citarParagrafo(c.afirmacao, c.paragrafo, 2, "second invented sentence");
+        await aprovar(app, admin(), c.afirmacao, "disputada");
+      });
+      expect(rodou, "o gancho da corrida rodou").toBe(true);
+      // Controle de que a mudança foi confirmada: o banco já tem o par novo e o leitor sem corrida o devolve.
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 2, graus: ["disputada"] });
+      expect(await par(slug)).toEqual({ grau: "disputada", itens: 2 });
+
+      const antigo = { grau: "consenso", itens: 1 };
+      const novo = { grau: "disputada", itens: 2 };
+      expect([antigo, novo]).toContainEqual(lido);
+      // No instantâneo, a leitura que começou antes da mudança vê o par antigo inteiro.
+      expect(lido).toEqual(antigo);
+    });
+  },
+);

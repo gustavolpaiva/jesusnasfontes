@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { conferirAmbiente } from "./ambiente";
 import { obterDb } from "./cliente";
-import type { Tx } from "./com-estudante";
+import { configDeInstantaneo, type OpcoesDeLeitura, type Tx } from "./com-estudante";
 
 type Db = ReturnType<typeof obterDb>;
 
@@ -19,16 +19,24 @@ export function fabricarComAdmin(
   banco: () => Pick<Db, "transaction">,
   conferir: () => Promise<unknown> = conferirAmbiente,
 ) {
-  return async function comAdmin<T>(sessaoId: string, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return async function comAdmin<T>(
+    sessaoId: string,
+    fn: (tx: Tx) => Promise<T>,
+    opcoes: OpcoesDeLeitura = {},
+  ): Promise<T> {
     // Falha antes de qualquer SQL se o id não é um uuid.
     const id = idDaSessao.parse(sessaoId);
     await conferir();
-    return banco().transaction(async (tx) => {
-      // Terceiro argumento verdadeiro: vale só até o fim desta transação e não vaza para o próximo
-      // cliente que receber a mesma conexão do agrupador.
-      await tx.execute(sql`select set_config('app.sessao_admin', ${id}, true)`);
-      return fn(tx);
-    });
+    return banco().transaction(
+      async (tx) => {
+        // Terceiro argumento verdadeiro: vale só até o fim desta transação e não vaza para o próximo
+        // cliente que receber a mesma conexão do agrupador.
+        await tx.execute(sql`select set_config('app.sessao_admin', ${id}, true)`);
+        return fn(tx);
+      },
+      // `instantaneo` é só para leitura pura (a transação padrão do Admin grava por dentro).
+      configDeInstantaneo(opcoes),
+    );
   };
 }
 

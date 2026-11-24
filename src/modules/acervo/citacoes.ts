@@ -61,10 +61,19 @@ export function referenciaDaPassagem(inicio: number, fim: number): string {
  * Lê, numa transação já aberta, a aprovação e as Citações das Afirmações pedidas. Devolve só as que têm Citação lida:
  * Afirmação sem aprovação válida (ou cujas Citações a política escondeu) fica de fora e segue com "Fonte em preparação".
  * A Passagem vem sem o texto (precisa de outra leitura): `resolverPassagens` o acrescenta.
+ *
+ * ATENÇÃO, contrato de quem chama: o Grau e as Citações são lidos em consultas separadas, e a política de linha valida
+ * cada consulta por si. Em READ COMMITTED, uma aprovação nova confirmada entre as duas faria a tela juntar o Grau
+ * antigo às Citações novas, uma combinação que o Admin nunca aprovou. Por isso `tx` TEM de vir de uma transação
+ * `comAcervo(..., { instantaneo: true })` (REPEATABLE READ, só leitura): no instantâneo só existe o par antigo inteiro
+ * ou o novo inteiro. O guarda `tests/unit/acervo/leituras-instantaneo.test.ts` mede que o único chamador o faz.
+ *
+ * `teste.entreLeituras` é só para o teste de corrida: roda depois da leitura dos Graus e antes da das Citações.
  */
 export async function lerCitacoesAprovadas(
   tx: Tx,
   ids: readonly string[],
+  teste: { entreLeituras?: () => Promise<void> } = {},
 ): Promise<CitacoesPorAfirmacao> {
   const resultado: CitacoesPorAfirmacao = new Map();
   if (ids.length === 0) return resultado;
@@ -76,6 +85,7 @@ export async function lerCitacoesAprovadas(
     .where(inArray(aprovacaoAfirmacao.afirmacaoId, lista));
   if (graus.length === 0) return resultado;
   const grauDe = new Map(graus.map((g) => [g.id, g.grau as Grau]));
+  await teste.entreLeituras?.();
 
   const citacoes = await tx
     .select({

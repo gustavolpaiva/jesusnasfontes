@@ -100,62 +100,66 @@ export async function listarFontesDoPainel(): Promise<FonteNaLista[]> {
 /** A Fonte e as seções dela, ou `null` se não existe. O texto vem só da Fonte do painel (a do arquivo não o edita). */
 export async function lerFonteDoPainel(slug: string): Promise<FonteDoPainel | null> {
   const sessao = await exigirAdmin();
-  return comAdmin(sessao.sessao.id, async (tx) => {
-    const f = (await tx.select().from(fonte).where(eq(fonte.slug, slug)))[0];
-    if (!f) return null;
-    const secoes = await tx
-      .select()
-      .from(fonteSecao)
-      .where(eq(fonteSecao.fonteId, f.id))
-      .orderBy(asc(fonteSecao.ordem));
-    const doPainel = f.origemRegistro === "painel";
-    const paragrafos = doPainel
-      ? await tx
-          .select({ secaoId: fonteParagrafo.secaoId, texto: fonteParagrafo.texto })
-          .from(fonteParagrafo)
-          .innerJoin(fonteSecao, eq(fonteSecao.id, fonteParagrafo.secaoId))
-          .where(eq(fonteSecao.fonteId, f.id))
-          .orderBy(asc(fonteParagrafo.secaoId), asc(fonteParagrafo.ordem))
-      : [];
-    const porSecao = new Map<string, string[]>();
-    for (const p of paragrafos)
-      porSecao.set(p.secaoId, [...(porSecao.get(p.secaoId) ?? []), p.texto]);
-    return {
-      slug: f.slug,
-      titulo: f.titulo,
-      autor: f.autor,
-      epoca: f.epoca,
-      nivel: f.nivel as Nivel,
-      tradicao: f.tradicao,
-      idioma: (f.idioma === "en" ? "en" : "pt") as Idioma,
-      tipoTexto: (f.tipoTexto === "integral" ? "integral" : "ficha") as "integral" | "ficha",
-      obraProtegida: f.obraProtegida,
-      origemNome: f.origemNome,
-      origemUrl: f.origemUrl,
-      licenca: f.licenca,
-      licencaUrl: f.licencaUrl,
-      tradutor: f.tradutor,
-      traducaoAno: f.traducaoAno,
-      edicao: f.edicao,
-      traduzidaPorNos: f.traduzidaPorNos,
-      limitesPt: f.limitesPt,
-      publicada: f.publicada,
-      origem: ehOrigem(f.origemRegistro),
-      conflito: f.conflitoCarga,
-      revisao: f.revisao,
-      secoes: secoes.map((s) => ({
-        id: s.id,
-        slug: s.slug,
-        ordem: s.ordem,
-        versao: s.versao,
-        titulo: s.titulo,
-        resumoPt: s.resumoPt,
-        palavrasChavePt: s.palavrasChavePt,
-        texto: (porSecao.get(s.id) ?? []).join("\n\n"),
-        paragrafos: porSecao.get(s.id)?.length ?? 0,
-      })),
-    } satisfies FonteDoPainel;
-  });
+  return comAdmin(
+    sessao.sessao.id,
+    async (tx) => {
+      const f = (await tx.select().from(fonte).where(eq(fonte.slug, slug)))[0];
+      if (!f) return null;
+      const secoes = await tx
+        .select()
+        .from(fonteSecao)
+        .where(eq(fonteSecao.fonteId, f.id))
+        .orderBy(asc(fonteSecao.ordem));
+      const doPainel = f.origemRegistro === "painel";
+      const paragrafos = doPainel
+        ? await tx
+            .select({ secaoId: fonteParagrafo.secaoId, texto: fonteParagrafo.texto })
+            .from(fonteParagrafo)
+            .innerJoin(fonteSecao, eq(fonteSecao.id, fonteParagrafo.secaoId))
+            .where(eq(fonteSecao.fonteId, f.id))
+            .orderBy(asc(fonteParagrafo.secaoId), asc(fonteParagrafo.ordem))
+        : [];
+      const porSecao = new Map<string, string[]>();
+      for (const p of paragrafos)
+        porSecao.set(p.secaoId, [...(porSecao.get(p.secaoId) ?? []), p.texto]);
+      return {
+        slug: f.slug,
+        titulo: f.titulo,
+        autor: f.autor,
+        epoca: f.epoca,
+        nivel: f.nivel as Nivel,
+        tradicao: f.tradicao,
+        idioma: (f.idioma === "en" ? "en" : "pt") as Idioma,
+        tipoTexto: (f.tipoTexto === "integral" ? "integral" : "ficha") as "integral" | "ficha",
+        obraProtegida: f.obraProtegida,
+        origemNome: f.origemNome,
+        origemUrl: f.origemUrl,
+        licenca: f.licenca,
+        licencaUrl: f.licencaUrl,
+        tradutor: f.tradutor,
+        traducaoAno: f.traducaoAno,
+        edicao: f.edicao,
+        traduzidaPorNos: f.traduzidaPorNos,
+        limitesPt: f.limitesPt,
+        publicada: f.publicada,
+        origem: ehOrigem(f.origemRegistro),
+        conflito: f.conflitoCarga,
+        revisao: f.revisao,
+        secoes: secoes.map((s) => ({
+          id: s.id,
+          slug: s.slug,
+          ordem: s.ordem,
+          versao: s.versao,
+          titulo: s.titulo,
+          resumoPt: s.resumoPt,
+          palavrasChavePt: s.palavrasChavePt,
+          texto: (porSecao.get(s.id) ?? []).join("\n\n"),
+          paragrafos: porSecao.get(s.id)?.length ?? 0,
+        })),
+      } satisfies FonteDoPainel;
+    },
+    { instantaneo: true },
+  );
 }
 
 // ───────────────────────── fichas a verificar (ACER-07, plano 02-18) ─────────────────────────

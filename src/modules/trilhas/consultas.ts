@@ -91,39 +91,46 @@ export async function listarTrilhas(
   { porta = comEstudante }: Opcoes = {},
 ): Promise<TrilhaComEstudos[]> {
   const [conteudo, privado] = await Promise.all([
-    comAcervo(async (tx) => {
-      const trilhas = await tx.select().from(trilha).orderBy(asc(trilha.ordem));
-      const estudos = await tx
-        .select({
-          id: estudo.id,
-          slug: estudo.slug,
-          trilhaId: estudo.trilhaId,
-          ordem: estudo.ordem,
-          titulo: estudo.titulo,
-          grupo: estudo.grupo,
-          livro: estudo.livro,
-          capitulo: estudo.capitulo,
-          inicio: estudoPassagem.versiculoInicio,
-        })
-        .from(estudo)
-        .leftJoin(
-          estudoPassagem,
-          and(eq(estudoPassagem.estudoId, estudo.id), eq(estudoPassagem.ordem, 1)),
-        )
-        .orderBy(asc(estudo.ordem));
-      return { trilhas, estudos };
-    }),
-    porta(estudanteId, async (tx) => {
-      const voltas = await tx
-        .select({ voltaAtual: voltaLeitura.voltaAtual })
-        .from(voltaLeitura)
-        .where(eq(voltaLeitura.estudanteId, estudanteId));
-      const feitos = await tx
-        .select({ estudoId: conclusao.estudoId, volta: conclusao.volta })
-        .from(conclusao)
-        .where(eq(conclusao.estudanteId, estudanteId));
-      return { voltaAtual: voltas[0]?.voltaAtual ?? 1, feitos };
-    }),
+    comAcervo(
+      async (tx) => {
+        const trilhas = await tx.select().from(trilha).orderBy(asc(trilha.ordem));
+        const estudos = await tx
+          .select({
+            id: estudo.id,
+            slug: estudo.slug,
+            trilhaId: estudo.trilhaId,
+            ordem: estudo.ordem,
+            titulo: estudo.titulo,
+            grupo: estudo.grupo,
+            livro: estudo.livro,
+            capitulo: estudo.capitulo,
+            inicio: estudoPassagem.versiculoInicio,
+          })
+          .from(estudo)
+          .leftJoin(
+            estudoPassagem,
+            and(eq(estudoPassagem.estudoId, estudo.id), eq(estudoPassagem.ordem, 1)),
+          )
+          .orderBy(asc(estudo.ordem));
+        return { trilhas, estudos };
+      },
+      { instantaneo: true },
+    ),
+    porta(
+      estudanteId,
+      async (tx) => {
+        const voltas = await tx
+          .select({ voltaAtual: voltaLeitura.voltaAtual })
+          .from(voltaLeitura)
+          .where(eq(voltaLeitura.estudanteId, estudanteId));
+        const feitos = await tx
+          .select({ estudoId: conclusao.estudoId, volta: conclusao.volta })
+          .from(conclusao)
+          .where(eq(conclusao.estudanteId, estudanteId));
+        return { voltaAtual: voltas[0]?.voltaAtual ?? 1, feitos };
+      },
+      { instantaneo: true },
+    ),
   ]);
 
   return conteudo.trilhas.map((t) => {
@@ -168,20 +175,24 @@ export async function lerEstadoDoEstudo(
   alvo: { estudoId: string; trilhaId: string },
   { porta = comEstudante }: Opcoes = {},
 ): Promise<ResumoDaTrilha & { concluido: boolean }> {
-  return porta(estudanteId, async (tx) => {
-    const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId);
-    const [achado] = await tx
-      .select({ n: sql<number>`1` })
-      .from(conclusao)
-      .where(
-        and(
-          eq(conclusao.estudanteId, estudanteId),
-          eq(conclusao.estudoId, alvo.estudoId),
-          eq(conclusao.volta, resumo.volta),
-        ),
-      );
-    return { ...resumo, concluido: achado !== undefined };
-  });
+  return porta(
+    estudanteId,
+    async (tx) => {
+      const resumo = await resumoDaTrilha(tx, estudanteId, alvo.trilhaId);
+      const [achado] = await tx
+        .select({ n: sql<number>`1` })
+        .from(conclusao)
+        .where(
+          and(
+            eq(conclusao.estudanteId, estudanteId),
+            eq(conclusao.estudoId, alvo.estudoId),
+            eq(conclusao.volta, resumo.volta),
+          ),
+        );
+      return { ...resumo, concluido: achado !== undefined };
+    },
+    { instantaneo: true },
+  );
 }
 
 // ───────────────────────── escritas de progresso (a guarda de sessão fica em progresso.ts) ─────────────────────────

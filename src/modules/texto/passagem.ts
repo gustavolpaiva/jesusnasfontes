@@ -62,104 +62,107 @@ export async function lerPassagem(
   textoId?: string,
 ): Promise<Passagem> {
   validar(intervalos);
-  return comAcervo(async (tx) => {
-    let edicao = EDICAO_PADRAO as string;
-    let idDoTexto = textoId;
-    if (idDoTexto === undefined) {
-      const exibida = await tx
-        .select({ edicao: conjuntoDados.edicaoExibida })
-        .from(conjuntoDados)
-        .where(eq(conjuntoDados.id, CONJUNTO_DA_BIBLIA));
-      edicao = exibida[0]?.edicao ?? EDICAO_PADRAO;
-      idDoTexto = `blivre-${edicao}`;
-    } else {
-      edicao = idDoTexto.replace(/^blivre-/, "");
-    }
-    const alvo = idDoTexto;
-
-    const trechos: TrechoLido[] = [];
-    for (const intervalo of intervalos) {
-      const linhas = await tx
-        .select({
-          chave: textoVersiculo.versiculoId,
-          livro: versiculo.livro,
-          capitulo: versiculo.capitulo,
-          numero: versiculo.numero,
-          conteudo: textoVersiculo.conteudo,
-          titulo: textoVersiculo.titulo,
-          duvidoso: textoVersiculo.duvidoso,
-          adicionados: textoVersiculo.adicionados,
-          notas: textoVersiculo.notas,
-        })
-        .from(textoVersiculo)
-        .innerJoin(versiculo, eq(versiculo.id, textoVersiculo.versiculoId))
-        .where(
-          and(
-            eq(textoVersiculo.textoId, alvo),
-            between(textoVersiculo.versiculoId, intervalo.inicio, intervalo.fim),
-          ),
-        )
-        .orderBy(asc(textoVersiculo.versiculoId));
-
-      const capitulos: CapituloLido[] = [];
-      for (const l of linhas) {
-        const ultimo = capitulos.at(-1);
-        const lido: VersiculoLido = {
-          chave: l.chave,
-          livro: l.livro,
-          capitulo: l.capitulo,
-          numero: l.numero,
-          conteudo: l.conteudo,
-          titulo: l.titulo,
-          duvidoso: l.duvidoso,
-          adicionados: l.adicionados as string[],
-          notas: l.notas as { chave: string | null; texto: string }[],
-        };
-        if (ultimo && ultimo.livro === l.livro && ultimo.capitulo === l.capitulo) {
-          ultimo.versiculos.push(lido);
-        } else {
-          capitulos.push({ livro: l.livro, capitulo: l.capitulo, versiculos: [lido] });
-        }
+  return comAcervo(
+    async (tx) => {
+      let edicao = EDICAO_PADRAO as string;
+      let idDoTexto = textoId;
+      if (idDoTexto === undefined) {
+        const exibida = await tx
+          .select({ edicao: conjuntoDados.edicaoExibida })
+          .from(conjuntoDados)
+          .where(eq(conjuntoDados.id, CONJUNTO_DA_BIBLIA));
+        edicao = exibida[0]?.edicao ?? EDICAO_PADRAO;
+        idDoTexto = `blivre-${edicao}`;
+      } else {
+        edicao = idDoTexto.replace(/^blivre-/, "");
       }
+      const alvo = idDoTexto;
 
-      // Mesclados: marcador da correspondência, dentro do intervalo, sem linha de texto nesta edição.
-      const mesclados = await tx
-        .select({
-          chave: correspondenciaVersificacao.versiculoId,
-          refExterna: correspondenciaVersificacao.refExterna,
-          observacao: correspondenciaVersificacao.observacao,
-        })
-        .from(correspondenciaVersificacao)
-        .where(
-          and(
-            eq(correspondenciaVersificacao.conjuntoId, CONJUNTO_DA_BIBLIA),
-            between(correspondenciaVersificacao.versiculoId, intervalo.inicio, intervalo.fim),
-            notExists(
-              tx
-                .select({ um: sql`1` })
-                .from(textoVersiculo)
-                .where(
-                  and(
-                    eq(textoVersiculo.textoId, alvo),
-                    eq(textoVersiculo.versiculoId, correspondenciaVersificacao.versiculoId),
-                  ),
-                ),
+      const trechos: TrechoLido[] = [];
+      for (const intervalo of intervalos) {
+        const linhas = await tx
+          .select({
+            chave: textoVersiculo.versiculoId,
+            livro: versiculo.livro,
+            capitulo: versiculo.capitulo,
+            numero: versiculo.numero,
+            conteudo: textoVersiculo.conteudo,
+            titulo: textoVersiculo.titulo,
+            duvidoso: textoVersiculo.duvidoso,
+            adicionados: textoVersiculo.adicionados,
+            notas: textoVersiculo.notas,
+          })
+          .from(textoVersiculo)
+          .innerJoin(versiculo, eq(versiculo.id, textoVersiculo.versiculoId))
+          .where(
+            and(
+              eq(textoVersiculo.textoId, alvo),
+              between(textoVersiculo.versiculoId, intervalo.inicio, intervalo.fim),
             ),
-          ),
-        )
-        .orderBy(asc(correspondenciaVersificacao.versiculoId));
+          )
+          .orderBy(asc(textoVersiculo.versiculoId));
 
-      trechos.push({
-        inicio: intervalo.inicio,
-        fim: intervalo.fim,
-        capitulos,
-        mesclados: mesclados.map((m) => ({
-          chave: m.chave as number,
-          refExterna: m.refExterna,
-          observacao: m.observacao ?? "",
-        })),
-      });
-    }
-    return { textoId: alvo, edicao, trechos };
-  });
+        const capitulos: CapituloLido[] = [];
+        for (const l of linhas) {
+          const ultimo = capitulos.at(-1);
+          const lido: VersiculoLido = {
+            chave: l.chave,
+            livro: l.livro,
+            capitulo: l.capitulo,
+            numero: l.numero,
+            conteudo: l.conteudo,
+            titulo: l.titulo,
+            duvidoso: l.duvidoso,
+            adicionados: l.adicionados as string[],
+            notas: l.notas as { chave: string | null; texto: string }[],
+          };
+          if (ultimo && ultimo.livro === l.livro && ultimo.capitulo === l.capitulo) {
+            ultimo.versiculos.push(lido);
+          } else {
+            capitulos.push({ livro: l.livro, capitulo: l.capitulo, versiculos: [lido] });
+          }
+        }
+
+        // Mesclados: marcador da correspondência, dentro do intervalo, sem linha de texto nesta edição.
+        const mesclados = await tx
+          .select({
+            chave: correspondenciaVersificacao.versiculoId,
+            refExterna: correspondenciaVersificacao.refExterna,
+            observacao: correspondenciaVersificacao.observacao,
+          })
+          .from(correspondenciaVersificacao)
+          .where(
+            and(
+              eq(correspondenciaVersificacao.conjuntoId, CONJUNTO_DA_BIBLIA),
+              between(correspondenciaVersificacao.versiculoId, intervalo.inicio, intervalo.fim),
+              notExists(
+                tx
+                  .select({ um: sql`1` })
+                  .from(textoVersiculo)
+                  .where(
+                    and(
+                      eq(textoVersiculo.textoId, alvo),
+                      eq(textoVersiculo.versiculoId, correspondenciaVersificacao.versiculoId),
+                    ),
+                  ),
+              ),
+            ),
+          )
+          .orderBy(asc(correspondenciaVersificacao.versiculoId));
+
+        trechos.push({
+          inicio: intervalo.inicio,
+          fim: intervalo.fim,
+          capitulos,
+          mesclados: mesclados.map((m) => ({
+            chave: m.chave as number,
+            refExterna: m.refExterna,
+            observacao: m.observacao ?? "",
+          })),
+        });
+      }
+      return { textoId: alvo, edicao, trechos };
+    },
+    { instantaneo: true },
+  );
 }

@@ -92,8 +92,10 @@ export async function listarCaderno(
     ? sql`ts_headline('public.pt_unaccent', translate(corpo, E'\\uE000\\uE001', ''), ${consulta}, ${opcoes})`
     : sql`left(corpo, ${TRECHO_SEM_BUSCA})`;
 
-  return porta(estudanteId, async (tx) => {
-    const base = sql`
+  return porta(
+    estudanteId,
+    async (tx) => {
+      const base = sql`
       with entradas as (
         select 'anotacao'::text as tipo, a.id::text as id, a.atualizado_em as em, null::timestamptz as fim_em,
                e.titulo as titulo, e.slug as slug, null::text as de, null::text as ate,
@@ -115,12 +117,12 @@ export async function listarCaderno(
         select * from entradas ${filtro}
       )`;
 
-    const contagem = await tx.execute<{ n: number }>(
-      sql`${base} select count(*)::int as n from filtradas`,
-    );
-    const total = contagem.rows[0]?.n ?? 0;
+      const contagem = await tx.execute<{ n: number }>(
+        sql`${base} select count(*)::int as n from filtradas`,
+      );
+      const total = contagem.rows[0]?.n ?? 0;
 
-    const pagina = await tx.execute<Linha>(sql`
+      const pagina = await tx.execute<Linha>(sql`
       ${base}
       select tipo, id, em::text as em_txt,
              to_char(em at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as em_iso,
@@ -133,24 +135,26 @@ export async function listarCaderno(
       ) p
       order by em desc, tipo || ':' || id desc`);
 
-    const linhas = pagina.rows;
-    const haMais = linhas.length > POR_PAGINA;
-    const visiveis = haMais ? linhas.slice(0, POR_PAGINA) : linhas;
-    const ultima = visiveis[visiveis.length - 1];
-    return {
-      entradas: visiveis.map((l) => ({
-        chave: `${l.tipo}:${l.id}`,
-        tipo: l.tipo,
-        em: l.em_iso,
-        fimEm: l.fim_iso,
-        titulo: l.titulo,
-        slug: l.slug,
-        de: l.de,
-        ate: l.ate,
-        trecho: l.trecho,
-      })),
-      total,
-      proximo: haMais && ultima ? `${ultima.em_txt}|${ultima.tipo}:${ultima.id}` : null,
-    };
-  });
+      const linhas = pagina.rows;
+      const haMais = linhas.length > POR_PAGINA;
+      const visiveis = haMais ? linhas.slice(0, POR_PAGINA) : linhas;
+      const ultima = visiveis[visiveis.length - 1];
+      return {
+        entradas: visiveis.map((l) => ({
+          chave: `${l.tipo}:${l.id}`,
+          tipo: l.tipo,
+          em: l.em_iso,
+          fimEm: l.fim_iso,
+          titulo: l.titulo,
+          slug: l.slug,
+          de: l.de,
+          ate: l.ate,
+          trecho: l.trecho,
+        })),
+        total,
+        proximo: haMais && ultima ? `${ultima.em_txt}|${ultima.tipo}:${ultima.id}` : null,
+      };
+    },
+    { instantaneo: true },
+  );
 }
