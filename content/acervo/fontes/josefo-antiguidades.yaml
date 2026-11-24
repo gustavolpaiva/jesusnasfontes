@@ -18,6 +18,13 @@ tradutor: William Whiston
 traducao_ano: 1737
 edicao: The Works of Flavius Josephus, Alden and Beardsley, 1856
 traduzida_por_nos: false
+# Teto próprio de seção (Pitfall 9, decisão do plano 02-08): a seção é o LIVRO — uma página de leitura contínua
+# que o UI-SPEC já aceita. O maior livro medido tem 161.056 caracteres (Livro 8); o teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 170000
+  motivo: >-
+    a seção é um livro inteiro das Antiguidades, página de leitura contínua aceita pelo UI-SPEC; o maior livro
+    medido tem 161.056 caracteres, o Livro 8 (decisão do plano 02-08)
 limites_pt: >-
   Obra escrita em grego por um autor judeu a serviço de Roma, por volta de 93 d.C., e preservada pela tradição
   cristã, não pela judaica. O texto lido aqui é a tradução inglesa de Whiston (1737), feita a partir de
