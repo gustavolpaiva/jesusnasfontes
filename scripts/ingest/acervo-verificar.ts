@@ -35,6 +35,10 @@ const sha256 = (b: Uint8Array | string) => createHash("sha256").update(b).digest
 const listar = (itens: readonly string[], maximo = 5) =>
   `${itens.slice(0, maximo).join(", ")}${itens.length > maximo ? `, … (${itens.at(-1)})` : ""}`;
 
+/** Totais de caracteres por origem: texto (sem notas) e notas de editor removidas, para a projeção do SP-7. */
+const totais = (l: { secoes: { paragrafos: { texto: string }[] }[]; notas: string[] }) =>
+  `${l.secoes.reduce((n, s) => n + s.paragrafos.reduce((m, p) => m + p.texto.length, 0), 0)} caracteres de texto, ${l.notas.reduce((n, t) => n + t.length, 0)} em notas removidas`;
+
 export type OpcoesVerificar = {
   origens?: string;
   lockBruto?: string;
@@ -144,6 +148,7 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
           linhas.push(
             `NÃO PUBLICÁVEL ${chave}: ${origem.motivo} (bruto confere: ${interpretado.secoes.length} seções, ${interpretado.secoes.reduce((n, s) => n + s.paragrafos.length, 0)} parágrafos)`,
           );
+          linhas.push(`TOTAIS ${chave}: ${totais(interpretado)}`);
           if (interpretado.cabecalho.avisoEditorial)
             linhas.push(`AVISO ${chave}: ${interpretado.cabecalho.avisoEditorial}`);
           continue;
@@ -155,6 +160,7 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
         linhas.push(
           `OK ${chave} (${derivado.secoes.length} seções, ${derivado.secoes.reduce((n, s) => n + s.paragrafos.length, 0)} parágrafos, notas fora)`,
         );
+        linhas.push(`TOTAIS ${chave}: ${totais(interpretado)}`);
         // Formatos que numeram as unidades relatam o que a origem não traz e o que ficou com a numeração da origem.
         if (interpretado.ausentes?.length)
           linhas.push(

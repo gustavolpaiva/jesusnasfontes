@@ -7,7 +7,9 @@ epoca: século I a III d.C. (data disputada)
 nivel: primaria
 tipo_texto: integral
 idioma: en
-publicada: true
+# publicada: false — o teste a carrega DIRETO pelo carregarFontes (com o derivado em memória); marcá-la
+# publicada sem derivado no disco quebraria o executarCarga dos outros testes de fixture.
+publicada: false
 licenca: dp-declarado-pela-origem
 licenca_url: https://ccel.org/ccel/schaff/anf08.xml
 origem_nome: Christian Classics Ethereal Library (ANF, volume 8)

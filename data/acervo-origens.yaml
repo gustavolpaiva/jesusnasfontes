@@ -401,6 +401,311 @@ ccel-anf08:
         contem: ["This child Jesus, when five years old", "twelve sparrows"]
     notas_fora_do_texto: true
 
+ccel-anf01:
+  nome: Christian Classics Ethereal Library, Ante-Nicene Fathers, vol. 1 (The Apostolic Fathers with Justin Martyr and Irenaeus)
+  autores:
+    - 'Philip Schaff (editor, como o arquivo o nomeia: "Schaff, Philip (1819-1893)")'
+    - Christian Classics Ethereal Library (edição digital)
+  # Lido no cabeçalho do próprio arquivo: <DC.Rights>Public Domain</DC.Rights> e
+  # <DC.Publisher>Grand Rapids, MI: Christian Classics Ethereal Library</DC.Publisher>.
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/schaff/anf01.xml
+  fonte: https://ccel.org/ccel/schaff/anf01
+  commit: 8012ea0e35b497d2fbd783f9d4fd7b3a27d98c6dc66fd427b50d7312e6dd45af
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
+    mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
+    não foi reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: anf01.xml
+      url: https://ccel.org/ccel/schaff/anf01.xml
+      slug: anf01
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Schaff, Philip (1819-1893)
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 58 divisões div2 com parágrafo
+    secoes: 58
+    paragrafos:
+      # Justino Mártir, Primeira Apologia, cap. XLVI: os que viveram segundo o Logos são cristãos
+      - ref: "viii.ii.xlvi-p1"
+        contem: ["those who lived reasonably are Christians"]
+      # Fragmentos de Papias (introdução de Eusébio, citando Ireneu)
+      - ref: "vii.ii.i-p2"
+        contem: ["The writings of Papias in common circulation are five in number"]
+      # Ireneu, Contra as Heresias III.1: o Evangelho como fundamento e coluna da fé
+      - ref: "ix.iv.ii-p1"
+        contem: ["the ground and pillar of our faith"]
+    notas_fora_do_texto: true
+
+ccel-anf03:
+  nome: "Christian Classics Ethereal Library, Ante-Nicene Fathers, vol. 3 (Latin Christianity: Its Founder, Tertullian)"
+  autores:
+    - 'Philip Schaff (editor da série, como o arquivo o nomeia: "Schaff, Philip (1819-1893)")'
+    - 'Allan Menzies (editor do volume, como o arquivo o nomeia: "Menzies, Allan (1845-1916)")'
+    - Christian Classics Ethereal Library (edição digital)
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/schaff/anf03.xml
+  fonte: https://ccel.org/ccel/schaff/anf03
+  commit: a6eee75d691b7a3dfe045bb2998ad01c7f1b5c17d46ec58606678e7aeea82a35
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
+    mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
+    não foi reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: anf03.xml
+      url: https://ccel.org/ccel/schaff/anf03.xml
+      slug: anf03
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Schaff, Philip (1819-1893)
+      - Menzies, Allan (1845-1916)
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 29 divisões div2 com parágrafo (34 no arquivo; 5 sem
+    # parágrafo: vii.i a vii.v, os índices)
+    secoes: 29
+    paragrafos:
+      # Tertuliano, Apology, cap. I: a abertura aos governantes do Império Romano
+      - ref: "iv.iii.i-p8"
+        contem: ["Rulers of the Roman Empire", "the charges made against the Christians"]
+    notas_fora_do_texto: true
+
+ccel-anf04:
+  nome: Christian Classics Ethereal Library, Ante-Nicene Fathers, vol. 4 (Tertullian, Part Fourth; Minucius Felix; Commodian; Origen, Parts First and Second)
+  autores:
+    - 'Philip Schaff (editor, como o arquivo o nomeia: "Schaff, Philip (1819-1893)")'
+    - Christian Classics Ethereal Library (edição digital)
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/schaff/anf04.xml
+  fonte: https://ccel.org/ccel/schaff/anf04
+  commit: 240b26390c16fb0a7683b6ce6076e86f0d387c4e43fa88f079d9600f385acaf0
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
+    mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
+    não foi reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: anf04.xml
+      url: https://ccel.org/ccel/schaff/anf04.xml
+      slug: anf04
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Schaff, Philip (1819-1893)
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 25 divisões div2 com parágrafo (4 sem parágrafo)
+    secoes: 25
+    paragrafos:
+      # Orígenes, Contra Celso (prefácio a Ambrósio): as testemunhas falsas contra Jesus e o silêncio dele
+      - ref: "vi.ix.i.i-p5"
+        contem:
+          [
+            "When false witnesses testified against our Lord and Saviour Jesus Christ, He remained silent",
+          ]
+    notas_fora_do_texto: true
+
+ccel-anf06:
+  nome: Christian Classics Ethereal Library, Ante-Nicene Fathers, vol. 6 (Gregory Thaumaturgus, Dionysius the Great, Julius Africanus, Anatolius and Minor Writers, Methodius, Arnobius)
+  autores:
+    - 'Philip Schaff (editor, como o arquivo o nomeia: "Schaff, Philip (1819-1893)")'
+    - Christian Classics Ethereal Library (edição digital)
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/schaff/anf06.xml
+  fonte: https://ccel.org/ccel/schaff/anf06
+  commit: 620c7626c3ba4120d55bfaf569da947b3d10b440dc72b2239be3cf1985a13a07
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
+    mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
+    não foi reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: anf06.xml
+      url: https://ccel.org/ccel/schaff/anf06.xml
+      slug: anf06
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Schaff, Philip (1819-1893)
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 63 divisões div2 com parágrafo (4 sem parágrafo)
+    secoes: 63
+    paragrafos:
+      # Julio Africano, cronografia: Talo e o escurecimento do sol na crucificação
+      - ref: "v.v.xviii-p4"
+        contem: ["Thallus", "an eclipse of the sun"]
+    notas_fora_do_texto: true
+
+ccel-anf09:
+  nome: Christian Classics Ethereal Library, Ante-Nicene Fathers, vol. 9 (Recently Discovered Additions to Early Christian Literature; Commentaries of Origen)
+  autores:
+    - 'Philip Schaff (editor, como o arquivo o nomeia: "Schaff, Philip (1819-1893)")'
+    - Christian Classics Ethereal Library (edição digital)
+  # O DC.Publisher deste volume é lido sem espaço após a vírgula: "Grand Rapids,MI: Christian Classics
+  # Ethereal Library". A licença é a mesma declaração do cabeçalho: DC.Rights "Public Domain".
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/schaff/anf09.xml
+  fonte: https://ccel.org/ccel/schaff/anf09
+  commit: 6a3932956be998903672d451fc3a0901b5da8ebecce85273bb6513ae9d7df09f
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
+    mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
+    não foi reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: anf09.xml
+      url: https://ccel.org/ccel/schaff/anf09.xml
+      slug: anf09
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Schaff, Philip (1819-1893)
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 41 divisões div2 com parágrafo (4 sem parágrafo)
+    secoes: 41
+    paragrafos:
+      # Evangelho de Pedro: José de Arimateia pede o corpo do Senhor a Pilatos
+      - ref: "iii.ii-p6"
+        contem: ["asked the body of the Lord for burial"]
+      # Apologia de Aristides: os cristãos e o começo da sua religião em Jesus, o Messias
+      - ref: "xiii.iv-p17"
+        contem: ["trace the beginning of their religion from Jesus the Messiah"]
+    notas_fora_do_texto: true
+
+ccel-npnf201:
+  nome: "Christian Classics Ethereal Library, Nicene and Post-Nicene Fathers, Series 2, vol. 1 (Eusebius Pamphilius: Church History, Life of Constantine, Oration in Praise of Constantine)"
+  autores:
+    - 'Philip Schaff (editor da série, como o arquivo o nomeia: "Schaff, Philip (1819-1893)")'
+    - 'Arthur Cushman McGiffert (editor do volume, como o arquivo o nomeia: "McGiffert, Rev. Arthur Cushman, Ph.D.")'
+    - Christian Classics Ethereal Library (edição digital)
+  # printSourceInfo do cabeçalho: "New York: Christian Literature Publishing Co., 1890".
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/schaff/npnf201.xml
+  fonte: https://ccel.org/ccel/schaff/npnf201
+  commit: da92679dcdd452c10dab212ee4168be1d37f89f758dae8301821a96d49a261c9
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
+    mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
+    não foi reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: npnf201.xml
+      url: https://ccel.org/ccel/schaff/npnf201.xml
+      slug: npnf201
+      idioma: en
+      limite_bytes: 8388608
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Schaff, Philip (1819-1893)
+      - McGiffert, Rev. Arthur Cushman, Ph.D.
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 27 divisões div2 com parágrafo (33 no arquivo; 6 sem
+    # parágrafo: vi.i a vi.vi, páginas de título da Vida de Constantino)
+    secoes: 27
+    paragrafos:
+      # Eusébio, História Eclesiástica III.39: os cinco livros de Papias
+      - ref: "iii.viii.xxxix-p2"
+        contem: ["five books of Papias", "Expositions of Oracles of the Lord"]
+    notas_fora_do_texto: true
+
+ccel-lightfoot-fathers:
+  nome: Christian Classics Ethereal Library, The Apostolic Fathers, de J. B. Lightfoot (edição CCEL)
+  autores:
+    - 'Joseph Barber Lightfoot (tradução, como o arquivo o nomeia: "Lightfoot, Joseph Barber (1828-1889)")'
+    - Christian Classics Ethereal Library (edição digital)
+  # printSourceInfo do cabeçalho declara só "Baker Book House, 1956" (uma reimpressão): a edição NÃO é
+  # declarada pela origem e não se infere 1891 nem outra (decisão do plano 02-08). Vale o que o arquivo diz:
+  # DC.Rights "Public Domain".
+  licenca: >-
+    Domínio público, como declara o cabeçalho do próprio arquivo (DC.Rights: "Public Domain")
+  url_licenca: https://ccel.org/ccel/lightfoot/fathers.xml
+  fonte: https://ccel.org/ccel/lightfoot/fathers
+  commit: bd5be3b8c8435787a48f402ba31ffae240ebb5ad09ef1efcab99e7471744a4f9
+  data_versao: "2026-11-24"
+  alteracoes: >-
+    Notas de editor removidas do texto (guardadas à parte na conferência; a origem quase não tem notas) e
+    numeração da própria edição mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a
+    referência do parágrafo é o id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram
+    unidas; o texto das palavras não foi reescrito.
+  formato: thml
+  publicavel: true
+  motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
+  arquivos:
+    - id: fathers.xml
+      url: https://ccel.org/ccel/lightfoot/fathers.xml
+      slug: lightfoot
+      idioma: en
+      limite_bytes: 2097152
+      divisao_secao: div2
+  verificador:
+    tradutores:
+      - Lightfoot, Joseph Barber (1828-1889)
+    licenca: Public Domain
+  esperado:
+    # medido pelo parser sobre o arquivo real: 15 divisões div2, todas com parágrafo
+    secoes: 15
+    paragrafos:
+      # Primeira Epístola de Clemente aos Coríntios: a saudação de abertura
+      - ref: "ii.i-p1"
+        contem:
+          [
+            "The Church of God which sojourneth in Rome to the Church of God which sojourneth in Corinth",
+          ]
+      # Inácio aos Efésios: "Inácio, também chamado Teóforo"
+      - ref: "ii.iii-p1"
+        contem: ["Ignatius, who is also Theophorus"]
+    notas_fora_do_texto: true
+
 # ───────────────────────── Internet Archive: James 1924 (só registrado) ─────────────────────────
 # Formato `texto-ocr`: está no registro, mas ainda não tem verificador de licença nem parser neste pipeline.
 # Nenhum derivado sai dele e o baixador não aceita o host.

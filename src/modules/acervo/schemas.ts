@@ -141,6 +141,15 @@ export const esquemaFonteYaml = z
     edicao: z.string().min(1).nullish(),
     traduzida_por_nos: z.boolean().default(false),
     limites_pt: z.string().min(1).nullish(),
+    // Pitfall 9: o carregador recusa seção com mais de 80.000 caracteres de texto; a Fonte pode registrar um
+    // teto próprio COM o motivo, e a exceção fica à vista no relatório da carga.
+    secao_max_caracteres: z
+      .object({
+        caracteres: z.number().int().min(1),
+        motivo: z.string().min(1),
+      })
+      .strict()
+      .nullish(),
     secoes: z.array(esquemaSecaoYaml).default([]),
   })
   .strict()

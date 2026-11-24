@@ -43,6 +43,11 @@ export type FonteParaCarga = { fonte: FonteYaml; derivado: Derivado };
 const LOTE_DE_PARAGRAFOS = 400;
 const zero = (): Contagem => ({ inseridos: 0, atualizados: 0, inalterados: 0, removidos: 0 });
 
+/** Pitfall 9: uma seção acima deste teto estoura a página de leitura no celular; a Fonte pode pedir outro. */
+export const TETO_SECAO_CARACTERES = 80_000;
+
+const numero = (v: number) => v.toLocaleString("pt-BR");
+
 type LinhaFonte = {
   id: string;
   titulo: string;
@@ -97,12 +102,31 @@ function conferirItem({ fonte, derivado }: FonteParaCarga): void {
   }
 }
 
+/**
+ * Recusa, ANTES de abrir a transação, qualquer seção cujo texto passe do teto (80.000 caracteres, ou o que a
+ * Fonte registrou em `secao_max_caracteres`): uma obra inteira nunca vira UMA seção por engano (Pitfall 9).
+ */
+function conferirTetoDeSecao({ fonte, derivado }: FonteParaCarga): void {
+  const teto = fonte.secao_max_caracteres?.caracteres ?? TETO_SECAO_CARACTERES;
+  for (const s of derivado.secoes) {
+    let total = 0;
+    for (const p of s.paragrafos) total += p.texto.length;
+    if (total > teto)
+      throw new ErroCarga(
+        `Fonte ${fonte.slug}: a seção ${s.slug} tem ${numero(total)} caracteres de texto, acima do teto de ${numero(teto)} por seção`,
+      );
+  }
+}
+
 export async function carregarFontes(
   itens: readonly FonteParaCarga[],
   opcoes: { cliente: pg.Client },
 ): Promise<ResultadoFontes> {
   const c = opcoes.cliente;
-  for (const item of itens) conferirItem(item);
+  for (const item of itens) {
+    conferirItem(item);
+    conferirTetoDeSecao(item);
+  }
   const total = { fontes: zero(), secoes: zero(), paragrafos: zero() };
   await c.query("begin");
   try {
@@ -433,6 +457,11 @@ export async function executarCarga(
   }
   if (puladas.length > 0)
     escrever(`puladas (não publicadas e sem derivado): ${puladas.join(", ")}`);
+  for (const { fonte } of itens)
+    if (fonte.secao_max_caracteres)
+      escrever(
+        `exceção de teto de seção: ${fonte.slug} até ${fonte.secao_max_caracteres.caracteres} caracteres — ${fonte.secao_max_caracteres.motivo}`,
+      );
   if (itens.length === 0) {
     escrever("acervo:load: não há derivado a carregar");
     return { carregadas: 0, puladas };
