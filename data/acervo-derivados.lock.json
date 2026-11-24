@@ -6,9 +6,17 @@
       "sha256": "1d3d83162fceb012bb30cfb739c1fc6dff3b9598bcb8399bc4302405436af6f8",
       "bytes": 2743226
     },
+    "josefo-guerra-judaica": {
+      "sha256": "2feb12b514cba3d9dabac33d4530e3cfdf6296bf318ab3b1cd3da2ac0c9b4141",
+      "bytes": 1264496
+    },
     "luciano-peregrino": {
       "sha256": "a44af0d6c19d8b6d6032935b629b83678c2431486ea408901bd798a78136316c",
       "bytes": 37483
+    },
+    "tacito-anais": {
+      "sha256": "067508cf7bb2aeb0f0962e8579b0a9e9f65d52984769a159764cdd248ed4397b",
+      "bytes": 2686
     }
   }
 }
