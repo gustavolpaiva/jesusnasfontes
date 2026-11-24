@@ -2,6 +2,10 @@
   "orcamento_arquivo_bytes": 8388608,
   "orcamento_total_bytes": 31457280,
   "derivados": {
+    "evangelho-de-tome": {
+      "sha256": "75fe0a1f6419a26ec864a6bbdc43174120d5522f4be743d0a52b8fc50715235d",
+      "bytes": 33707
+    },
     "josefo-antiguidades": {
       "sha256": "1d3d83162fceb012bb30cfb739c1fc6dff3b9598bcb8399bc4302405436af6f8",
       "bytes": 2743226
@@ -13,6 +17,10 @@
     "luciano-peregrino": {
       "sha256": "a44af0d6c19d8b6d6032935b629b83678c2431486ea408901bd798a78136316c",
       "bytes": 37483
+    },
+    "plinio-cartas": {
+      "sha256": "bf2dd0b35372cd60a05d3266921beb40cda66b8a1b0aef69b24473231a26a7e4",
+      "bytes": 470523
     },
     "tacito-anais": {
       "sha256": "067508cf7bb2aeb0f0962e8579b0a9e9f65d52984769a159764cdd248ed4397b",
