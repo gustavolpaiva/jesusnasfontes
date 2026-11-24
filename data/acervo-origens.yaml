@@ -444,9 +444,9 @@ ccel-anf01:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div2
-    # Cinco Fontes saem deste volume (plano 02-11), cada uma com as suas divisões div2. Atenção: os fragmentos
-    # de Papias DESTE volume não trazem a passagem sobre Marcos e Mateus — ela está em Eusébio, HE 3.39
-    # (ccel-npnf201, esperado iii.viii.xxxix-p2).
+    # Cinco Fontes saem deste volume (plano 02-11), cada uma com as suas divisões div2. A passagem de Papias
+    # sobre Marcos e Mateus está no fragmento vii.ii.vi (Eusébio citado pelos editores) e também em Eusébio,
+    # HE 3.39 (ccel-npnf201, esperado iii.viii.xxxix-p2).
     - id: anf01.xml
       url: https://ccel.org/ccel/schaff/anf01.xml
       slug: papias-fragmentos
@@ -499,9 +499,14 @@ ccel-anf01:
       - ref: "vii.ii.i-p2"
         contem: ["The writings of Papias in common circulation are five in number"]
       # Fragmentos de Papias, seção i: o prefácio do próprio Papias — de quem ele diz ter recebido o que
-      # registrou (plano 02-11; a passagem sobre Marcos e Mateus está em Eusébio, HE 3.39, não neste volume)
+      # registrou (plano 02-11)
       - ref: "vii.ii.i-p4"
         contem: ["what Andrew or Peter said", "Aristion and the presbyter John"]
+      # Fragmentos de Papias, seção vi: a tradição sobre Marcos, intérprete de Pedro, e sobre Mateus, que
+      # pôs por escrito os oráculos em hebraico (Eusébio citado pelos editores; plano 02-11)
+      - ref: "vii.ii.vi-p2"
+        contem:
+          ["Mark having become the interpreter of Peter", "Matthew put together the oracles"]
       # Ireneu, Contra as Heresias III.1: o Evangelho como fundamento e coluna da fé
       - ref: "ix.iv.ii-p1"
         contem: ["the ground and pillar of our faith"]
