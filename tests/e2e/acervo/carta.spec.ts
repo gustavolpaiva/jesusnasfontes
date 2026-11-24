@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { lerCarta } from "../../../src/modules/acervo/carta";
+import { dataPorExtenso } from "../../../src/modules/privacidade/aviso";
 import { removerFichas, semearFichas } from "../../support/ficha-e2e";
 import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/login-e2e";
 
@@ -71,29 +72,28 @@ test.describe("sem a carta publicada", () => {
 test.describe("com a carta publicada (fixture)", () => {
   test.skip(!COM_CARTA, "estado com carta: só com a carta publicada (fixture ou arquivo do dono)");
 
-  test("a página mostra h1, seções com título e a versão e a data no rodapé; texto é texto", async ({
+  test("a página mostra o h1, as seções e a versão e a data do que foi publicado; texto é texto", async ({
     page,
   }) => {
-    // O conteúdo (títulos, versão, texto) é o da fixture: com a carta real do dono só o link, abaixo, é conferido.
-    test.skip(
-      !process.env.CARTA_DIR_PARA_TESTE,
-      "conteúdo da fixture: só com CARTA_DIR_PARA_TESTE",
-    );
+    // Nada do conteúdo da carta é fixo no teste (título, seções, versão, data, texto): tudo vem do `lerCarta()`, o
+    // mesmo leitor do produto, então vale para qualquer fixture e para a carta que o dono vai escrever.
+    const carta = lerCarta();
+    expect(carta).not.toBeNull();
+    if (!carta) return;
     await entrar(page);
     await page.goto("/acervo/carta-de-neutralidade");
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Carta de neutralidade" }),
-    ).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2 })).toHaveText([
-      "Critério de entrada",
-      "O que ficou de fora",
-    ]);
-    await expect(page.locator('[data-slot="versao-da-carta"]')).toHaveText(
-      "Carta versão 1, de 24 de novembro de 2026.",
+    await expect(page.getByRole("heading", { level: 1, name: carta.titulo })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(
+      carta.secoes.map((s) => s.titulo),
     );
-    // Marcação do arquivo é texto: nenhum elemento nasce dela.
-    await expect(page.locator("#intruso")).toHaveCount(0);
-    await expect(page.locator('[data-slot="carta"]')).toContainText('<b id="intruso">marcação</b>');
+    await expect(page.locator('[data-slot="versao-da-carta"]')).toHaveText(
+      `Carta versão ${carta.versao}, de ${dataPorExtenso(carta.data)}.`,
+    );
+    // O texto aparece inteiro, como texto: nenhum elemento de marcação nasce do conteúdo do arquivo.
+    const corpo = page.locator('[data-slot="carta"]');
+    for (const p of [...carta.lede, ...carta.secoes.flatMap((s) => s.paragrafos)])
+      await expect(corpo).toContainText(p);
+    await expect(corpo.locator("b, i, em, strong, img, script, iframe")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Voltar ao Acervo" })).toHaveAttribute(
       "href",
       "/acervo",
@@ -114,7 +114,7 @@ test.describe("com a carta publicada (fixture)", () => {
     await expect(link).toHaveAttribute("href", "/acervo/carta-de-neutralidade");
     await link.click();
     await expect(
-      page.getByRole("heading", { level: 1, name: "Carta de neutralidade" }),
+      page.getByRole("heading", { level: 1, name: lerCarta()?.titulo ?? "" }),
     ).toBeVisible();
 
     await page.goto(`/acervo/${slugFicha}`);
