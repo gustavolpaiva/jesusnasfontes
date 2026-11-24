@@ -42,10 +42,12 @@ const PROTEGIDAS = [
 const EVIDENCIAS = ["conferencia_item", "verificacao_ficha"] as const;
 const PAPEIS = ["jnf_carga", "jnf_app", "jnf_assistente"] as const;
 
-// As duas únicas funções que gravam evidência (plano 05, migração 0020).
+// As únicas funções que gravam evidência (plano 05, migração 0020; versões "uma vez" do painel, migração 0026).
 const FUNCOES_DE_EVIDENCIA = [
   "acervo.conferir_item(uuid, text, text)",
   "acervo.verificar_ficha(uuid, uuid, text)",
+  "acervo.conferir_item_uma_vez(uuid, text, text)",
+  "acervo.verificar_ficha_uma_vez(uuid, uuid, text)",
 ] as const;
 
 // As quatro funções de escrita do painel de Fontes (plano 17, migração 0022): só o aplicativo executa.
