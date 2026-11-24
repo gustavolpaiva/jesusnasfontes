@@ -14,9 +14,17 @@
       "sha256": "16d7415fa232675e27bf32fa656f834385563e4b19c34374fefb8e13cbdad657",
       "bytes": 71353
     },
+    "atos-de-pilatos": {
+      "sha256": "16b9c221fa61f10388ace4c71aae124e82be7b4b1dd8c57be131552664f7d900",
+      "bytes": 149716
+    },
     "barnabe": {
       "sha256": "7c3d8c74e1d36b8342d1e11a9eb98e70f350fa0fd9daab8f6a20ed8929fb98f2",
       "bytes": 65356
+    },
+    "cartas-e-relatorio-de-pilatos": {
+      "sha256": "84e51463f57c4546107787b42a10e90ee7eefdfea83fcf701b1c8d7d6c86f621",
+      "bytes": 16753
     },
     "didaque": {
       "sha256": "2a76329d7c2f1d47739b6bf41fd6328427ebdcea5b8597dc69165f5da2ad9332",
@@ -30,9 +38,21 @@
       "sha256": "0b9d8233c950ae26b36ed8ca7c21d9591ab5e49d936e53189ab16059fb31ad1d",
       "bytes": 921604
     },
+    "evangelho-arabe-da-infancia": {
+      "sha256": "5a7da0c1589d3d53b20b3d0ec1810d726bb95e44ee8878d9938e02220b49e267",
+      "bytes": 59501
+    },
     "evangelho-da-infancia-de-tome": {
       "sha256": "367db78547a3b91ac60722275810038bc8fa1f6073530146aeb609ff395570f5",
       "bytes": 48667
+    },
+    "evangelho-de-pedro": {
+      "sha256": "907539bc987833afacae8a873c5622ab1e3c1e04ea10b8c80d46c292e5724897",
+      "bytes": 9943
+    },
+    "evangelho-de-pseudo-mateus": {
+      "sha256": "a8f3e283a99eecc8c791e47fb83ab1fc94ec04a68a6a80be459a9a83de3094f6",
+      "bytes": 81467
     },
     "evangelho-de-tome": {
       "sha256": "1adf025d041574f6800098789c7f8fb082c8bc797c78b23dc2e5c8b22c559c74",
@@ -41,6 +61,10 @@
     "hermas": {
       "sha256": "bcbfc2e87503bfa437de28c91bb85f4b5d5f6acd6799d901d5a7ce7e0f8d07f3",
       "bytes": 258857
+    },
+    "historia-de-jose-o-carpinteiro": {
+      "sha256": "71a1d94b66a45a98488573f35191dc0bbf181ce057eae688446fb980fd81fc79",
+      "bytes": 34125
     },
     "inacio-cartas": {
       "sha256": "dbd0292c2b17965f10bb6949a7dcc77c0334495eda5cfad5b4db67bbdc1741a7",
