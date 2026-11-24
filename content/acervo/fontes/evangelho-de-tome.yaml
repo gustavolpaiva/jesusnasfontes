@@ -1,0 +1,32 @@
+# Fonte do Acervo: Evangelho de Tomé, os 114 ditos, na tradução inglesa de Mark M. Mattison (gospels.net), do
+# copta do Códice II,2 de Nag Hammadi. O texto vem do derivado `data/acervo-derivados/evangelho-de-tome.json`,
+# gerado por `pnpm acervo:derivar` a partir da origem `gospels-net-tome-mattison` (data/acervo-origens.yaml); a
+# dedicação ao domínio público foi lida na página do próprio tradutor (D-24). NÃO confundir com o Evangelho da
+# Infância de Tomé do ANF 8 (Pitfall 5 da pesquisa). O resumo auxiliar é escrita automática de busca (D-18) e
+# nunca substitui o texto.
+slug: evangelho-de-tome
+titulo: Evangelho de Tomé
+epoca: manuscrito copta do século IV; composição discutida
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-dedicado
+licenca_url: https://www.gospels.net/thomas
+origem_nome: gospels.net
+origem_url: https://www.gospels.net/thomas
+tradutor: Mark M. Mattison
+edicao: gospels.net, tradução do copta de Nag Hammadi Códice II, 2
+traduzida_por_nos: false
+limites_pt: >-
+  Texto copta do século IV, do Códice II de Nag Hammadi; a data e o lugar de composição são discutidos entre os
+  pesquisadores. É uma coletânea de ditos atribuídos a Jesus, e não um dos evangelhos canônicos. O texto lido é
+  a tradução inglesa de Mark M. Mattison, dedicada ao domínio público pelo próprio tradutor.
+secoes:
+  - slug: texto
+    titulo: Ditos 1 a 114
+    resumo_pt: >-
+      Reúne os 114 ditos atribuídos a Jesus, numerados e sem narrativa contínua, a começar pela promessa a quem
+      decifrar o sentido dos ditos; inclui ditos sobre o reino e diálogos com os discípulos, entre eles Simão
+      Pedro e Maria.
+    palavras_chave_pt: [ditos de Jesus, reino, Nag Hammadi, copta, Pedro, Maria]

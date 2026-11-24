@@ -1,0 +1,46 @@
+# Fonte do Acervo: Cartas, de Plínio, o Jovem, na tradução inglesa de Melmoth revista por Bosanquet (Project
+# Gutenberg, eBook 2811). O texto vem do derivado `data/acervo-derivados/plinio-cartas.json`, gerado por
+# `pnpm acervo:derivar` a partir da origem `gutenberg-plinio-2811` (data/acervo-origens.yaml), com a tabela de
+# correspondência `trajano.XCVII` → 10.96 e `trajano.XCVIII` → 10.97. O resumo auxiliar é escrita automática de
+# busca (D-18) e nunca substitui o texto.
+slug: plinio-cartas
+titulo: Cartas
+autor: Plínio, o Jovem
+epoca: fim do século I e início do século II d.C.
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: true
+licenca: dp-declarado-pela-origem
+licenca_url: https://gutenberg.pglaf.org/2/8/1/2811/2811-8.txt
+origem_nome: Project Gutenberg (espelho gutenberg.pglaf.org)
+origem_url: https://gutenberg.pglaf.org/2/8/1/2811/
+tradutor: William Melmoth, com revisão de F. C. T. Bosanquet
+edicao: Letters of Pliny, Project Gutenberg, eBook 2811 (2001)
+traduzida_por_nos: false
+# Teto próprio de seção: a edição de Melmoth traz DUAS partes, cada uma com a sua numeração (decisão do plano
+# 02-27, lida no arquivo real); a primeira tem 109 cartas e 355.723 caracteres medidos. O teto geral é 80.000.
+secao_max_caracteres:
+  caracteres: 360000
+  motivo: >-
+    a seção é uma das duas partes da edição de Melmoth (109 cartas na primeira, 122 na segunda), estrutura da
+    própria edição lida no arquivo (decisão do plano 02-27); o maior trecho medido tem 355.723 caracteres
+limites_pt: >-
+  Cartas escritas em latim por um senador e depois governador romano de província, entre o fim do século I e o
+  início do II. O texto lido é a seleção traduzida para o inglês por William Melmoth e revista por F. C. T.
+  Bosanquet, na numeração de Melmoth, exceto as duas cartas sobre os cristãos, numeradas 10.96 e 10.97. A carta
+  44 da primeira parte não está no arquivo da origem: o seu final vem junto do texto da carta 43, como no arquivo.
+secoes:
+  - slug: cartas
+    titulo: Cartas
+    resumo_pt: >-
+      Primeira parte da seleção: 109 cartas de Plínio a destinatários diversos, coligidas para publicação, sobre
+      literatura e retórica, a vida em Roma, as vilas e os cargos públicos.
+    palavras_chave_pt: [cartas, Roma, literatura, retórica, vida cotidiana]
+  - slug: trajano
+    titulo: Correspondência com o imperador Trajano
+    resumo_pt: >-
+      Segunda parte: a correspondência oficial trocada com o imperador Trajano enquanto Plínio governava a
+      província da Bitínia, com consultas administrativas e as respostas do imperador; inclui a carta sobre os
+      cristãos e a resposta (10.96 e 10.97).
+    palavras_chave_pt: [Trajano, cristãos, Bitínia, governador, consulta imperial, "10.96", "10.97"]

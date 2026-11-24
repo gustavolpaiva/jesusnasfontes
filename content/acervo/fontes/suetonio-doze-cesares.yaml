@@ -1,0 +1,60 @@
+# Fonte do Acervo (NÃO PUBLICADA): A vida dos doze césares, de Suetônio, na tradução inglesa de Alexander
+# Thomson revista por T. Forester (Project Gutenberg, eBook 6400).
+#
+# ADIADO: a Fonte não entra no Acervo nesta fase; nenhuma linha da obra está no repositório público (o derivador
+#         recusa a origem `gutenberg-suetonio-6400`: `publicavel: false`).
+# RAZÃO 2 (informação ausente na fonte): o arquivo 6400-0.txt não traz declaração de licença em nenhuma das duas
+#         bordas — sem cabeçalho do Project Gutenberg, sem permissão de cópia, sem declaração de edição impressa
+#         em domínio público (medido no plano 02-27). A idade da tradução (o prefácio do próprio arquivo data a
+#         tradução de Thomson de 1796) não é prova: aceitar por data é decisão do dono (D-06).
+# ONDE: handoff (`docs/CONTINUATION_HANDOFF.md`) e medicoes/conteudo-c1.md. Decisão do dono: (a) manter fora;
+#       (b) aceitar por idade da obra — o que exige escrever o leitor da estrutura "vidas" e a fixture do corpo;
+#       ou (c) achar outra origem com declaração lida.
+#
+# As doze seções abaixo seguem o índice lido no próprio arquivo (plano 02-27); os resumos auxiliares só podem ser
+# escritos a partir do extrato do derivado, quando a origem se tornar publicável.
+slug: suetonio-doze-cesares
+titulo: A vida dos doze césares
+autor: Suetônio
+epoca: cerca de 121 d.C.
+nivel: primaria
+tipo_texto: integral
+idioma: en
+publicada: false
+licenca: dp-anterior-1929
+licenca_url: https://gutenberg.pglaf.org/6/4/0/6400/6400-0.txt
+origem_nome: Project Gutenberg (espelho gutenberg.pglaf.org)
+origem_url: https://gutenberg.pglaf.org/6/4/0/6400/
+tradutor: Alexander Thomson, com revisão de T. Forester
+traducao_ano: 1796
+edicao: The Lives of the Twelve Caesars, Project Gutenberg, eBook 6400
+traduzida_por_nos: false
+limites_pt: >-
+  Obra escrita em latim no início do século II por um secretário da administração imperial, em biografias de
+  Júlio César a Domiciano, com o material disposto por temas dentro de cada vida. O texto lido é a tradução
+  inglesa de Alexander Thomson (1796), revista por T. Forester.
+secoes:
+  - slug: julio-cesar
+    titulo: Júlio César
+  - slug: augusto
+    titulo: Augusto
+  - slug: tiberio
+    titulo: Tibério
+  - slug: caligula
+    titulo: Calígula
+  - slug: claudio
+    titulo: Cláudio
+  - slug: nero
+    titulo: Nero
+  - slug: galba
+    titulo: Galba
+  - slug: otao
+    titulo: Otão
+  - slug: vitelio
+    titulo: Vitélio
+  - slug: vespasiano
+    titulo: Vespasiano
+  - slug: tito
+    titulo: Tito
+  - slug: domiciano
+    titulo: Domiciano
