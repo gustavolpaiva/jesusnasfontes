@@ -3,7 +3,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { caminhoDoBruto, PASTA_BRUTO } from "../../../scripts/ingest/acervo-origens";
-import { ErroHtml, parsearHtml } from "../../../scripts/ingest/acervo-parse-html";
+import {
+  ELEMENTOS_BLOCO,
+  ELEMENTOS_DESCARTADOS,
+  ELEMENTOS_ESTRUTURA,
+  ELEMENTOS_TEXTO,
+  ErroHtml,
+  lerParagrafosHtml,
+  parsearHtml,
+} from "../../../scripts/ingest/acervo-parse-html";
 
 // Fixture REAL (recorte sem alteração, ver NOTICE.md): a página https://www.gospels.net/thomas do tradutor Mark M.
 // Mattison — navegação do site, título, a dedicação ao domínio público, a legenda de símbolos, o Prólogo e os ditos
@@ -256,6 +264,67 @@ describe("parsearHtml: casos sintéticos", () => {
     expect(() => parsearHtml(`${PAGINA([CABECALHO(1), p("Um.")])}<!ENTITY x "y">`, OP)).toThrow(
       /ENTITY/,
     );
+  });
+});
+
+describe("parsearHtml: falha em voz alta (nada some em silêncio)", () => {
+  const base = [CABECALHO(1), p("Um."), ESPACO, CABECALHO(2), p("Dois.")];
+
+  it("elemento sem regra DENTRO de um parágrafo reprova com o nome e a posição", () => {
+    const pagina = PAGINA([CABECALHO(1), p("Um <blockquote>citado</blockquote> fim."), ESPACO]);
+    expect(() => parsearHtml(pagina, OP)).toThrow(ErroHtml);
+    expect(() => parsearHtml(pagina, OP)).toThrow(/<blockquote>.*posição \d+/);
+  });
+
+  it("elemento sem regra fora do parágrafo reprova, mesmo no meio dos ditos", () => {
+    const pagina = PAGINA([...base, "<table><tr><td>Tabela</td></tr></table>"]);
+    expect(() => parsearHtml(pagina, OP)).toThrow(/<table>/);
+  });
+
+  it("texto fora de parágrafo e fora de um descarte explícito reprova (div, li, span soltos)", () => {
+    expect(() => parsearHtml(PAGINA([...base, "<div>Texto solto da obra</div>"]), OP)).toThrow(
+      /texto fora de parágrafo, em <div>: "Texto solto da obra"/,
+    );
+  });
+
+  it("descarte explícito com texto no MEIO da região dos ditos reprova; antes e depois dela, passa", () => {
+    const meio = PAGINA([
+      CABECALHO(1),
+      p("Um."),
+      ESPACO,
+      "<h3>Intruso</h3>",
+      CABECALHO(2),
+      p("Dois."),
+    ]);
+    expect(() => parsearHtml(meio, OP)).toThrow(
+      /texto descartado em <h3> no meio da região dos ditos: "Intruso"/,
+    );
+    const fora = PAGINA(["<h3>Antes</h3>", ...base, ESPACO, "<h3>Depois</h3>"]);
+    expect(parsearHtml(fora, OP).secoes[0]?.paragrafos).toHaveLength(2);
+  });
+
+  it("controles positivos: strong, em, a e br dentro do parágrafo mantêm o texto; navegação, título e script ficam fora", () => {
+    const r = parsearHtml(
+      PAGINA([CABECALHO(1), p('Um <em>dois</em> <a href="#x">tres</a><br />quatro.'), ESPACO]),
+      OP,
+    );
+    expect(r.secoes[0]?.paragrafos[0]?.texto).toBe("Um dois tres quatro.");
+    const leitura = lerParagrafosHtml(PAGINA(base));
+    expect(leitura.violacoes).toEqual([]);
+    expect(leitura.descartes.map((d) => d.amostra)).toEqual(
+      expect.arrayContaining(["Título do site", "Início"]),
+    );
+    expect(leitura.texto).not.toContain("Script");
+  });
+
+  it("as listas do parser não se cruzam: cada elemento tem UMA regra", () => {
+    const todas = [
+      ...ELEMENTOS_BLOCO,
+      ...ELEMENTOS_TEXTO,
+      ...ELEMENTOS_ESTRUTURA,
+      ...ELEMENTOS_DESCARTADOS,
+    ];
+    expect(new Set(todas).size).toBe(todas.length);
   });
 });
 

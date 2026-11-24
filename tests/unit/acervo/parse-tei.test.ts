@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ErroTei, parsearTei } from "../../../scripts/ingest/acervo-parse-tei";
+import {
+  ELEMENTOS_BLOCO,
+  ELEMENTOS_DESCARTADOS,
+  ELEMENTOS_ESTRUTURA,
+  ELEMENTOS_TEXTO,
+  ErroTei,
+  parsearTei,
+} from "../../../scripts/ingest/acervo-parse-tei";
 
 const FIXTURES = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -176,5 +183,57 @@ describe("parsearTei: Tácito (livro e capítulo) e Luciano (obra curta, sem liv
         ),
       ),
     ).toThrow(ErroTei);
+  });
+});
+
+describe("parsearTei: falha em voz alta (nada some em silêncio)", () => {
+  const livro = (dentro: string) => TEI(`<div subtype="book" n="1">${dentro}</div>`);
+  const secao = (dentro: string) => livro(`<div subtype="section" n="1">${dentro}</div>`);
+
+  it("elemento sem regra dentro do parágrafo reprova com o nome, a unidade e a linha", () => {
+    const xml = secao("<p>um</p>\n<p>dois <verse>versos</verse></p>");
+    let erro: Error | undefined;
+    try {
+      parsearTei(xml);
+    } catch (e) {
+      erro = e as Error;
+    }
+    expect(erro).toBeInstanceOf(ErroTei);
+    expect(erro?.message).toContain("<verse>");
+    expect(erro?.message).toContain("unidade 1.1");
+    expect(erro?.message).toContain("linha 2");
+  });
+
+  it("elemento sem regra fora do parágrafo reprova (o que a lista não conhece, não passa)", () => {
+    expect(() => parsearTei(secao("<p>um</p><table><row/></table>"))).toThrow(/<table>/);
+    expect(() => parsearTei(secao("<p>um</p><argument>resumo</argument>"))).toThrow(/<argument>/);
+  });
+
+  it("texto fora de parágrafo reprova; parágrafo fora de unidade reprova", () => {
+    expect(() => parsearTei(secao("<p>um</p>solto"))).toThrow(/texto fora de parágrafo/);
+    expect(() => parsearTei(livro("<p>sem unidade</p>"))).toThrow(/<p> fora de uma unidade/);
+  });
+
+  it("controles positivos: inline mantém o texto; nota, cabeçalho e autor ficam fora; marcas vazias não deixam rastro", () => {
+    const r = parsearTei(
+      secao(
+        '<head>Título<date>1</date></head><docAuthor>Autor</docAuthor><milestone unit="x"/>' +
+          '<p>a <emph>b</emph> <name type="person">c</name> <placeName>d</placeName> <rs type="placename">e</rs> ' +
+          "<soCalled>f</soCalled> <gloss>g</gloss> <foreign>h</foreign> <term>i</term> " +
+          '<quote><p>j</p></quote><pb n="3"/><note>apparatus <emph>x</emph></note> fim</p>',
+      ),
+    );
+    expect(r.secoes[0]?.paragrafos.map((q) => q.texto)).toEqual(["a b c d e f g h i j fim"]);
+    expect(r.notas).toEqual(["apparatus x"]);
+  });
+
+  it("as listas do parser não se cruzam: cada elemento tem UMA regra", () => {
+    const todas = [
+      ...ELEMENTOS_ESTRUTURA,
+      ...ELEMENTOS_BLOCO,
+      ...ELEMENTOS_TEXTO,
+      ...ELEMENTOS_DESCARTADOS,
+    ];
+    expect(new Set(todas).size).toBe(todas.length);
   });
 });

@@ -9,17 +9,29 @@
 //   divisões        div1 > div2 > div3 > div4, todas com `id` estável dentro do sha256 fixado e `title`
 //                   (ex.: div2 id="ix.xvii", a carta de Mara bar Serapião no ANF 8). O registro diz, por
 //                   arquivo, qual nível vira SEÇÃO (`divisao_secao`); o id da divisão é o slug da seção.
-//   parágrafos      cada `<p>` sob a divisão-seção (a qualquer profundidade, fora de nota e de cabeçalho)
-//                   vira um parágrafo; a referência é o `id` do próprio `<p>` (ex.: ix.xvii-p5), que carrega
-//                   o id da divisão da edição. `<p>` sem id é erro: o id estável é obrigatório.
+//   parágrafos      o texto da obra vive em TRÊS blocos, cada um com `id` estável (a referência do parágrafo):
+//                   `<p>`, `<verse>` (um parágrafo por estrofe, com as linhas `<l>` unidas por " / ") e `<li>`
+//                   de lista fora do índice. Bloco sem id é erro, salvo `<p>` (ver abaixo).
 //   notas           `<note>` (milhares por volume: 4.915 no ANF 1) fica FORA do texto e volta à parte, em
 //                   `notas`, para o derivador conferir que nenhuma entrou num parágrafo. O `<p class=
 //                   "endnote">` dentro dela nunca é parágrafo.
 //   cabeçalhos      h1–h6 ficam fora do texto (repetem o título da divisão). Blocos `ThML.head` no meio do
 //                   corpo (metadado por obra, no CCEL) nunca entram no texto.
+//   índice          `<div class="Index">` (índice remissivo do volume: lista de referências e de palavras
+//                   gregas e hebraicas, com número de página) fica fora, por inteiro.
 //   página          `<pb n="735">` vira metadado de página da edição impressa (`paginas`), fora do texto.
 //   `<br>`          vira um espaço. Divisão do nível da seção sem nenhum parágrafo (tabela, página de
 //                   rosto) é pulada e relatada em `divisoesSemParagrafo`; nunca vira seção vazia.
+//
+// FALHA EM VOZ ALTA (a classe do defeito do `<verse>`, que o parser largava sem sinal e tirou do derivado a
+// Oração do Senhor da Didaqué): todo elemento do corpo está em UMA destas listas, e o que não está em
+// nenhuma reprova a derivação com o nome do elemento, a divisão e a linha. Texto que cai fora de um bloco
+// (e fora de nota, cabeçalho e índice) também reprova. Nada some em silêncio.
+//   ELEMENTOS_BLOCO       onde o texto vive (vira parágrafo): p, verse, li
+//   ELEMENTOS_TEXTO       entram no texto do bloco, sem marca: i, span, a, q, scripRef, sup, sub, l (linha de verso)
+//   ELEMENTOS_ESTRUTURA   contêineres, sem texto próprio: div1–div6, div, ol, ul, table, tr, td
+//   ELEMENTOS_DESCARTADOS apparatus fora do texto, por regra explícita: note, h1–h6, ThML.head, div.Index;
+//                         e as marcas vazias pb, hr, index, insertIndex, scripCom e br (que vira espaço)
 
 import { Parser } from "htmlparser2";
 import { TETO_BRUTO_BYTES } from "./acervo-origens";
@@ -62,13 +74,66 @@ export type ResultadoThml = {
   divisoesSemParagrafo: string[];
   /** `<p>` sem id (não têm id estável: só as divisões de índice do CCEL os têm), pulados e contados. */
   paragrafosSemId: number;
+  /** Blocos de texto fora de qualquer divisão do nível da seção (página de rosto do volume), por id. */
+  blocosForaDeSecao: string[];
 };
+
+/** O separador das linhas de um `<verse>`: a convenção do verso corrido em prosa. */
+export const SEPARADOR_DE_LINHA = " / ";
 
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
 /** O id pontuado da divisão da edição (ex.: "ii.xii") vira o slug kebab-case que o contrato do derivado exige. */
 export const slugDaDivisao = (id: string) => id.replaceAll(".", "-");
 const NIVEIS = new Set(["div1", "div2", "div3", "div4", "div5", "div6"]);
 const CABECALHOS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
+
+export const ELEMENTOS_BLOCO: readonly string[] = ["p", "verse", "li"];
+export const ELEMENTOS_TEXTO: readonly string[] = [
+  "i",
+  "span",
+  "a",
+  "q",
+  "scripRef",
+  "sup",
+  "sub",
+  "l",
+];
+export const ELEMENTOS_ESTRUTURA: readonly string[] = [
+  "div1",
+  "div2",
+  "div3",
+  "div4",
+  "div5",
+  "div6",
+  "div",
+  "ol",
+  "ul",
+  "table",
+  "tr",
+  "td",
+];
+export const ELEMENTOS_DESCARTADOS: readonly string[] = [
+  "note",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "ThML.head",
+  "pb",
+  "hr",
+  "index",
+  "insertIndex",
+  "scripCom",
+  "br",
+];
+const CONHECIDOS = new Set([
+  ...ELEMENTOS_BLOCO,
+  ...ELEMENTOS_TEXTO,
+  ...ELEMENTOS_ESTRUTURA,
+  ...ELEMENTOS_DESCARTADOS,
+]);
 
 /**
  * Conferência de entrada, LINEAR: teto, ENTITY recusado, DOCTYPE só sem subconjunto interno. Como a linha
@@ -95,7 +160,20 @@ function conferirEntrada(xml: string, teto: number): void {
   }
 }
 
-type ParagrafoEmLeitura = { id: string; texto: string; paginas: string[] };
+type BlocoEmLeitura = {
+  /** O elemento que abriu o bloco: p, verse ou li. */
+  nome: "p" | "verse" | "li";
+  id: string;
+  /** Texto corrido (p e li). */
+  texto: string;
+  /** Linhas já fechadas de um verso. */
+  linhas: string[];
+  /** A linha de verso aberta (`<l>`), ou null fora dela. */
+  linha: string | null;
+  paginas: string[];
+  /** `<p>` sem id dentro de uma seção: lido para o texto não vazar, mas nunca vira parágrafo. */
+  semId: boolean;
+};
 type SecaoEmLeitura = {
   id: string;
   titulo: string;
@@ -110,18 +188,54 @@ export function parsearThml(xml: string, opcoes: OpcoesThml): ResultadoThml {
   const secoes: SecaoThml[] = [];
   const idsVistos = new Set<string>();
   const divisoesSemParagrafo: string[] = [];
+  const blocosForaDeSecao: string[] = [];
   const notas: string[] = [];
   let corpo = false; // dentro de ThML.body
   let dentroHead = 0; // ThML.head (o principal e os de cada obra, no meio do corpo)
   let secao: SecaoEmLeitura | null = null;
-  let paragrafo: ParagrafoEmLeitura | null = null;
+  let bloco: BlocoEmLeitura | null = null;
   let profundidadeNota = 0;
   let profundidadeCabecalho = 0;
+  let profundidadeIndice = 0; // dentro de <div class="Index"> (todo elemento abre e fecha aqui dentro)
   let nota = "";
   let semId = 0;
   const pilhaDiv: string[] = [];
+  let divAtual = "";
 
-  const parser = new Parser(
+  const linhaDe = (indice: number) => {
+    let linha = 1;
+    for (let i = xml.indexOf("\n"); i >= 0 && i < indice; i = xml.indexOf("\n", i + 1)) linha++;
+    return linha;
+  };
+  const falhar = (mensagem: string): never => {
+    const onde = divAtual ? `divisão ${divAtual}` : "fora de divisão";
+    throw new ErroThml(`${mensagem} (${onde}, linha ${linhaDe(parser.startIndex)})`);
+  };
+
+  const fecharBloco = () => {
+    const b = bloco;
+    bloco = null;
+    if (!b) return;
+    if (b.semId) {
+      semId++;
+      return;
+    }
+    const texto = b.nome === "verse" ? b.linhas.join(SEPARADOR_DE_LINHA) : compactar(b.texto);
+    if (!texto) return;
+    if (!secao) {
+      blocosForaDeSecao.push(b.id);
+      return;
+    }
+    secao.paragrafos.push({
+      ref: b.id,
+      ref_inicio: null,
+      ref_fim: null,
+      texto,
+      paginas: b.paginas,
+    });
+  };
+
+  const parser: Parser = new Parser(
     {
       onopentag(nome, a) {
         if (nome === "ThML.body") {
@@ -133,8 +247,30 @@ export function parsearThml(xml: string, opcoes: OpcoesThml): ResultadoThml {
           return;
         }
         if (!corpo || dentroHead > 0) return;
+        // Índice remissivo do volume: descartado por inteiro (regra explícita).
+        if (profundidadeIndice > 0) {
+          profundidadeIndice++;
+          return;
+        }
+        if (nome === "div" && a.class === "Index") {
+          profundidadeIndice = 1;
+          return;
+        }
+        if (nome === "note") {
+          profundidadeNota++;
+          if (profundidadeNota === 1) nota = "";
+          return;
+        }
+        if (profundidadeNota > 0) return;
+        if (CABECALHOS.has(nome)) {
+          profundidadeCabecalho++;
+          return;
+        }
+        if (profundidadeCabecalho > 0) return;
         if (NIVEIS.has(nome)) {
+          if (bloco) falhar(`divisão <${nome}> dentro de um bloco de texto <${bloco.nome}>`);
           pilhaDiv.push(nome);
+          if (a.id) divAtual = a.id;
           if (nome !== nivel) return;
           if (secao) {
             throw new ErroThml(
@@ -150,38 +286,71 @@ export function parsearThml(xml: string, opcoes: OpcoesThml): ResultadoThml {
           secao = { id: a.id, titulo, paragrafos: [], paginas: [] };
           return;
         }
-        if (nome === "note") {
-          profundidadeNota++;
-          if (profundidadeNota === 1) nota = "";
-          return;
-        }
-        if (CABECALHOS.has(nome)) {
-          profundidadeCabecalho++;
-          return;
-        }
-        if (profundidadeNota > 0 || profundidadeCabecalho > 0) return;
-        if (nome === "p" && secao) {
+        if (nome === "p" || nome === "verse" || nome === "li") {
+          if (bloco) falhar(`<${nome}> dentro de um bloco de texto <${bloco.nome}>`);
           // `<p>` sem id existe só nas divisões de índice do CCEL (medido nos oito volumes: 0 fora delas).
-          // Não tem id estável, então nunca entra no texto: é pulado e contado, para conferência.
-          if (!a.id) {
-            semId++;
-            return;
-          }
-          paragrafo = { id: a.id, texto: "", paginas: [] };
+          // Não tem id estável, então nunca entra no texto: é pulado e contado, para conferência. Verso e
+          // item de lista são texto da obra e SEM id é erro (nunca um corte silencioso).
+          const pulado = nome === "p" && !a.id && secao !== null;
+          if (!a.id && nome !== "p")
+            falhar(`<${nome}> sem id: o id estável da edição é obrigatório`);
+          bloco = {
+            nome,
+            id: a.id ?? "(sem id)",
+            texto: "",
+            linhas: [],
+            linha: null,
+            paginas: [],
+            semId: pulado,
+          };
           return;
         }
-        if (nome === "br" && paragrafo) paragrafo.texto += " ";
-        else if (nome === "pb" && secao) {
+        if (nome === "l") {
+          if (!bloco || bloco.nome !== "verse")
+            falhar("<l> fora de <verse>: linha de verso sem estrofe");
+          else {
+            if (bloco.linha !== null) falhar("<l> dentro de <l>");
+            bloco.linha = "";
+          }
+          return;
+        }
+        if (nome === "br") {
+          if (bloco) {
+            if (bloco.linha !== null) bloco.linha += " ";
+            else bloco.texto += " ";
+          }
+          return;
+        }
+        if (nome === "pb") {
           const n = compactar(a.n ?? "");
           if (!n) return;
-          if (paragrafo) paragrafo.paginas.push(n);
-          else secao.paginas.push(n);
+          if (bloco) bloco.paginas.push(n);
+          else if (secao) secao.paginas.push(n);
+          return;
         }
+        if (!CONHECIDOS.has(nome))
+          falhar(
+            `elemento <${nome}${a.id ? ` id="${a.id}"` : ""}> sem regra no parser ThML: nem texto mantido nem descarte explícito`,
+          );
       },
       ontext(dados) {
         if (!corpo || dentroHead > 0) return;
-        if (profundidadeNota > 0) nota += dados;
-        else if (paragrafo && profundidadeCabecalho === 0) paragrafo.texto += dados;
+        if (profundidadeIndice > 0) return;
+        if (profundidadeNota > 0) {
+          nota += dados;
+          return;
+        }
+        if (profundidadeCabecalho > 0) return;
+        if (bloco) {
+          if (bloco.nome === "verse") {
+            if (bloco.linha !== null) bloco.linha += dados;
+            else if (dados.trim() !== "")
+              falhar(`texto fora de <l> dentro de <verse id="${bloco.id}">`);
+          } else bloco.texto += dados;
+          return;
+        }
+        if (dados.trim() !== "")
+          falhar(`texto fora de qualquer bloco (p, verse, li): "${compactar(dados).slice(0, 60)}"`);
       },
       onclosetag(nome) {
         if (nome === "ThML.body") {
@@ -193,6 +362,24 @@ export function parsearThml(xml: string, opcoes: OpcoesThml): ResultadoThml {
           return;
         }
         if (!corpo || dentroHead > 0) return;
+        if (profundidadeIndice > 0) {
+          profundidadeIndice--;
+          return;
+        }
+        if (profundidadeNota > 0) {
+          if (nome === "note") {
+            if (profundidadeNota === 1) {
+              const t = compactar(nota);
+              if (t) notas.push(t);
+            }
+            profundidadeNota--;
+          }
+          return;
+        }
+        if (profundidadeCabecalho > 0) {
+          if (CABECALHOS.has(nome)) profundidadeCabecalho--;
+          return;
+        }
         if (NIVEIS.has(nome)) {
           const fechado = pilhaDiv.pop();
           if (fechado === nivel && secao) {
@@ -213,30 +400,14 @@ export function parsearThml(xml: string, opcoes: OpcoesThml): ResultadoThml {
           }
           return;
         }
-        if (nome === "note") {
-          if (profundidadeNota === 1) {
-            const t = compactar(nota);
-            if (t) notas.push(t);
-          }
-          profundidadeNota = Math.max(0, profundidadeNota - 1);
+        if (bloco && nome === bloco.nome) {
+          fecharBloco();
           return;
         }
-        if (CABECALHOS.has(nome)) {
-          profundidadeCabecalho = Math.max(0, profundidadeCabecalho - 1);
-          return;
-        }
-        if (profundidadeNota > 0 || profundidadeCabecalho > 0) return;
-        if (nome === "p" && paragrafo) {
-          const t = compactar(paragrafo.texto);
-          if (t && secao)
-            secao.paragrafos.push({
-              ref: paragrafo.id,
-              ref_inicio: null,
-              ref_fim: null,
-              texto: t,
-              paginas: paragrafo.paginas,
-            });
-          paragrafo = null;
+        if (nome === "l" && bloco && bloco.nome === "verse" && bloco.linha !== null) {
+          const t = compactar(bloco.linha);
+          if (t) bloco.linhas.push(t);
+          bloco.linha = null;
         }
       },
     },
@@ -249,5 +420,5 @@ export function parsearThml(xml: string, opcoes: OpcoesThml): ResultadoThml {
     throw new ErroThml(
       `nenhuma divisão ${nivel} com parágrafo no arquivo (o nível da seção vem do registro: divisao_secao)`,
     );
-  return { secoes, notas, divisoesSemParagrafo, paragrafosSemId: semId };
+  return { secoes, notas, divisoesSemParagrafo, paragrafosSemId: semId, blocosForaDeSecao };
 }

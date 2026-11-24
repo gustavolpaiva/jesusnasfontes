@@ -14,6 +14,15 @@
 // entrou num parágrafo. `q` vira aspas curvas (o arquivo guarda a citação como elemento, sem o sinal); verso (`l`)
 // e marcador de página (`pb`) dentro do `p` não deixam nada além do texto; lacuna (`gap`) entra como o sinal
 // que a própria edição usa (o atributo `rend`).
+//
+// FALHA EM VOZ ALTA: todo elemento do corpo está em UMA destas listas, e o que não está em nenhuma reprova a
+// derivação com o nome do elemento, a unidade e a linha. Texto fora de parágrafo (e fora de nota, cabeçalho e
+// autor) e parágrafo fora de unidade também reprovam. Nada some em silêncio.
+//   ELEMENTOS_ESTRUTURA   contêineres: text, body, div
+//   ELEMENTOS_BLOCO       onde o texto vive (vira parágrafo): p
+//   ELEMENTOS_TEXTO       entram no texto do parágrafo: q (aspas), emph, placeName, name, rs, soCalled, gloss,
+//                         foreign, term, quote, l (verso), lb, pb, milestone (marcas vazias) e gap (sinal da edição)
+//   ELEMENTOS_DESCARTADOS apparatus fora do texto, por regra explícita: note, head, docAuthor
 
 import { Parser } from "htmlparser2";
 import { TETO_BRUTO_BYTES } from "./acervo-origens";
@@ -42,6 +51,33 @@ export type OpcoesTei = {
   maxBytes?: number;
 };
 
+export const ELEMENTOS_ESTRUTURA: readonly string[] = ["text", "body", "div"];
+export const ELEMENTOS_BLOCO: readonly string[] = ["p"];
+export const ELEMENTOS_TEXTO: readonly string[] = [
+  "q",
+  "emph",
+  "placeName",
+  "name",
+  "rs",
+  "soCalled",
+  "gloss",
+  "foreign",
+  "term",
+  "quote",
+  "l",
+  "lb",
+  "pb",
+  "milestone",
+  "gap",
+];
+export const ELEMENTOS_DESCARTADOS: readonly string[] = ["note", "head", "docAuthor"];
+const CONHECIDOS = new Set([
+  ...ELEMENTOS_ESTRUTURA,
+  ...ELEMENTOS_BLOCO,
+  ...ELEMENTOS_TEXTO,
+  ...ELEMENTOS_DESCARTADOS,
+]);
+
 type Pendente = { n: string; textos: string[] };
 type LivroEmLeitura = { n: string; secoes: Pendente[] };
 
@@ -65,6 +101,7 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
   let corpo = false; // dentro do `text`: o cabeçalho não entra
   let profundidadeNota = 0;
   let profundidadeHead = 0;
+  let profundidadeAutor = 0;
   let profundidadeP = 0;
   let nota = "";
   let atual = "";
@@ -75,12 +112,36 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
   const acrescentar = (texto: string) => {
     atual += texto;
   };
+  const linhaDe = (indice: number) => {
+    let linha = 1;
+    for (let i = xml.indexOf("\n"); i >= 0 && i < indice; i = xml.indexOf("\n", i + 1)) linha++;
+    return linha;
+  };
+  const falhar = (mensagem: string): never => {
+    const onde = secao ? `unidade ${livro?.n ? `${livro.n}.` : ""}${secao.n}` : "fora de unidade";
+    throw new ErroTei(`${mensagem} (${onde}, linha ${linhaDe(parser.startIndex)})`);
+  };
 
-  const parser = new Parser(
+  const parser: Parser = new Parser(
     {
       onopentag(nome, a) {
         if (nome === "text") corpo = true;
         if (!corpo) return;
+        if (nome === "note") {
+          profundidadeNota++;
+          if (profundidadeNota === 1) nota = "";
+          return;
+        }
+        if (profundidadeNota > 0) return;
+        if (nome === "head") {
+          profundidadeHead++;
+          return;
+        }
+        if (nome === "docAuthor") {
+          profundidadeAutor++;
+          return;
+        }
+        if (profundidadeHead > 0 || profundidadeAutor > 0) return;
         if (nome === "div") {
           if (a.subtype === "book" && a.n) {
             livro = { n: a.n, secoes: [] };
@@ -99,27 +160,34 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
           } else pilhaDiv.push("outro");
           return;
         }
-        if (nome === "note") {
-          profundidadeNota++;
-          if (profundidadeNota === 1) nota = "";
-        } else if (nome === "head") profundidadeHead++;
-        else if (nome === "p" && secao && profundidadeNota === 0 && profundidadeHead === 0) {
+        if (nome === "p") {
+          if (!secao)
+            falhar("<p> fora de uma unidade (div section ou chapter): o parágrafo se perderia");
           profundidadeP++;
           if (profundidadeP === 1) atual = "";
-        } else if (nome === "q" && profundidadeP > 0 && profundidadeNota === 0) {
+        } else if (nome === "q" && profundidadeP > 0) {
           const ultimo = atual.slice(-1);
           if (!ABRE.has(ultimo)) acrescentar(" ");
           acrescentar("“");
-        } else if (nome === "lb" && profundidadeP > 0 && profundidadeNota === 0) acrescentar(" ");
-        else if (nome === "gap" && profundidadeP > 0 && profundidadeNota === 0) {
+        } else if (nome === "lb" && profundidadeP > 0) acrescentar(" ");
+        else if (nome === "gap" && profundidadeP > 0) {
           const sinal = compactar(a.rend ?? "");
           if (sinal) acrescentar(` ${sinal} `);
-        }
+        } else if (!CONHECIDOS.has(nome))
+          falhar(
+            `elemento <${nome}> sem regra no parser TEI: nem texto mantido nem descarte explícito`,
+          );
       },
       ontext(dados) {
         if (!corpo) return;
-        if (profundidadeNota > 0) nota += dados;
-        else if (profundidadeP > 0 && profundidadeHead === 0) acrescentar(dados);
+        if (profundidadeNota > 0) {
+          nota += dados;
+          return;
+        }
+        if (profundidadeHead > 0 || profundidadeAutor > 0) return;
+        if (profundidadeP > 0) acrescentar(dados);
+        else if (dados.trim() !== "")
+          falhar(`texto fora de parágrafo: "${compactar(dados).slice(0, 60)}"`);
       },
       onclosetag(nome) {
         if (!corpo) return;
@@ -127,6 +195,24 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
           corpo = false;
           return;
         }
+        if (nome === "note") {
+          if (profundidadeNota === 1) {
+            const t = compactar(nota);
+            if (t) notas.push(t);
+          }
+          profundidadeNota = Math.max(0, profundidadeNota - 1);
+          return;
+        }
+        if (profundidadeNota > 0) return;
+        if (nome === "head") {
+          profundidadeHead = Math.max(0, profundidadeHead - 1);
+          return;
+        }
+        if (nome === "docAuthor") {
+          profundidadeAutor = Math.max(0, profundidadeAutor - 1);
+          return;
+        }
+        if (profundidadeHead > 0 || profundidadeAutor > 0) return;
         if (nome === "div") {
           const fechado = pilhaDiv.pop();
           if (fechado === "secao") secao = null;
@@ -136,15 +222,8 @@ export function parsearTei(xml: string, opcoes: OpcoesTei = {}): ResultadoTei {
           }
           return;
         }
-        if (nome === "note") {
-          if (profundidadeNota === 1) {
-            const t = compactar(nota);
-            if (t) notas.push(t);
-          }
-          profundidadeNota = Math.max(0, profundidadeNota - 1);
-        } else if (nome === "head") profundidadeHead = Math.max(0, profundidadeHead - 1);
-        else if (nome === "q" && profundidadeP > 0 && profundidadeNota === 0) acrescentar("”");
-        else if (nome === "p" && profundidadeP > 0 && profundidadeNota === 0) {
+        if (nome === "q" && profundidadeP > 0) acrescentar("”");
+        else if (nome === "p" && profundidadeP > 0) {
           profundidadeP--;
           if (profundidadeP === 0 && secao) {
             const t = compactar(atual);

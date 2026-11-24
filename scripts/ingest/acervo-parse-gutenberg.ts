@@ -22,6 +22,9 @@
 //              (a primeira vem colada ao título do bloco). Vão à parte, em `notas`.
 //   marcas     marcador de nota `[1066]` e as etiquetas `<a …>` que a conversão deixou (partidas em duas linhas)
 //              saem do texto. Outra marcação HTML reprova em vez de vazar para o texto.
+//   falha alta nada some em silêncio (a classe do `<verse>` do ThML): dentro do bloco de notas, linha com texto que
+//              não pertence a nenhuma nota reprova com a linha, salvo a frase de fim do arquivo do Gutenberg
+//              (`End of the Project Gutenberg EBook`), única que a medição achou no arquivo real.
 
 import { TETO_BRUTO_BYTES } from "./acervo-origens";
 import type { ParagrafoTei, SecaoTei } from "./acervo-parse-tei";
@@ -136,6 +139,8 @@ const INICIO_DE_NOTA = /^(?:FOOTNOTES\D*?)?(\d+[a-z]?) \(return\) \[ ?(.*)$/;
 const CABECALHO_DE_CARTA = /^([IVXLCDM][IVXLCDM ]{0,17}) +(?:-- +)?(?:To|TO|TRAJAN TO) /;
 /** Marca de HTML que sobrou depois da limpeza: este parser não sabe o que ela significa. */
 const MARCA_DE_HTML = /<\/?[a-zA-Z]/;
+/** A frase que o Gutenberg põe no fim do corpo, depois das notas: boilerplate do arquivo, não texto da obra. */
+const FRASE_DE_FIM = /^End of (?:the |this )?Project Gutenberg/i;
 
 const emBranco = (l: string) => l.trim() === "";
 
@@ -257,13 +262,18 @@ export function parsearGutenberg(texto: string, opcoes: OpcoesGutenberg): Result
     nota = null;
   };
   /** Uma linha do bloco de notas: começa uma nota, continua a aberta, ou fecha a aberta. */
-  const tratarNota = (l: string) => {
+  const tratarNota = (l: string, numero: number) => {
     const m = INICIO_DE_NOTA.exec(l);
     if (m) {
       fecharNota();
       nota = [m[2] as string];
-    } else if (!nota) return;
-    else nota.push(l);
+    } else if (!nota) {
+      if (!emBranco(l) && !FRASE_DE_FIM.test(l.trim()))
+        throw new ErroGutenberg(
+          `texto fora de qualquer nota no bloco de notas, que o parser perderia em silêncio (linha ${numero} do corpo): "${compactar(l).slice(0, 60)}"`,
+        );
+      return;
+    } else nota.push(l);
     if (nota && l.endsWith("]")) fecharNota();
   };
   const iniciarCarta = (rotulo: string, numero: number) => {
@@ -314,7 +324,7 @@ export function parsearGutenberg(texto: string, opcoes: OpcoesGutenberg): Result
 
     // Dentro do bloco de notas: só uma parte nova (título seguido da carta I) interrompe.
     if (estado === "notas" && !ehInicioDeParte(i)) {
-      tratarNota(l);
+      tratarNota(l, numero);
       continue;
     }
 
@@ -335,7 +345,7 @@ export function parsearGutenberg(texto: string, opcoes: OpcoesGutenberg): Result
     if (estado !== "antes" && INICIO_DE_NOTAS.test(l)) {
       fecharCarta();
       estado = "notas";
-      tratarNota(l);
+      tratarNota(l, numero);
       continue;
     }
 

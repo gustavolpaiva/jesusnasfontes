@@ -494,3 +494,35 @@ describe("parsearGutenberg: o arquivo REAL do Plínio em cache (plano 02-27; pul
     },
   );
 });
+
+describe("parsearGutenberg: falha em voz alta (nada some em silêncio)", () => {
+  it("marcação HTML que o parser não conhece, no texto da carta, reprova (controle positivo: <a> e [N] saem)", () => {
+    const com = (linha: string) =>
+      MARCAS(PARTE("PARTE UNICA", [CARTA("I", "Antes.", linha, "Depois.")]));
+    expect(() => parsearGutenberg(com("um <b>negrito</b> aqui"), UMA)).toThrow(/marcação HTML/);
+    const ok = parsearGutenberg(com('um <a href="#n1">trecho</a>[12] aqui'), UMA);
+    expect(todos(ok)[0]?.texto).toBe("Antes. um trecho aqui Depois.");
+  });
+
+  it("texto solto no bloco de notas, fora de qualquer nota, reprova com a linha (a frase de fim do Gutenberg passa)", () => {
+    const notas = [
+      "FOOTNOTES TO THE LETTERS 1 (return) [ Primeira nota.]",
+      "",
+      "Parágrafo perdido que não é de nota nenhuma.",
+    ].join("\n");
+    expect(() => parsearGutenberg(MARCAS(PARTE("PARTE UNICA", [UM], notas)), UMA)).toThrow(
+      /texto fora de qualquer nota.*linha \d+.*Parágrafo perdido/,
+    );
+    const boa = parsearGutenberg(
+      MARCAS(
+        PARTE(
+          "PARTE UNICA",
+          [UM],
+          "FOOTNOTES TO THE LETTERS 1 (return) [ Primeira nota.]\n\nEnd of the Project Gutenberg EBook of Teste",
+        ),
+      ),
+      UMA,
+    );
+    expect(boa.notas).toEqual(["Primeira nota."]);
+  });
+});

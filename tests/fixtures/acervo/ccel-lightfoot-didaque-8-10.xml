@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Recorte real do CCEL, The Apostolic Fathers (Lightfoot), div2 ii.xii: Did. 8 a 10, byte a byte (linhas 9589 a 9860
+     de fathers.xml). Traz a Oração do Senhor e as orações eucarísticas, que são <verse> irmão de <p>. Sem o cabeçalho
+     de licença: o fixture serve ao parser, não ao verificador. -->
+<ThML>
+<ThML.head></ThML.head>
+<ThML.body>
+<div1 title="The Apostolic Fathers" id="ii" prev="i" next="ii.i">
+<div2 title="The Teaching of the Twelve Apostles" id="ii.xii" prev="ii.xi" next="ii.xiii">
+<h2 id="ii.xii-p46.3">Did. 8</h2>
+					
+					
+<p id="ii.xii-p47">
+   And let not your fastings be with the hypocrites, for they fast on
+the second and the fifth day of the week; but do ye keep your fast on
+the fourth and on the preparation (the sixth) day.
+
+<br /><br />
+</p>
+					
+					
+<p id="ii.xii-p48">
+Neither pray ye as the hypocrites, but as the Lord commanded in
+His Gospel, thus pray ye:
+<br /><br />
+</p>
+<verse id="ii.xii-p48.3">
+						<l id="ii.xii-p48.4">
+							   Our Father, which art in heaven,
+						</l>
+						<l id="ii.xii-p48.5">
+							   hallowed be Thy name;
+						</l>
+						<l id="ii.xii-p48.6">
+							   Thy kingdom come;
+						</l>
+						<l id="ii.xii-p48.7">
+							   Thy will be done,
+						</l>
+						<l id="ii.xii-p48.8">
+							      as in heaven, so also on earth;
+						</l>
+						<l id="ii.xii-p48.9">
+							   give us this day our daily bread;
+						</l>
+						<l id="ii.xii-p48.10">
+							   and forgive us our debt,
+						</l>
+						<l id="ii.xii-p48.11">
+							      as we forgive our debtors;
+						</l>
+						<l id="ii.xii-p48.12">
+							   and lead us not into temptation,
+						</l>
+						<l id="ii.xii-p48.13">
+							      but deliver us from the evil one;
+						</l>
+						<l id="ii.xii-p48.14">
+							   for Thine is the power and the glory for ever and ever.
+						</l>
+					</verse>
+					
+					
+<p id="ii.xii-p49">
+Three times in the day pray ye so.
+
+<br /><br />
+</p>
+				
+				
+				
+<h2 id="ii.xii-p49.3">Did. 9</h2>
+					
+					
+<p id="ii.xii-p50">
+   But as touching the eucharistic thanksgiving give ye thanks thus.
+
+<br /><br />
+</p>
+					
+					
+<p id="ii.xii-p51">
+First, as regards the cup:
+<br /><br />
+</p>
+<verse id="ii.xii-p51.3">
+						<l id="ii.xii-p51.4">
+							   We give Thee thanks, O our Father,
+						</l>
+						<l id="ii.xii-p51.5">
+							   for the holy vine of Thy son David,
+						</l>
+						<l id="ii.xii-p51.6">
+							   which Thou madest known unto us
+						</l>
+						<l id="ii.xii-p51.7">
+							      through Thy Son Jesus;
+						</l>
+						<l id="ii.xii-p51.8">
+							   Thine is the glory for ever and ever.
+						</l>
+					</verse>
+					
+					
+<p id="ii.xii-p52">
+Then as regarding the broken bread:
+<br /><br />
+</p>
+<verse id="ii.xii-p52.3">
+						<l id="ii.xii-p52.4">
+							   We give Thee thanks, O our Father,
+						</l>
+						<l id="ii.xii-p52.5">
+							   for the life and knowledge
+						</l>
+						<l id="ii.xii-p52.6">
+							   which Thou didst make known unto us
+						</l>
+						<l id="ii.xii-p52.7">
+							      through Thy Son Jesus;
+						</l>
+						<l id="ii.xii-p52.8">
+							   Thine is the glory for ever and ever.
+						</l>
+					</verse>
+					
+					
+<verse id="ii.xii-p52.9">
+						<l id="ii.xii-p52.10">
+							   As this broken bread was scattered upon the mountains
+						</l>
+						<l id="ii.xii-p52.11">
+							      and being gathered together became one,
+						</l>
+						<l id="ii.xii-p52.12">
+							   so may Thy Church be gathered together
+						</l>
+						<l id="ii.xii-p52.13">
+							      from the ends of the earth into Thy kingdom;
+						</l>
+						<l id="ii.xii-p52.14">
+							   for Thine is the glory and the power
+						</l>
+						<l id="ii.xii-p52.15">
+							      through Jesus Christ for ever and ever.
+						</l>
+					</verse>
+					
+					
+<p id="ii.xii-p53">
+But let no one eat or drink of this eucharistic thanksgiving, but
+they that have been baptized into the name of the Lord; for
+concerning this also the Lord hath said: Give not that which is
+holy to the dogs.
+
+<br /><br />
+</p>
+				
+				
+				
+<h2 id="ii.xii-p53.3">Did. 10</h2>
+					
+					
+<p id="ii.xii-p54">
+   And after ye are satisfied thus give ye thanks:
+
+<br /><br />
+</p>
+					
+					
+<verse id="ii.xii-p54.3">
+						<l id="ii.xii-p54.4">
+							   We give Thee thanks, Holy Father,
+						</l>
+						<l id="ii.xii-p54.5">
+							   for Thy holy name,
+						</l>
+						<l id="ii.xii-p54.6">
+							   which Thou hast made to tabernacle in our hearts,
+						</l>
+						<l id="ii.xii-p54.7">
+							   and for the knowledge and faith and immortality,
+						</l>
+						<l id="ii.xii-p54.8">
+							   which Thou hast made known unto us
+						</l>
+						<l id="ii.xii-p54.9">
+							      through Thy Son Jesus;
+						</l>
+						<l id="ii.xii-p54.10">
+							   Thine is the glory for ever and ever.
+						</l>
+					</verse>
+					
+					
+<verse id="ii.xii-p54.11">
+						<l id="ii.xii-p54.12">
+							   Thou, Almighty Master,
+						</l>
+						<l id="ii.xii-p54.13">
+							   didst create all things for Thy name's sake,
+						</l>
+						<l id="ii.xii-p54.14">
+							   and didst give food and drink unto men for enjoyment,
+						</l>
+						<l id="ii.xii-p54.15">
+							   that they might render thanks to Thee;
+						</l>
+						<l id="ii.xii-p54.16">
+							   but didst bestow upon us spiritual food and drink and eternal life
+      through Thy Son.
+						</l>
+					</verse>
+					
+					
+<verse id="ii.xii-p54.17">
+						<l id="ii.xii-p54.18">
+							   Before all things we give Thee thanks
+						</l>
+						<l id="ii.xii-p54.19">
+							      that Thou art powerful;
+						</l>
+						<l id="ii.xii-p54.20">
+							   Thine is the glory for ever and ever.
+						</l>
+					</verse>
+					
+					
+<verse id="ii.xii-p54.21">
+						<l id="ii.xii-p54.22">
+							   Remember, Lord, Thy Church
+						</l>
+						<l id="ii.xii-p54.23">
+							   to deliver it from all evil
+						</l>
+						<l id="ii.xii-p54.24">
+							   and to perfect it in Thy love;
+						</l>
+						<l id="ii.xii-p54.25">
+							   and gather it together from the four winds--
+						</l>
+						<l id="ii.xii-p54.26">
+							      even the Church which has been sanctified--
+						</l>
+						<l id="ii.xii-p54.27">
+							      into Thy kingdom which Thou hast prepared for it;
+						</l>
+						<l id="ii.xii-p54.28">
+							   for Thine is the power and the glory for ever and ever.
+						</l>
+					</verse>
+					
+					
+<verse id="ii.xii-p54.29">
+						<l id="ii.xii-p54.30">
+							   May grace come and may this world pass away.
+						</l>
+						<l id="ii.xii-p54.31">
+							      Hosanna to the God of David.
+						</l>
+						<l id="ii.xii-p54.32">
+							   If any man is holy, let him come;
+						</l>
+						<l id="ii.xii-p54.33">
+							      if any man is not, let him repent.
+						</l>
+						<l id="ii.xii-p54.34">
+							   Maran Atha. Amen.
+						</l>
+					</verse>
+					
+					
+<p id="ii.xii-p55">
+   But permit the prophets to offer thanksgiving as much as they
+desire.
+
+<br /><br />
+</p>
+				
+				
+				
+</div2>
+</div1>
+</ThML.body>
+</ThML>

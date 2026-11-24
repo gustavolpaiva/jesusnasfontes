@@ -370,9 +370,10 @@ ccel-anf08:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
     mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
-    id do `<p>`, que carrega o id da divisão). Os parágrafos sem id das divisões de índice do volume não
-    entram no texto e são contados. As linhas de cada parágrafo foram unidas; o texto das palavras não foi
-    reescrito.
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes
+    (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o
+    id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume
+    (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
@@ -417,8 +418,10 @@ ccel-anf01:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
     mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
-    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
-    não foi reescrito.
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes
+    (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o
+    id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume
+    (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
@@ -463,8 +466,10 @@ ccel-anf03:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
     mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
-    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
-    não foi reescrito.
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes
+    (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o
+    id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume
+    (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
@@ -504,8 +509,10 @@ ccel-anf04:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
     mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
-    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
-    não foi reescrito.
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes
+    (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o
+    id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume
+    (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
@@ -546,8 +553,10 @@ ccel-anf06:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
     mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
-    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
-    não foi reescrito.
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes
+    (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o
+    id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume
+    (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
@@ -587,8 +596,10 @@ ccel-anf09:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
     mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
-    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
-    não foi reescrito.
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes
+    (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o
+    id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume
+    (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
@@ -631,8 +642,10 @@ ccel-npnf201:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência) e numeração da própria edição
     mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a referência do parágrafo é o
-    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; o texto das palavras
-    não foi reescrito.
+    id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes
+    (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o
+    id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume
+    (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"
@@ -675,8 +688,7 @@ ccel-lightfoot-fathers:
   alteracoes: >-
     Notas de editor removidas do texto (guardadas à parte na conferência; a origem quase não tem notas) e
     numeração da própria edição mantida: o id de cada divisão e de cada parágrafo do arquivo é preservado (a
-    referência do parágrafo é o id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram
-    unidas; o texto das palavras não foi reescrito.
+    referência do parágrafo é o id do `<p>`, que carrega o id da divisão). As linhas de cada parágrafo foram unidas; as estrofes (`<verse>`) e os itens de lista (`<li>`) fora do índice entram no texto como parágrafos próprios, com o id do próprio elemento, e as linhas de cada estrofe são unidas por " / "; o índice remissivo do volume (`<div class="Index">`) não entra no texto; o texto das palavras não foi reescrito.
   formato: thml
   publicavel: true
   motivo: "DC.Rights 'Public Domain' lido no cabeçalho do próprio arquivo (D-06)"

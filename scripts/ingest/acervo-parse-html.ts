@@ -15,6 +15,16 @@
 //               à parte, em `notas`, para o derivador conferir que nada disso entrou num parágrafo.
 //   numeração   conferida na ordem, sem lacuna: 1, 2, 3… Salto, repetição ou regresso reprova (nunca renumera).
 // O que é texto de `script`, `style`, `noscript`, `template` ou comentário nunca é lido.
+//
+// FALHA EM VOZ ALTA: todo elemento da página está em UMA destas listas, e o que não está em nenhuma reprova a
+// derivação com o nome do elemento e a posição (a página é uma linha só: vale o deslocamento em caracteres).
+// Texto fora de parágrafo e fora de um descarte explícito também reprova; e um descarte com texto NO MEIO da
+// região dos ditos (entre o dito 1 e o último parágrafo) reprova, porque ali seria texto da obra perdido.
+//   ELEMENTOS_BLOCO       onde o texto vive (vira dito): p
+//   ELEMENTOS_TEXTO       dentro do `p`, entram no texto: strong, em, a, br
+//   ELEMENTOS_ESTRUTURA   contêineres, sem texto próprio: html, body, div, section, ul, li
+//   ELEMENTOS_DESCARTADOS navegação e título do site, fora do texto por regra explícita: head, title, meta, base,
+//                         link, img, nav, header, h1, h3 e script, style, noscript, template
 
 import { Parser } from "htmlparser2";
 import { TETO_BRUTO_BYTES } from "./acervo-origens";
@@ -52,7 +62,38 @@ export type ResultadoHtml = {
 };
 
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
+
+export const ELEMENTOS_BLOCO: readonly string[] = ["p"];
+export const ELEMENTOS_TEXTO: readonly string[] = ["strong", "em", "a", "br"];
+export const ELEMENTOS_ESTRUTURA: readonly string[] = [
+  "html",
+  "body",
+  "div",
+  "section",
+  "ul",
+  "li",
+];
+export const ELEMENTOS_DESCARTADOS: readonly string[] = [
+  "head",
+  "title",
+  "meta",
+  "base",
+  "link",
+  "img",
+  "nav",
+  "header",
+  "h1",
+  "h3",
+  "script",
+  "style",
+  "noscript",
+  "template",
+];
+const DESCARTADOS = new Set(ELEMENTOS_DESCARTADOS);
+/** O que é texto de `script`, `style`, `noscript` e `template` nunca é lido, nem para a frase de dedicação. */
 const SEM_CONTEUDO = new Set(["script", "style", "noscript", "template"]);
+const TEXTO = new Set(ELEMENTOS_TEXTO);
+const ESTRUTURA = new Set(ELEMENTOS_ESTRUTURA);
 
 /**
  * Conferência de entrada: teto e o que o modo HTML não deve deixar passar. LINEAR: a página pode ser uma linha só
@@ -87,23 +128,41 @@ function conferirEntrada(html: string, teto: number): void {
  * Lê os parágrafos (`p`) da página na ordem, com o texto visível de cada um, e também o texto visível inteiro.
  * É o que o verificador de dedicação usa: a frase vale pelo que o leitor vê, não pelo que está no código.
  */
-export function lerParagrafosHtml(
-  html: string,
-  maxBytes?: number,
-): { paragrafos: ParagrafoHtml[]; texto: string } {
+export type DescarteHtml = {
+  elemento: string;
+  /** Quantos parágrafos já tinham fechado quando o texto descartado apareceu. */
+  paragrafosAntes: number;
+  amostra: string;
+  posicao: number;
+};
+export type LeituraHtml = {
+  paragrafos: ParagrafoHtml[];
+  texto: string;
+  /** Elemento sem regra, ou texto fora de parágrafo e de descarte explícito: cada um reprova a derivação. */
+  violacoes: string[];
+  /** Texto descartado por regra explícita (navegação, título), com o ponto da página onde caiu. */
+  descartes: DescarteHtml[];
+};
+
+export function lerParagrafosHtml(html: string, maxBytes?: number): LeituraHtml {
   const teto = maxBytes ?? TETO_BRUTO_BYTES;
   conferirEntrada(html, teto);
 
   const paragrafos: ParagrafoHtml[] = [];
   let visivel = "";
+  let descartando = 0;
   let semConteudo = 0;
+  const pilha: { descartado: boolean; semConteudo: boolean }[] = [];
+  const nomes: string[] = [];
+  const violacoes: string[] = [];
+  const descartes: DescarteHtml[] = [];
   let negrito = 0;
   let profundidade = 0; // de `p`: um parágrafo só fecha quando o de fora fecha
   let partes: string[] = [];
   let textoForaDoNegrito = false;
 
   const acrescentar = (s: string) => {
-    visivel += s;
+    if (semConteudo === 0) visivel += s;
     if (profundidade > 0) {
       partes.push(s);
       if (negrito === 0 && /\S/.test(s)) textoForaDoNegrito = true;
@@ -115,25 +174,64 @@ export function lerParagrafosHtml(
     textoForaDoNegrito = false;
   };
 
-  const parser = new Parser(
+  const parser: Parser = new Parser(
     {
       onopentag(nome) {
-        if (SEM_CONTEUDO.has(nome)) semConteudo++;
-        else if (nome === "p") {
+        const descartado = DESCARTADOS.has(nome);
+        const vazio = SEM_CONTEUDO.has(nome);
+        if (descartado) descartando++;
+        if (vazio) semConteudo++;
+        pilha.push({ descartado, semConteudo: vazio });
+        nomes.push(nome);
+        if (descartando > 0) return;
+        if (nome === "p") {
           if (profundidade === 0) {
             partes = [];
             textoForaDoNegrito = false;
           }
           profundidade++;
-        } else if (nome === "strong") negrito++;
-        else if (nome === "br") acrescentar(" ");
+        } else if (profundidade > 0) {
+          // Dentro de um parágrafo só entra o que a lista de texto conhece.
+          if (!TEXTO.has(nome))
+            violacoes.push(
+              `elemento <${nome}> dentro de um parágrafo, sem regra no parser HTML (posição ${parser.startIndex})`,
+            );
+          else if (nome === "strong") negrito++;
+          else if (nome === "br") acrescentar(" ");
+        } else if (!ESTRUTURA.has(nome))
+          violacoes.push(
+            `elemento <${nome}> sem regra no parser HTML: nem texto mantido nem descarte explícito (posição ${parser.startIndex})`,
+          );
       },
       ontext(dados) {
-        if (semConteudo === 0) acrescentar(dados);
+        if (semConteudo > 0) return;
+        if (descartando > 0) {
+          visivel += dados; // a frase de dedicação vale pelo que o leitor vê, esteja onde estiver
+          if (dados.trim() === "") return;
+          descartes.push({
+            elemento: nomes.at(-1) ?? "",
+            paragrafosAntes: paragrafos.length,
+            amostra: compactar(dados).slice(0, 60),
+            posicao: parser.startIndex,
+          });
+          return;
+        }
+        if (dados.trim() !== "" && profundidade === 0)
+          violacoes.push(
+            `texto fora de parágrafo, em <${nomes.at(-1) ?? ""}>: "${compactar(dados).slice(0, 60)}" (posição ${parser.startIndex})`,
+          );
+        acrescentar(dados);
       },
       onclosetag(nome) {
-        if (SEM_CONTEUDO.has(nome)) semConteudo = Math.max(0, semConteudo - 1);
-        else if (nome === "strong") negrito = Math.max(0, negrito - 1);
+        const saiu = pilha.pop();
+        nomes.pop();
+        if (saiu?.semConteudo) semConteudo = Math.max(0, semConteudo - 1);
+        if (saiu?.descartado) {
+          descartando = Math.max(0, descartando - 1);
+          return;
+        }
+        if (descartando > 0) return;
+        if (nome === "strong" && profundidade > 0) negrito = Math.max(0, negrito - 1);
         else if (nome === "p" && profundidade > 0) {
           profundidade--;
           if (profundidade === 0) fechar();
@@ -146,7 +244,7 @@ export function lerParagrafosHtml(
   parser.end();
   if (profundidade > 0) fechar(); // página cortada no meio de um parágrafo
 
-  return { paragrafos, texto: compactar(visivel) };
+  return { paragrafos, texto: compactar(visivel), violacoes, descartes };
 }
 
 const escapar = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -160,7 +258,11 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
     throw new ErroHtml(
       "formato html exige `rotulo_unidade` no registro (a palavra que abre cada dito)",
     );
-  const { paragrafos } = lerParagrafosHtml(html, opcoes.maxBytes);
+  const { paragrafos, violacoes, descartes } = lerParagrafosHtml(html, opcoes.maxBytes);
+  if (violacoes.length > 0)
+    throw new ErroHtml(
+      `${violacoes.length} ocorrência(s) sem regra no parser HTML; nada é descartado em silêncio. ${violacoes.slice(0, 3).join("; ")}${violacoes.length > 3 ? "; …" : ""}`,
+    );
   const cabecalho = new RegExp(`^${escapar(compactar(opcoes.rotuloUnidade))} (\\d+):`, "i");
 
   /** Número do dito quando o parágrafo é um cabeçalho (texto inteiro em negrito, no molde "Saying 1: …"). */
@@ -173,7 +275,10 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
   const blocos: { numero: number; textos: string[] }[] = [];
   const notas: string[] = [];
   let estado: "procurando" | "corpo" | "entre" | "fim" = "procurando";
-  for (const p of paragrafos) {
+  // A região dos ditos, em índices de parágrafo: do cabeçalho do dito 1 ao último parágrafo que é dito.
+  let primeiro = -1;
+  let ultimo = -1;
+  for (const [indice, p] of paragrafos.entries()) {
     if (p.texto === "") {
       if (estado === "corpo") estado = "entre";
       continue;
@@ -183,6 +288,8 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
       if (numeroDoCabecalho(p) === 1) {
         blocos.push({ numero: 1, textos: [] });
         estado = "corpo";
+        primeiro = indice;
+        ultimo = indice;
       } else notas.push(p.texto);
       continue;
     }
@@ -200,10 +307,12 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
         );
       blocos.push({ numero: n, textos: [] });
       estado = "corpo";
+      ultimo = indice;
       continue;
     }
     if (estado === "corpo") {
       blocos.at(-1)?.textos.push(p.texto);
+      ultimo = indice;
       continue;
     }
     // …e qualquer outro parágrafo, onde se esperava o dito seguinte, encerra a região dos ditos.
@@ -214,6 +323,13 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
     throw new ErroHtml(
       `nenhum dito encontrado: esperado um título em negrito "${opcoes.rotuloUnidade.trim()} 1: …" seguido de texto`,
     );
+
+  // Descarte com texto dentro da região dos ditos seria texto da obra perdido: reprova.
+  for (const d of descartes)
+    if (d.paragrafosAntes > primeiro && d.paragrafosAntes <= ultimo)
+      throw new ErroHtml(
+        `texto descartado em <${d.elemento}> no meio da região dos ditos: "${d.amostra}" (posição ${d.posicao})`,
+      );
 
   return {
     secoes: [
