@@ -1,0 +1,39 @@
+# Fixture SINTÉTICA do validador de gabarito (plano 02-23): TODO campo inválido carrega o MARCADOR para
+# provar que nenhum caminho de erro devolve valor do arquivo (T-02-64) — a saída nomeia só id, campo e regra.
+# Perguntas inventadas, ids da série "t" (o rascunho real usa a série "g") e Fontes "fonte-exemplo-*" que só
+# existem no acervo de mentira montado em pasta temporária pelo teste. Nenhuma pergunta de verdade vive no
+# repositório do produto (D-21): o gabarito real fica em .planning/gabarito/ (privado).
+versao_formato: 1
+perguntas:
+  - id: t-m01
+    pergunta: MARCADOR-NAO-IMPRIMIR-7f3a pergunta com grupo, categoria e ref invalidos?
+    tem_resposta: true
+    fontes_esperadas:
+      - slug: fonte-exemplo-alfa
+        ref: MARCADOR-NAO-IMPRIMIR-7f3a-na-ref
+    grupo: MARCADOR-NAO-IMPRIMIR-7f3a-no-grupo
+    categoria: MARCADOR-NAO-IMPRIMIR-7f3a-na-categoria
+    escrita_em: 2026-11-24
+    escrita_por: MARCADOR-NAO-IMPRIMIR-7f3a-por
+  - id: t-m02
+    pergunta: "   "
+    tem_resposta: true
+    fontes_esperadas: []
+    grupo: aberto
+    categoria: factual
+    escrita_em: 2026-11-24
+    escrita_por: MARCADOR-NAO-IMPRIMIR-7f3a-por
+  - id: t-m02
+    pergunta: MARCADOR-NAO-IMPRIMIR-7f3a pergunta com id repetido e resposta sem Fonte valida?
+    tem_resposta: false
+    fontes_esperadas:
+      - slug: fonte-exemplo-gama
+        ref: MARCADOR-NAO-IMPRIMIR-7f3a-ref
+      - slug: fonte-nunca-vista
+        ref: MARCADOR-NAO-IMPRIMIR-7f3a-ref
+      - slug: fonte-exemplo-delta
+        ref: MARCADOR-NAO-IMPRIMIR-7f3a-ref
+    grupo: aberto
+    categoria: factual
+    escrita_em: 2026-11-24
+    escrita_por: MARCADOR-NAO-IMPRIMIR-7f3a-por

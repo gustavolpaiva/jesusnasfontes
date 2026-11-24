@@ -1,8 +1,12 @@
 // Validador do gabarito do Assistente (plano 02-23, ASST-12 adiantado): cada regra reprovada tem o seu teste e
 // a fixture sintética é o controle positivo. Tudo em memória sobre um acervo sintético em pasta temporária; o
-// gabarito de verdade NÃO vive no produto (D-21), e um teste prova que só validador, teste e fixture têm a
+// gabarito de verdade NÃO vive no produto (D-21), e um teste prova que só validador, teste e fixtures têm a
 // palavra "gabarito" no caminho. A saída nunca carrega texto de pergunta: o marcador da fixture é procurado
-// na saída de aprovação e de reprovação.
+// na saída de aprovação e de reprovação, e a fixture do marcador carrega o MARCADOR em TODO campo inválido
+// (grupo, categoria, ref, chaves desconhecidas, enumerações e formatos) — os testes de comando conferem que
+// ele nunca aparece em stdout/stderr de nenhum caminho de erro (T-02-64). A identidade de uma Fonte é o slug
+// DECLARADO no YAML, como na carga: nome do arquivo e slug do derivado têm de confirmar, senão o carregamento
+// do Acervo reprova e referência nenhuma resolve pelo nome do arquivo.
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -21,6 +25,7 @@ import {
 
 const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const FIXTURE = path.join(RAIZ, "tests", "fixtures", "acervo", "gabarito-teste.yaml");
+const FIXTURE_MARCADOR = path.join(RAIZ, "tests", "fixtures", "acervo", "gabarito-marcador.yaml");
 const MARCADOR = "MARCADOR-NAO-IMPRIMIR-7f3a";
 
 const temporarios: string[] = [];
@@ -30,10 +35,21 @@ afterAll(() => {
 
 const sha256 = (t: string) => createHash("sha256").update(t).digest("hex");
 
-type FonteSintetica = { slug: string; publicada: boolean; refs: string[]; comDerivado?: boolean };
+// `declara` muda o slug escrito DENTRO do YAML (o arquivo continua com o nome do slug) e `derivadoDeclara`
+// muda o slug declarado dentro do derivado: são os desacordos de identidade que o validador tem de recusar.
+type FonteSintetica = {
+  slug: string;
+  publicada: boolean;
+  refs: string[];
+  comDerivado?: boolean;
+  declara?: string;
+  derivadoDeclara?: string;
+};
+
+type AcervoEmDisco = { fontes: string; derivados: string; lock: string };
 
 /** Pasta temporária com YAMLs de Fonte sintéticos, derivados sintéticos e o lock que os casa. */
-function acervoSintetico(fontes: readonly FonteSintetica[]): AcervoCarregado {
+function acervoEmDisco(fontes: readonly FonteSintetica[]): AcervoEmDisco {
   const dir = mkdtempSync(path.join(tmpdir(), "jnf-gabarito-"));
   temporarios.push(dir);
   const pastaFontes = path.join(dir, "fontes");
@@ -48,7 +64,7 @@ function acervoSintetico(fontes: readonly FonteSintetica[]): AcervoCarregado {
   for (const f of fontes) {
     writeFileSync(
       path.join(pastaFontes, `${f.slug}.yaml`),
-      `slug: ${f.slug}
+      `slug: ${f.declara ?? f.slug}
 titulo: Obra sintetica de teste
 nivel: primaria
 tipo_texto: integral
@@ -65,7 +81,7 @@ traducao_ano: 1900
     if (!f.comDerivado) continue;
     const derivado = JSON.stringify({
       versao_formato: 1,
-      slug: f.slug,
+      slug: f.derivadoDeclara ?? f.slug,
       idioma: "en",
       origem_id: "origem-teste",
       origem_sha256: "a".repeat(64),
@@ -84,18 +100,42 @@ traducao_ano: 1900
   }
   const arquivoLock = path.join(dir, "lock.json");
   writeFileSync(arquivoLock, JSON.stringify(lock));
-  const r = carregarAcervo({ fontes: pastaFontes, derivados: pastaDerivados, lock: arquivoLock });
+  return { fontes: pastaFontes, derivados: pastaDerivados, lock: arquivoLock };
+}
+
+function acervoSintetico(fontes: readonly FonteSintetica[]): AcervoCarregado {
+  const r = carregarAcervo(acervoEmDisco(fontes));
   if (!r.acervo) throw new Error(`acervo sintético falhou: ${r.erro}`);
   return r.acervo;
 }
 
-const ACERVO = () =>
-  acervoSintetico([
-    { slug: "fonte-exemplo-alfa", publicada: true, refs: ["cap.1", "cap.2"], comDerivado: true },
-    { slug: "fonte-exemplo-beta", publicada: true, refs: ["2.10"], comDerivado: true },
-    { slug: "fonte-exemplo-gama", publicada: false, refs: [], comDerivado: false },
-    { slug: "fonte-exemplo-delta", publicada: true, refs: [], comDerivado: false },
-  ]);
+/** Roda o comando de verdade (stdout/stderr capturados) sobre o acervo sintético em disco. */
+function rodarValidador(args: string[], acervo?: AcervoEmDisco) {
+  const completos = acervo
+    ? ["--fontes", acervo.fontes, "--derivados", acervo.derivados, "--lock", acervo.lock, ...args]
+    : args;
+  return spawnSync(
+    path.join(RAIZ, "node_modules", ".bin", "tsx"),
+    ["scripts/acervo/validar-gabarito.ts", ...completos],
+    {
+      cwd: RAIZ,
+      encoding: "utf8",
+      env: {
+        PATH: process.env.PATH ?? "",
+        HOME: process.env.HOME ?? "",
+      } as unknown as NodeJS.ProcessEnv,
+    },
+  );
+}
+
+const FONTES_PADRAO: readonly FonteSintetica[] = [
+  { slug: "fonte-exemplo-alfa", publicada: true, refs: ["cap.1", "cap.2"], comDerivado: true },
+  { slug: "fonte-exemplo-beta", publicada: true, refs: ["2.10"], comDerivado: true },
+  { slug: "fonte-exemplo-gama", publicada: false, refs: [], comDerivado: false },
+  { slug: "fonte-exemplo-delta", publicada: true, refs: [], comDerivado: false },
+];
+
+const ACERVO = () => acervoSintetico(FONTES_PADRAO);
 
 const perguntaValida = () => ({
   id: "t-101",
@@ -246,20 +286,148 @@ describe("validarGabarito: uma reprovação por regra", () => {
   });
 });
 
+describe("validar-gabarito: a identidade da Fonte é o slug declarado no YAML", () => {
+  it("arquivo que declara slug diferente do nome reprova o carregamento inteiro (a referência não resolve pelo nome do arquivo)", () => {
+    const r = carregarAcervo(
+      acervoEmDisco([
+        {
+          slug: "fonte-exemplo-alfa",
+          declara: "fonte-exemplo-beta",
+          publicada: true,
+          refs: ["cap.1"],
+          comDerivado: true,
+        },
+        { slug: "fonte-exemplo-beta", publicada: true, refs: ["2.10"], comDerivado: true },
+        { slug: "fonte-exemplo-gama", publicada: false, refs: [], comDerivado: false },
+      ]),
+    );
+    expect(r.acervo).toBeUndefined();
+    expect(r.erro).toContain("fonte-exemplo-alfa.yaml");
+    expect(r.erro).toContain("fonte-exemplo-beta");
+  });
+
+  it("derivado que declara o slug de outra Fonte reprova o carregamento inteiro", () => {
+    const r = carregarAcervo(
+      acervoEmDisco([
+        {
+          slug: "fonte-exemplo-alfa",
+          publicada: true,
+          refs: ["cap.1"],
+          comDerivado: true,
+          derivadoDeclara: "fonte-exemplo-beta",
+        },
+        { slug: "fonte-exemplo-beta", publicada: true, refs: ["2.10"], comDerivado: true },
+      ]),
+    );
+    expect(r.acervo).toBeUndefined();
+    expect(r.erro).toContain("fonte-exemplo-alfa.json");
+    expect(r.erro).toContain("fonte-exemplo-beta");
+  });
+
+  it("o comando reprova o gabarito quando a Fonte citável só existia pelo nome do arquivo (cenário da revisão: alfa.yaml declara slug beta, publicada, com derivado válido de alfa)", () => {
+    const d = acervoEmDisco([
+      {
+        slug: "fonte-exemplo-alfa",
+        declara: "fonte-exemplo-beta",
+        publicada: true,
+        refs: ["cap.1"],
+        comDerivado: true,
+      },
+      { slug: "fonte-exemplo-beta", publicada: true, refs: ["2.10"], comDerivado: true },
+    ]);
+    const r = rodarValidador(["--arquivo", FIXTURE], d);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain(
+      "REPROVADO fontes: fonte-exemplo-alfa.yaml declara o slug fonte-exemplo-beta",
+    );
+    // Nem chegou a aprovar o gabarito: a Fonte "fonte-exemplo-alfa" não existe para a carga.
+    expect(r.stdout).not.toContain("GABARITO");
+  });
+});
+
+describe("validar-gabarito: nenhum caminho de erro devolve valor do arquivo (T-02-64)", () => {
+  const REGRAS = [
+    "pergunta-vazia",
+    "id-repetido",
+    "resposta-sem-fonte",
+    "sem-resposta-com-fonte",
+    "fonte-inexistente",
+    "fonte-nao-publicada",
+    "derivado-ausente",
+    "referencia-inexistente",
+    "grupo-invalido",
+    "categoria-invalida",
+  ] as const;
+
+  it("a fixture do marcador dispara TODAS as regras sem que o marcador apareça em stdout/stderr", () => {
+    const r = rodarValidador(["--arquivo", FIXTURE_MARCADOR], acervoEmDisco(FONTES_PADRAO));
+    expect(r.status).toBe(1);
+    const saida = `${r.stdout}${r.stderr}`;
+    for (const regra of REGRAS) expect(saida).toContain(regra);
+    expect(saida).not.toContain(MARCADOR);
+  });
+
+  it("erro de contrato (campo desconhecido, valor de enumeração, formato e tipo) não devolve valor nem chave", () => {
+    const bruto = lerYaml(readFileSync(FIXTURE_MARCADOR, "utf8")) as {
+      versao_formato: unknown;
+      perguntas: Array<
+        Record<string, unknown> & { fontes_esperadas: Array<{ slug: string; ref: string }> }
+      >;
+    } & Record<string, unknown>;
+    bruto.versao_formato = `versao-${MARCADOR}`;
+    bruto[`raiz-${MARCADOR}`] = true;
+    const p0 = bruto.perguntas[0] as Record<string, unknown> & {
+      fontes_esperadas: Array<{ slug: string; ref: string }>;
+    };
+    p0[`campo-${MARCADOR}`] = `valor-${MARCADOR}`;
+    p0.id = `id-${MARCADOR}`;
+    p0.escrita_em = MARCADOR;
+    p0.pergunta = 123;
+    p0.tem_resposta = `sim-${MARCADOR}`;
+    (p0.fontes_esperadas[0] as { slug: string }).slug = `slug-${MARCADOR}`;
+    const dir = mkdtempSync(path.join(tmpdir(), "jnf-gabarito-"));
+    temporarios.push(dir);
+    const arquivo = path.join(dir, "contrato-marcador.json");
+    writeFileSync(arquivo, JSON.stringify(bruto));
+    const r = rodarValidador(["--arquivo", arquivo], acervoEmDisco(FONTES_PADRAO));
+    expect(r.status).toBe(1);
+    const saida = `${r.stdout}${r.stderr}`;
+    expect(saida).toContain("contrato");
+    expect(saida).toContain("campo desconhecido");
+    expect(saida).not.toContain(MARCADOR);
+  });
+
+  it("YAML ilegível não devolve trecho nenhum do arquivo", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "jnf-gabarito-"));
+    temporarios.push(dir);
+    const arquivo = path.join(dir, "ilegivel-marcador.yaml");
+    writeFileSync(
+      arquivo,
+      `perguntas:\n  - id: t-x\n    pergunta: "pergunta quebrada ${MARCADOR}\n`,
+    );
+    const r = rodarValidador(["--arquivo", arquivo], acervoEmDisco(FONTES_PADRAO));
+    expect(r.status).toBe(1);
+    const saida = `${r.stdout}${r.stderr}`;
+    expect(saida).toContain("ilegível");
+    expect(saida).not.toContain(MARCADOR);
+  });
+
+  it("erro do lock reprova sem ler uma linha do gabarito", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "jnf-gabarito-"));
+    temporarios.push(dir);
+    const lockRuim = path.join(dir, "lock-ruim.json");
+    writeFileSync(lockRuim, "isto não é JSON");
+    const r = rodarValidador(["--arquivo", FIXTURE_MARCADOR, "--lock", lockRuim]);
+    expect(r.status).toBe(1);
+    const saida = `${r.stdout}${r.stderr}`;
+    expect(saida).toContain("lock");
+    expect(saida).not.toContain(MARCADOR);
+  });
+});
+
 describe("validar-gabarito: limites do comando", () => {
   it("sem --arquivo sai 1 com a mensagem de uso, sem imprimir pergunta nenhuma", () => {
-    const r = spawnSync(
-      path.join(RAIZ, "node_modules", ".bin", "tsx"),
-      ["scripts/acervo/validar-gabarito.ts"],
-      {
-        cwd: RAIZ,
-        encoding: "utf8",
-        env: {
-          PATH: process.env.PATH ?? "",
-          HOME: process.env.HOME ?? "",
-        } as unknown as NodeJS.ProcessEnv,
-      },
-    );
+    const r = rodarValidador([]);
     expect(r.status).toBe(1);
     expect(`${r.stdout}${r.stderr}`).toContain("uso:");
   });
@@ -295,6 +463,7 @@ describe("validar-gabarito: limites do comando", () => {
       .sort();
     expect(comGabaritoNoCaminho).toEqual([
       "scripts/acervo/validar-gabarito.ts",
+      "tests/fixtures/acervo/gabarito-marcador.yaml",
       "tests/fixtures/acervo/gabarito-teste.yaml",
       "tests/unit/acervo/validar-gabarito.test.ts",
     ]);

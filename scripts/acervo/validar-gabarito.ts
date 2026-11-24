@@ -2,11 +2,14 @@
 // Assistente (plano 02-23, início antecipado de ASST-12). O gabarito de verdade NÃO vive no produto (D-21):
 // este script é genérico, recebe o arquivo por parâmetro (nunca lê nada por padrão) e confere por máquina que
 // cada Fonte e cada referência esperadas existem no Acervo carregado (YAML `publicada: true` + derivado no
-// lock). A saída traz SÓ ids, contagens e a regra reprovada — nunca o texto de uma pergunta (T-02-64): erros de
-// contrato nomeiam o campo, não o valor. Reprovações: contrato, pergunta-vazia, id-repetido, resposta-sem-fonte,
-// sem-resposta-com-fonte, fonte-inexistente, fonte-nao-publicada, derivado-ausente, referencia-inexistente,
-// grupo-invalido, categoria-invalida. O resumo compara o arquivo com os pisos do RASCUNHO da Fase 2 sem aprovar
-// nem reprovar o conjunto: critério de aprovação e execução são do portão da Fase 4, via T3.5 da Fase 3.
+// lock). A saída traz SÓ ids, contagens e a regra reprovada — nunca o texto de uma pergunta (T-02-64): TODO
+// erro nomeia o campo e a regra violada, jamais um valor do arquivo (nem truncado). A identidade de uma Fonte
+// é o slug DECLARADO no seu YAML — o mesmo que a carga usa — e o nome do arquivo e o slug interno do derivado
+// têm de confirmá-la; referência só resolve pelo slug declarado. Reprovações: contrato, pergunta-vazia,
+// id-repetido, resposta-sem-fonte, sem-resposta-com-fonte, fonte-inexistente, fonte-nao-publicada,
+// derivado-ausente, referencia-inexistente, grupo-invalido, categoria-invalida. O resumo compara o arquivo
+// com os pisos do RASCUNHO da Fase 2 sem aprovar nem reprovar o conjunto: critério de aprovação e execução são
+// do portão da Fase 4, via T3.5 da Fase 3.
 
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -92,56 +95,74 @@ export function carregarAcervo(opcoes: OpcoesGabarito): {
     .filter((n) => n.endsWith(".yaml"))
     .sort();
   for (const nome of nomes) {
-    const slug = nome.slice(0, -".yaml".length);
+    const doNomeDoArquivo = nome.slice(0, -".yaml".length);
     try {
       const fonte = interpretarFonteYaml(
         readFileSync(path.join(opcoes.fontes, nome), "utf8"),
         nome,
       );
-      (fonte.publicada ? publicadas : naoPublicadas).add(slug);
+      // A identidade é o slug DECLARADO no YAML — o mesmo que a carga usa para casar Fonte e derivado. O nome
+      // do arquivo tem de confirmar essa identidade: um desacordo aqui quebra a carga (derivado órfão), então
+      // reprova o carregamento inteiro em vez de deixar a referência resolver pelo nome do arquivo.
+      if (fonte.slug !== doNomeDoArquivo)
+        return {
+          erro: `fontes: ${nome} declara o slug ${fonte.slug}, diferente do nome do arquivo`,
+        };
+      (fonte.publicada ? publicadas : naoPublicadas).add(fonte.slug);
     } catch {
       // YAML fora do contrato não é Fonte citável; o conferidor de Fontes é quem detalha o motivo.
-      naoPublicadas.add(slug);
+      naoPublicadas.add(doNomeDoArquivo);
     }
   }
   const refs = new Map<string, Set<string>>();
-  const refsDa = (slug: string): Set<string> | null => {
-    if (!lock.derivados[slug]) return null;
-    let conjunto = refs.get(slug);
-    if (!conjunto) {
-      conjunto = new Set(
-        lerDerivado(opcoes.derivados, lock, slug).secoes.flatMap((s) =>
-          s.paragrafos.map((p) => p.ref),
-        ),
-      );
-      refs.set(slug, conjunto);
+  for (const slug of Object.keys(lock.derivados).sort()) {
+    try {
+      const derivado = lerDerivado(opcoes.derivados, lock, slug);
+      // O derivado também declara o slug que diz servir: tem de ser o da própria entrada do lock (a carga
+      // recusa "o derivado é de outra Fonte"), senão nenhuma referência sob esse nome é de confiança.
+      if (derivado.slug !== slug)
+        return { erro: `derivados: ${slug}.json declara o slug ${derivado.slug}` };
+      refs.set(slug, new Set(derivado.secoes.flatMap((s) => s.paragrafos.map((p) => p.ref))));
+    } catch (erro) {
+      return { erro: `derivados: ${(erro as Error).message}` };
     }
-    return conjunto;
-  };
+  }
   return {
     acervo: {
       publicadas,
       naoPublicadas,
       temRef: (slug, ref) => {
-        const conjunto = refsDa(slug);
-        return conjunto === null ? null : conjunto.has(ref);
+        const conjunto = refs.get(slug);
+        return conjunto === undefined ? null : conjunto.has(ref);
       },
     },
   };
 }
 
+// T-02-64: o contrato reprova nomeando o campo e a regra — JAMAIS um valor do arquivo. Nem a mensagem do
+// zod (que pode citar o recebido), nem o nome das chaves desconhecidas (texto livre do arquivo) chegam à
+// saída; cada código de issue vira um rótulo fixo nosso.
+const REGRAS_DO_CONTRATO: Record<string, string> = {
+  invalid_type: "tipo inválido",
+  invalid_value: "valor fora do permitido",
+  invalid_format: "formato inválido",
+  too_small: "abaixo do mínimo",
+  too_big: "acima do máximo",
+  not_multiple_of: "fora do passo permitido",
+  unrecognized_keys: "campo desconhecido",
+  invalid_union: "fora do contrato",
+  invalid_key: "fora do contrato",
+  invalid_element: "fora do contrato",
+  custom: "fora do contrato",
+};
+
 function descrever(erro: z.ZodError): string {
-  const desconhecidos = (i: z.core.$ZodIssue) => i.code === "unrecognized_keys";
   return erro.issues
     .slice(0, 8)
-    .map((i) => {
-      const caminho = i.path.map(String).join(".");
-      if (desconhecidos(i)) {
-        const chaves = (i as unknown as { keys: string[] }).keys.join(", ");
-        return `${caminho ? `${caminho}: ` : ""}campo desconhecido: ${chaves}`;
-      }
-      return `${caminho || "(raiz)"}: ${i.message}`;
-    })
+    .map(
+      (i) =>
+        `${i.path.map(String).join(".") || "(raiz)"}: ${REGRAS_DO_CONTRATO[i.code] ?? "fora do contrato"}`,
+    )
     .join("; ");
 }
 
@@ -162,9 +183,9 @@ function regrasDasPerguntas(
     if (!p.pergunta.trim())
       linhas.push(`REPROVADO ${p.id}: pergunta-vazia: a pergunta não tem texto`);
     if (!(GRUPOS as readonly string[]).includes(p.grupo))
-      linhas.push(`REPROVADO ${p.id}: grupo-invalido: "${p.grupo}"`);
+      linhas.push(`REPROVADO ${p.id}: grupo-invalido: o grupo não é aberto nem reservado`);
     if (!(CATEGORIAS as readonly string[]).includes(p.categoria))
-      linhas.push(`REPROVADO ${p.id}: categoria-invalida: "${p.categoria}"`);
+      linhas.push(`REPROVADO ${p.id}: categoria-invalida: a categoria não está na lista`);
     if (p.tem_resposta && p.fontes_esperadas.length === 0)
       linhas.push(
         `REPROVADO ${p.id}: resposta-sem-fonte: tem_resposta verdadeiro exige fontes_esperadas`,
@@ -184,7 +205,7 @@ function regrasDasPerguntas(
           linhas.push(`REPROVADO ${p.id}: derivado-ausente: ${fe.slug} está sem derivado no lock`);
         else if (!tem)
           linhas.push(
-            `REPROVADO ${p.id}: referencia-inexistente: a ref "${fe.ref}" não existe no derivado de ${fe.slug}`,
+            `REPROVADO ${p.id}: referencia-inexistente: a ref não existe no derivado de ${fe.slug}`,
           );
       }
     }
