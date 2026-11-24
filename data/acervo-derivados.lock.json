@@ -30,6 +30,10 @@
       "sha256": "0b9d8233c950ae26b36ed8ca7c21d9591ab5e49d936e53189ab16059fb31ad1d",
       "bytes": 921604
     },
+    "evangelho-da-infancia-de-tome": {
+      "sha256": "367db78547a3b91ac60722275810038bc8fa1f6073530146aeb609ff395570f5",
+      "bytes": 48667
+    },
     "evangelho-de-tome": {
       "sha256": "1adf025d041574f6800098789c7f8fb082c8bc797c78b23dc2e5c8b22c559c74",
       "bytes": 33871
@@ -97,6 +101,10 @@
     "policarpo-filipenses": {
       "sha256": "bdbf70c5edf49ae452c8d2d07987868bfe1691e06361fd890cc86ac6e2e21149",
       "bytes": 15005
+    },
+    "protoevangelho-de-tiago": {
+      "sha256": "ca285a59db2b7c09a7d70cb1e1af5109c206b0e66f441ddfebc1f6aa032b4a9e",
+      "bytes": 30380
     },
     "taciano-diatessaron": {
       "sha256": "aff956854cff96068c69dfbfbf2cf029b7a0cdac44e70c1ce719aef1e508916b",
