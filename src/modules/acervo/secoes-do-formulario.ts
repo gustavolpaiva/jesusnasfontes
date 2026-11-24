@@ -45,9 +45,32 @@ export function novoCid(): string {
   return `n${Date.now().toString(36)}-${contador}`;
 }
 
-/** O `cid` de uma seção que já existe: derivado do id dela, igual no servidor e no navegador. */
+/**
+ * Hash de 53 bits (cyrb53) de uma string, em número inteiro. Puro JS e síncrono: roda igual no servidor e no navegador (o
+ * `crypto.subtle` é assíncrono e não serve a uma renderização inicial). Não é criptográfico: o `cid` só casa linhas do
+ * formulário e nunca é identidade (a identidade é `id` + `versao`).
+ */
+function cyrb53(texto: string, semente: number): number {
+  let h1 = 0xdeadbeef ^ semente;
+  let h2 = 0x41c6ce57 ^ semente;
+  for (let i = 0; i < texto.length; i += 1) {
+    const c = texto.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+/**
+ * O `cid` de uma seção que já existe: derivado do id dela, igual no servidor e no navegador, e de TAMANHO FIXO (no máximo 24
+ * caracteres), qualquer que seja o id: o id leva o endereço da Fonte e da seção (até ~200 caracteres) e o contrato do `cid`
+ * é de no máximo 64. Dois hashes de 53 bits com sementes diferentes (106 bits) tornam colisão entre as seções de uma Fonte
+ * (máx. 60) irrelevante; o `cid` só casa a resposta com a linha, nunca identifica a seção no servidor.
+ */
 export function cidDaSecaoPersistida(id: string): string {
-  return `p-${id.replace(/[^A-Za-z0-9]+/g, "-")}`;
+  return `p-${cyrb53(id, 0).toString(36)}${cyrb53(id, 1).toString(36)}`;
 }
 
 /** As linhas iniciais do formulário, determinísticas: a mesma entrada dá os mesmos `cid` em qualquer lugar. */

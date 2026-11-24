@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { esquemaFonteFormulario, slugDoTitulo } from "@/modules/acervo/schemas-painel";
 import {
   aplicarSalvamento,
   cidDaSecaoPersistida,
@@ -124,5 +125,93 @@ describe("`cid` inicial determinístico (a hidratação não diverge)", () => {
     const [a, b] = secoesIniciais(persistidas);
     expect(a).toMatchObject({ id: "obra/secao-1", versao: V1, titulo: "A", resumo_pt: "" });
     expect(b).toMatchObject({ titulo: "", palavras_chave_pt: "x, y", resumo_pt: "R" });
+  });
+});
+
+describe("o `cid` derivado cabe no contrato do esquema para QUALQUER id que o banco gere (revisão cruzada, MÉDIA)", () => {
+  // O esquema do painel (`esquemaFonteFormulario`) é o que decide se a página de edição consegue salvar.
+  const base = {
+    modo: "editar" as const,
+    slug: "x",
+    titulo: "T",
+    nivel: "primaria" as const,
+    idioma: "pt" as const,
+    tipo_texto: "integral" as const,
+    obra_protegida: false,
+    traduzida_por_nos: false,
+    publicada: false,
+    revisao: 0,
+    autor: "",
+    epoca: "",
+    tradicao: "",
+    origem_nome: "",
+    origem_url: "",
+    licenca: "",
+    licenca_url: "",
+    tradutor: "",
+    traducao_ano: "",
+    edicao: "",
+    limites_pt: "",
+  };
+  const aceita = (secao: SecaoEmEdicao) =>
+    esquemaFonteFormulario.safeParse({ ...base, secoes: [secao] }).success;
+  const persistida = (id: string): SecaoPersistida => ({
+    id,
+    versao: V1,
+    titulo: "S",
+    texto: "Texto.",
+    resumoPt: null,
+    palavrasChavePt: [],
+  });
+
+  it("Fonte com título de 60 letras `a` e uma seção: a seção persistida da página de edição passa no esquema", () => {
+    const slug = slugDoTitulo("a".repeat(60));
+    expect(slug).toHaveLength(60);
+    const [secao] = secoesIniciais([persistida(`${slug}/secao-1`)]);
+    expect(secao?.cid.length).toBeLessThanOrEqual(64);
+    expect(aceita(secao as SecaoEmEdicao)).toBe(true);
+  });
+
+  it("controle: a derivação anterior (id com barras trocadas por hífen) estourava 64 neste mesmo caso e o esquema a recusava", () => {
+    const id = `${"a".repeat(60)}/secao-1`;
+    const antiga = `p-${id.replace(/[^A-Za-z0-9]+/g, "-")}`;
+    expect(antiga).toHaveLength(70);
+    const linhaAntiga = { ...secoesIniciais([persistida(id)])[0], cid: antiga } as SecaoEmEdicao;
+    expect(aceita(linhaAntiga)).toBe(false);
+  });
+
+  it("propriedade: ids de qualquer tamanho que o banco gera (Fonte até 120 + '/' + seção até 80) dão `cid` de tamanho limitado, determinístico, seguro e aceito", () => {
+    const tamanhos = [1, 2, 7, 30, 59, 60, 61, 100, 120];
+    const secoes = ["secao-1", "secao-60", `s${"b".repeat(79)}`];
+    const vistos = new Set<string>();
+    for (const t of tamanhos) {
+      for (const s of secoes) {
+        const id = `${"a".repeat(t)}/${s}`;
+        const [linhaInicial] = secoesIniciais([persistida(id)]);
+        const cid = linhaInicial?.cid ?? "";
+        expect(cid.length).toBeGreaterThan(2);
+        expect(cid.length).toBeLessThanOrEqual(24);
+        expect(cid).toMatch(/^[A-Za-z0-9-]+$/);
+        expect(cidDaSecaoPersistida(id)).toBe(cid); // determinístico
+        expect(aceita(linhaInicial as SecaoEmEdicao)).toBe(true);
+        expect(vistos.has(cid)).toBe(false); // ids diferentes, `cid` diferentes
+        vistos.add(cid);
+      }
+    }
+  });
+
+  it("as 60 seções de uma Fonte de título longo têm `cid` distintos", () => {
+    const slug = slugDoTitulo("a".repeat(300));
+    const ids = Array.from({ length: 60 }, (_, i) => `${slug}/secao-${i + 1}`);
+    const cids = secoesIniciais(ids.map(persistida)).map((s) => s.cid);
+    expect(new Set(cids).size).toBe(60);
+  });
+
+  it("o `cid` de linha criada no navegador também passa no esquema, mesmo depois de muitas linhas", () => {
+    for (let i = 0; i < 2000; i += 1) novoCid();
+    const [secao] = secoesIniciais([persistida("f/secao-1")]);
+    expect(
+      aceita({ ...(secao as SecaoEmEdicao), id: undefined, versao: undefined, cid: novoCid() }),
+    ).toBe(true);
   });
 });
