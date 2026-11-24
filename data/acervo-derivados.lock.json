@@ -2,6 +2,10 @@
   "orcamento_arquivo_bytes": 8388608,
   "orcamento_total_bytes": 31457280,
   "derivados": {
+    "didaque": {
+      "sha256": "9e7170ae9396ccff04ccfa083a7c387a01cbf9901ff2b96e3cf1cea015b620f9",
+      "bytes": 21481
+    },
     "evangelho-de-tome": {
       "sha256": "75fe0a1f6419a26ec864a6bbdc43174120d5522f4be743d0a52b8fc50715235d",
       "bytes": 33707
