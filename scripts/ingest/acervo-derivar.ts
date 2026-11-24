@@ -29,6 +29,7 @@ import {
   type OrigemAcervo,
   PASTA_BRUTO,
   TETO_BRUTO_BYTES,
+  unidadesPermitidas,
 } from "./acervo-origens";
 import type { ResultadoTei } from "./acervo-parse-tei";
 import { ErroChecksum } from "./fontes";
@@ -112,6 +113,21 @@ export function conferirBruto(entrada: EntradaDerivar): {
   return { interpretado, sha256: obtido };
 }
 
+function restringir(
+  secoes: ResultadoTei["secoes"],
+  permitidas: Set<string>,
+  slug: string,
+): ResultadoTei["secoes"] {
+  const recortadas = secoes
+    .map((s) => ({ ...s, paragrafos: s.paragrafos.filter((p) => permitidas.has(p.ref)) }))
+    .filter((s) => s.paragrafos.length > 0);
+  const emitidas = new Set(recortadas.flatMap((s) => s.paragrafos.map((p) => p.ref)));
+  const faltam = [...permitidas].filter((u) => !emitidas.has(u));
+  if (faltam.length > 0)
+    throw new ErroOrigem(`${slug}: unidade conferida ausente no bruto: ${faltam.join(", ")}`);
+  return recortadas;
+}
+
 /**
  * Bruto verificado para derivado. Não toca o disco. Lança antes de ler o conteúdo se a origem não é publicável
  * ou se o sha256 não confere; lança `ErroLicenca` se o cabeçalho diverge do registro.
@@ -122,7 +138,13 @@ export function derivar(entrada: EntradaDerivar): Derivado {
     throw new ErroOrigem(
       `origem ${origemId} não é publicável (${origem.motivo}); derivação recusada`,
     );
+  // Lista vazia lança aqui, antes de ler o bruto.
+  const permitidas = unidadesPermitidas(origem);
   const { interpretado: tei, sha256: obtido } = conferirBruto(entrada);
+
+  // O bruto inteiro foi conferido acima; só o que a origem autoriza sai. Unidade autorizada que o bruto não
+  // tem é erro (typo na lista nunca vira derivado menor em silêncio).
+  const secoes = permitidas ? restringir(tei.secoes, permitidas, arquivo.slug) : tei.secoes;
 
   return interpretarDerivado(
     {
@@ -132,7 +154,7 @@ export function derivar(entrada: EntradaDerivar): Derivado {
       origem_id: origemId,
       origem_sha256: obtido,
       gerado_por: `${VERSAO_DERIVADOR}; origem ${origemId} commit ${origem.commit}`,
-      secoes: tei.secoes.map((s) => ({
+      secoes: secoes.map((s) => ({
         slug: s.slug,
         titulo: s.titulo,
         ordem: s.ordem,

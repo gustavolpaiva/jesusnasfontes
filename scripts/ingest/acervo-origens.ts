@@ -78,6 +78,10 @@ const esquemaOrigem = z
     formato: z.enum(FORMATOS_ORIGEM),
     publicavel: z.boolean(),
     motivo: z.string().min(1),
+    // Lista fechada de unidades (`ref` do parágrafo, ex. "15.44") que PODEM ser publicadas desta origem. Ausente = a
+    // origem inteira. Presente = o derivador emite só estas e o `acervo:verify` reprova derivado com outra
+    // (vazia também reprova: lista vazia nunca significa "tudo"). Cada unidade entra depois da PRÓPRIA conferência.
+    unidades_conferidas: z.array(z.string().min(1)).optional(),
     arquivos: z.array(esquemaArquivo).min(1),
     verificador: z
       .object({
@@ -117,6 +121,23 @@ export function lerOrigens(caminho: string = CAMINHO_ORIGENS): Origens {
   if (!r.success)
     throw new ErroOrigem(`registro de origens fora do contrato: ${descrever(r.error)}`);
   return r.data;
+}
+
+/**
+ * As unidades que a origem autoriza publicar, ou `undefined` quando a origem não restringe (comportamento de
+ * sempre). Lista vazia ou com repetição é erro: nunca vira "tudo" nem "nada" em silêncio.
+ */
+export function unidadesPermitidas(origem: OrigemAcervo): Set<string> | undefined {
+  const lista = origem.unidades_conferidas;
+  if (lista === undefined) return undefined;
+  if (lista.length === 0)
+    throw new ErroOrigem(
+      "unidades_conferidas vazia: liste as unidades conferidas ou remova o campo",
+    );
+  const conjunto = new Set(lista);
+  if (conjunto.size !== lista.length)
+    throw new ErroOrigem("unidades_conferidas com unidade repetida");
+  return conjunto;
 }
 
 /** Chave do arquivo no lock do bruto e nome da pasta em cache: `<origem>/<arquivo>`. */

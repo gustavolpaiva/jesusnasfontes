@@ -25,6 +25,7 @@ import {
   lerOrigens,
   type Origens,
   PASTA_BRUTO,
+  unidadesPermitidas,
 } from "./acervo-origens";
 
 const sha256 = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
@@ -57,6 +58,15 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
     return { linhas, reprovados, codigo: 1 };
   }
 
+  // Lista de unidades conferidas vazia reprova mesmo sem derivado: lista vazia nunca vale como "tudo".
+  for (const [origemId, origem] of Object.entries(origens)) {
+    try {
+      unidadesPermitidas(origem);
+    } catch (erro) {
+      reprovar(origemId, (erro as Error).message);
+    }
+  }
+
   // Parte 1: derivados (sempre).
   const slugsConferidos = new Set<string>();
   try {
@@ -70,6 +80,17 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
           throw new ErroDerivado(`derivado ${c.slug}: origem ${d.origem_id} fora do registro`);
         if (!origem.publicavel)
           throw new ErroDerivado(`derivado ${c.slug}: a origem ${d.origem_id} não é publicável`);
+        // Origem com lista de unidades conferidas: nada fora dela pode estar no derivado (lista vazia reprova).
+        const permitidas = unidadesPermitidas(origem);
+        if (permitidas) {
+          const fora = d.secoes
+            .flatMap((s) => s.paragrafos.map((p) => p.ref))
+            .filter((ref) => !permitidas.has(ref));
+          if (fora.length > 0)
+            throw new ErroDerivado(
+              `derivado ${c.slug}: ${fora.length} unidade(s) fora de unidades_conferidas da origem ${d.origem_id} (${fora.slice(0, 5).join(", ")}${fora.length > 5 ? ", …" : ""})`,
+            );
+        }
         slugsConferidos.add(c.slug);
         linhas.push(`OK ${c.slug} (${c.bytes} bytes, sha256 ${c.sha256.slice(0, 12)})`);
       } catch (erro) {
