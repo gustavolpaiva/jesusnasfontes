@@ -24,8 +24,12 @@ export const PASTA_BRUTO = path.join(RAIZ_PRODUTO, "data", "raw", "acervo");
 /** Teto padrão do arquivo bruto (baixado e interpretado). Cada arquivo pode pedir menos no registro. */
 export const TETO_BRUTO_BYTES = 32 * 1024 * 1024;
 
-/** Formatos de arquivo de origem que o despachante (`acervo-interpretar`) sabe ler. Cada plano de origem acrescenta o seu. */
-export const FORMATOS_ORIGEM = ["tei"] as const;
+/**
+ * Formatos de arquivo de origem que o despachante (`acervo-interpretar`) conhece. Cada plano de origem acrescenta o
+ * seu. `texto-ocr` é só REGISTRADO (James 1924 no Internet Archive): ainda não tem verificador de licença nem
+ * parser, então nenhum derivado sai dele — o despachante recusa.
+ */
+export const FORMATOS_ORIGEM = ["tei", "gutenberg", "html", "texto-ocr"] as const;
 export type FormatoOrigem = (typeof FORMATOS_ORIGEM)[number];
 
 const slug = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "deve ser kebab-case");
@@ -50,6 +54,12 @@ const esquemaEsperado = z
     paragrafos: z.array(esquemaEsperadoParagrafo).default([]),
     // Nenhum parágrafo pode conter o texto de uma nota de editor lida do mesmo arquivo.
     notas_fora_do_texto: z.boolean().default(true),
+    // Unidades que a ORIGEM não traz (lacuna no próprio arquivo, ex. "cartas.XLIV" do Gutenberg #2811). A leitura
+    // tem de achar EXATAMENTE estas: lacuna que o registro não declara reprova, e declarar o que não falta também.
+    // Ausente = a origem não tem lacuna nenhuma.
+    ausentes: z.array(z.string().min(1)).optional(),
+    // Total de parágrafos do documento inteiro, quando a obra tem uma contagem conhecida (os 114 ditos de Tomé).
+    paragrafos_total: z.number().int().min(1).optional(),
   })
   .strict();
 
@@ -60,8 +70,15 @@ const esquemaArquivo = z
     slug,
     idioma: z.enum(["pt", "en"]),
     limite_bytes: z.number().int().min(1).max(TETO_BRUTO_BYTES).optional(),
+    // Como o bruto decodifica (padrão utf-8). O Gutenberg #2811 declara ISO-8859-1 no próprio cabeçalho.
+    charset: z.enum(["utf-8", "iso-8859-1"]).optional(),
     // Fatos esperados deste arquivo; quando faltam, valem os da origem (Antiguidades e Guerra: 20 e 7 livros).
     esperado: esquemaEsperado.optional(),
+    // Formato `gutenberg`: a estrutura da obra dentro do arquivo e o slug de cada parte, na ordem em que aparecem.
+    estrutura: z.enum(["cartas"]).optional(),
+    secoes: z.array(slug).min(1).optional(),
+    // Formato `html`: a palavra que abre o cabeçalho de cada unidade ("Saying 1: …").
+    rotulo_unidade: z.string().min(1).optional(),
   })
   .strict();
 
@@ -82,6 +99,10 @@ const esquemaOrigem = z
     // origem inteira. Presente = o derivador emite só estas e o `acervo:verify` reprova derivado com outra
     // (vazia também reprova: lista vazia nunca significa "tudo"). Cada unidade entra depois da PRÓPRIA conferência.
     unidades_conferidas: z.array(z.string().min(1)).optional(),
+    // Tabela de correspondência de numeração (formato `gutenberg`): `<slug da parte>.<rótulo no arquivo>` →
+    // referência moderna. Só as unidades listadas mudam de número; as demais ficam com a numeração da própria
+    // origem e o `acervo:verify` as relata. Entrada que não é unidade do arquivo reprova.
+    correspondencia_refs: z.record(z.string().min(1), z.string().min(1)).optional(),
     arquivos: z.array(esquemaArquivo).min(1),
     verificador: z
       .object({

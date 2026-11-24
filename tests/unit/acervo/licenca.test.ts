@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   ErroLicenca,
+  exigirDedicacaoDominioPublico,
+  exigirLicencaGutenberg,
   exigirTraducaoTei,
   lerCabecalhoTei,
 } from "../../../scripts/ingest/acervo-licenca";
@@ -115,5 +117,177 @@ describe("Tácito: licença da edição digital e o aviso do editorialDecl sobre
     expect(() => exigirTraducaoTei(tacito, { ...TACITO, tradutores: ["William Whiston"] })).toThrow(
       ErroLicenca,
     );
+  });
+});
+
+// ---- Gutenberg: a licença é lida nas DUAS BORDAS do próprio arquivo (plano 02-27) ----
+// Fixtures reais (NOTICE.md): o Plínio #2811 traz o cabeçalho do Gutenberg e a licença na cauda; o Suetônio #6400
+// não traz nada antes do marcador de início nem depois do marcador de fim. O arquivo declara ISO-8859-1.
+const plinio = readFileSync(path.join(FIXTURES, "gutenberg-plinio-trecho.txt"), "latin1");
+const suetonio = readFileSync(path.join(FIXTURES, "gutenberg-suetonio-bordas.txt"), "utf8");
+const DECLARACAO_PG =
+  "Creating the works from public domain print editions means that no one owns a United States copyright in these works";
+const MELMOTH = { tradutores: ["William Melmoth", "F. C. T. Bosanquet"], licenca: DECLARACAO_PG };
+const THOMSON = { tradutores: ["Alexander Thomson", "T.Forester"], licenca: DECLARACAO_PG };
+/** Documento Gutenberg sintético: só as bordas interessam aqui. */
+const gutenberg = (inicio: string, corpo: string, fim: string) =>
+  `${inicio}\n*** START OF THE PROJECT GUTENBERG EBOOK X ***\n${corpo}\n*** END OF THE PROJECT GUTENBERG EBOOK X ***\n${fim}`;
+
+describe("exigirLicencaGutenberg: licença lida nas bordas do próprio arquivo", () => {
+  it("controle positivo: o arquivo real do Plínio declara a edição impressa em domínio público e nomeia os tradutores", () => {
+    const c = exigirLicencaGutenberg(plinio, MELMOTH);
+    expect(c.licenca).toBe(
+      "Creating the works from public domain print editions means that no one owns a United States copyright in these works, so the Foundation (and you!) can copy and distribute it in the United States without permission and without paying copyright royalties.",
+    );
+    expect(c.borda).toBe("fim");
+    expect(c.tradutores).toEqual(["F. C. T. Bosanquet", "William Melmoth"]);
+    expect(c.avisoEditorial).toBe("");
+  });
+
+  it("controle negativo: as bordas REAIS do Suetônio (#6400) não trazem declaração: licença não provada na origem", () => {
+    let erro: unknown;
+    try {
+      exigirLicencaGutenberg(suetonio, THOMSON);
+    } catch (e) {
+      erro = e;
+    }
+    expect(erro).toBeInstanceOf(ErroLicenca);
+    expect((erro as ErroLicenca).message).toMatch(/licença não provada na origem/);
+    // código estruturado: é o que o `acervo:verify` usa para NÃO reprovar a origem já barrada por esse motivo
+    expect((erro as ErroLicenca).codigo).toBe("sem_declaracao");
+  });
+
+  it("a declaração tem de estar numa das bordas: no corpo (dentro dos marcadores) não conta", () => {
+    const noCorpo = gutenberg(
+      "",
+      `Prefácio.\n\n${DECLARACAO_PG}, so the Foundation can copy.\n\nFim.`,
+      "",
+    );
+    let erro: unknown;
+    try {
+      exigirLicencaGutenberg(noCorpo, MELMOTH);
+    } catch (e) {
+      erro = e;
+    }
+    expect(erro).toBeInstanceOf(ErroLicenca);
+    expect((erro as ErroLicenca).codigo).toBe("sem_declaracao");
+    // o mesmo texto na borda inicial passa (com os tradutores na página de rosto, como no arquivo real)
+    expect(
+      exigirLicencaGutenberg(
+        gutenberg(
+          `${DECLARACAO_PG}, so the Foundation can copy.`,
+          "Translated by William Melmoth. Revised by F. C. T. Bosanquet.",
+          "",
+        ),
+        MELMOTH,
+      ).borda,
+    ).toBe("inicio");
+  });
+
+  it("declaração que não é a esperada reprova (frase parecida não basta)", () => {
+    const outra = gutenberg(
+      "This eBook is licensed under a Creative Commons license.",
+      "Translated by William Melmoth. Revised by F. C. T. Bosanquet.",
+      "",
+    );
+    expect(() => exigirLicencaGutenberg(outra, MELMOTH)).toThrow(ErroLicenca);
+    // o registro esperar outra frase reprova mesmo no arquivo real
+    expect(() =>
+      exigirLicencaGutenberg(plinio, {
+        ...MELMOTH,
+        licenca: "This eBook is licensed under a Creative Commons license",
+      }),
+    ).toThrow(ErroLicenca);
+  });
+
+  it("tradutor esperado que o arquivo não nomeia reprova, citando quem faltou (armadilha do Perseus, de novo)", () => {
+    expect(() =>
+      exigirLicencaGutenberg(plinio, { ...MELMOTH, tradutores: ["Austin Morris Harmon"] }),
+    ).toThrow(/Austin Morris Harmon/);
+    expect(() =>
+      exigirLicencaGutenberg(plinio, { ...MELMOTH, tradutores: ["William Melmoth"] }),
+    ).not.toThrow();
+  });
+
+  it("a declaração é lida depois de normalizar espaços e quebras de linha, sem distinguir maiúsculas", () => {
+    const quebrada = gutenberg(
+      `  creating   the works from public domain\nprint editions means that no one owns\n\na United States copyright in these works; …`,
+      "Translated by William Melmoth. Revised by F. C. T. Bosanquet.",
+      "",
+    );
+    expect(exigirLicencaGutenberg(quebrada, MELMOTH).borda).toBe("inicio");
+  });
+
+  it("arquivo sem os marcadores do Gutenberg não tem borda onde ler: reprova", () => {
+    expect(() =>
+      exigirLicencaGutenberg(`${DECLARACAO_PG}. Translated by William Melmoth.`, MELMOTH),
+    ).toThrow(ErroLicenca);
+    expect(() =>
+      exigirLicencaGutenberg(`${DECLARACAO_PG}. Translated by William Melmoth.`, MELMOTH),
+    ).toThrow(/marcador/);
+  });
+});
+
+// ---- gospels.net: a dedicação ao domínio público lida na página do tradutor (D-24) ----
+const DEDICACAO =
+  "The following translation has been committed to the public domain and may be freely copied and used, changed or unchanged, for any purpose.";
+const MATTISON = { tradutores: ["Mark M. Mattison"], licenca: DEDICACAO };
+
+describe("exigirDedicacaoDominioPublico: a dedicação do tradutor, lida na página", () => {
+  const tome = readFileSync(path.join(FIXTURES, "gospels-tome-trecho.html"), "utf8");
+
+  it("controle positivo: a página real do Mattison traz a dedicação inteira e o nome do tradutor", () => {
+    const c = exigirDedicacaoDominioPublico(tome, MATTISON);
+    expect(c.licenca).toBe(DEDICACAO);
+    expect(c.tradutores).toEqual(["Mark M. Mattison"]);
+  });
+
+  it("o pedido do plano: a frase 'committed to the public domain' é o que se confere", () => {
+    expect(() =>
+      exigirDedicacaoDominioPublico(tome, {
+        tradutores: ["Mark M. Mattison"],
+        licenca: "committed to the public domain",
+      }),
+    ).not.toThrow();
+  });
+
+  it("página sem a frase lança ErroLicenca (licença não provada na origem)", () => {
+    const sem = tome.replace("committed to the public domain", "licensed to its readers");
+    expect(sem).not.toBe(tome);
+    let erro: unknown;
+    try {
+      exigirDedicacaoDominioPublico(sem, MATTISON);
+    } catch (e) {
+      erro = e;
+    }
+    expect(erro).toBeInstanceOf(ErroLicenca);
+    expect((erro as ErroLicenca).message).toMatch(/licença não provada na origem/);
+    expect((erro as ErroLicenca).codigo).toBe("sem_declaracao");
+  });
+
+  it("frase que só existe dentro de script ou style não conta: vale o texto visível", () => {
+    const escondida = `<!doctype html><html><head><script>var a = "${DEDICACAO}";</script><style>/* ${DEDICACAO} */</style></head><body><h3>by Mark M. Mattison</h3><p>Estas são as palavras.</p></body></html>`;
+    expect(() => exigirDedicacaoDominioPublico(escondida, MATTISON)).toThrow(ErroLicenca);
+  });
+
+  it("frase partida por entidade ou por etiqueta conta: é o texto que o leitor vê", () => {
+    const partida = `<!doctype html><html><body><h3>by Mark M. Mattison</h3><p>The following translation has been committed to the&nbsp;public <b>domain</b> and may be freely copied and used, changed or unchanged, for any purpose.</p></body></html>`;
+    expect(exigirDedicacaoDominioPublico(partida, MATTISON).licenca).toBe(DEDICACAO);
+  });
+
+  it("dedicação de outro tradutor não serve: o nome esperado tem de estar na página", () => {
+    expect(() =>
+      exigirDedicacaoDominioPublico(tome, { ...MATTISON, tradutores: ["Thomas O. Lambdin"] }),
+    ).toThrow(/Thomas O\. Lambdin/);
+  });
+
+  it("página sem a dedicação e sem tradutor reprova primeiro pela dedicação", () => {
+    let erro: unknown;
+    try {
+      exigirDedicacaoDominioPublico("<html><body><p>Nada aqui.</p></body></html>", MATTISON);
+    } catch (e) {
+      erro = e;
+    }
+    expect((erro as ErroLicenca).codigo).toBe("sem_declaracao");
   });
 });

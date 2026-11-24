@@ -91,3 +91,31 @@ describe("validarUrl", () => {
     ).toThrow(/commit/);
   });
 });
+
+describe("validarUrl: origens que não versionam por commit (Gutenberg pelo espelho, página do tradutor)", () => {
+  // Nestas a origem não tem commit: o que fixa o arquivo é o sha256 do lock do bruto (`acervo:baixar --fixar`).
+  const SEM_COMMIT = { commit: "0".repeat(64) };
+
+  it("aceita o espelho gutenberg.pglaf.org e a página www.gospels.net, sem exigir o commit no endereço", () => {
+    expect(() =>
+      validarUrl("https://gutenberg.pglaf.org/2/8/1/2811/2811-8.txt", SEM_COMMIT),
+    ).not.toThrow();
+    expect(() => validarUrl("https://www.gospels.net/thomas", SEM_COMMIT)).not.toThrow();
+  });
+
+  it("o endereço principal do Gutenberg, que bloqueia automação, segue fora da lista permitida", () => {
+    expect(() =>
+      validarUrl("https://www.gutenberg.org/cache/epub/2811/pg2811.txt", SEM_COMMIT),
+    ).toThrow(/host/);
+    expect(() => validarUrl("https://gutenberg.org/files/2811/2811-8.txt", SEM_COMMIT)).toThrow(
+      /host/,
+    );
+  });
+
+  it("http e endereço inválido continuam recusados nos hosts novos", () => {
+    expect(() =>
+      validarUrl("http://gutenberg.pglaf.org/2/8/1/2811/2811-8.txt", SEM_COMMIT),
+    ).toThrow();
+    expect(() => validarUrl("https://www.gospels.net/thomas", SEM_COMMIT)).not.toThrow();
+  });
+});

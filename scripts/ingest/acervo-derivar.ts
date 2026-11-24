@@ -31,6 +31,7 @@ import {
   TETO_BRUTO_BYTES,
   unidadesPermitidas,
 } from "./acervo-origens";
+import type { ConfigGutenberg } from "./acervo-parse-gutenberg";
 import type { ResultadoTei } from "./acervo-parse-tei";
 import { ErroChecksum } from "./fontes";
 
@@ -48,12 +49,20 @@ export type EntradaDerivar = {
   rotuloLivro?: string;
 };
 
+/** O que `conferirEsperado` precisa da leitura: seções, notas à parte e as unidades que o arquivo não traz. */
+export type LeituraConferida = Pick<ResultadoInterpretado, "secoes" | "notas"> &
+  Partial<Pick<ResultadoInterpretado, "ausentes">>;
+
+const listar = (itens: readonly string[], maximo = 5) =>
+  `${itens.slice(0, maximo).join(", ")}${itens.length > maximo ? ", …" : ""}`;
+
 /** Confere os fatos esperados da origem contra o que o parser leu. Devolve as falhas (vazio = tudo confere). */
-export function conferirEsperado(tei: ResultadoTei, esperado: Esperado): string[] {
+export function conferirEsperado(leitura: LeituraConferida, esperado: Esperado): string[] {
   const falhas: string[] = [];
-  if (tei.secoes.length !== esperado.secoes)
-    falhas.push(`esperadas ${esperado.secoes} seções, lidas ${tei.secoes.length}`);
-  const porRef = new Map(tei.secoes.flatMap((s) => s.paragrafos).map((p) => [p.ref, p]));
+  const { secoes, notas } = leitura;
+  if (secoes.length !== esperado.secoes)
+    falhas.push(`esperadas ${esperado.secoes} seções, lidas ${secoes.length}`);
+  const porRef = new Map(secoes.flatMap((s) => s.paragrafos).map((p) => [p.ref, p]));
   for (const e of esperado.paragrafos) {
     const p = porRef.get(e.ref);
     if (!p) {
@@ -69,12 +78,24 @@ export function conferirEsperado(tei: ResultadoTei, esperado: Esperado): string[
   }
   if (esperado.notas_fora_do_texto) {
     // Nota curta demais ("Ibid.") apareceria por acaso no texto; as de 40+ caracteres são o sinal.
-    const notas = [...new Set(tei.notas.filter((n) => n.length >= 40))];
-    const textos = tei.secoes.flatMap((s) => s.paragrafos.map((p) => ({ ref: p.ref, t: p.texto })));
-    for (const nota of notas) {
+    const longas = [...new Set(notas.filter((n) => n.length >= 40))];
+    const textos = secoes.flatMap((s) => s.paragrafos.map((p) => ({ ref: p.ref, t: p.texto })));
+    for (const nota of longas) {
       const achado = textos.find((x) => x.t.includes(nota));
       if (achado) falhas.push(`texto de nota de editor dentro do parágrafo ${achado.ref}`);
     }
+  }
+  // Lacuna no arquivo só passa declarada: a lista lida tem de ser igual à do registro (`esperado.ausentes`).
+  const ausentes = leitura.ausentes ?? [];
+  const declaradas = esperado.ausentes ?? [];
+  if (ausentes.length !== declaradas.length || ausentes.some((a) => !declaradas.includes(a)))
+    falhas.push(
+      `unidades ausentes no arquivo: ${ausentes.length} (${listar(ausentes)}) — declaradas em esperado.ausentes: ${declaradas.length} (${listar(declaradas)})`,
+    );
+  if (esperado.paragrafos_total !== undefined) {
+    const total = porRef.size;
+    if (total !== esperado.paragrafos_total)
+      falhas.push(`esperados ${esperado.paragrafos_total} parágrafos no total, lidos ${total}`);
   }
   return falhas;
 }
@@ -102,15 +123,37 @@ export function conferirBruto(entrada: EntradaDerivar): {
   if (bruto.byteLength > (arquivo.limite_bytes ?? TETO_BRUTO_BYTES))
     throw new ErroOrigem(`${chave}: arquivo bruto acima do teto`);
 
-  const xml = new TextDecoder("utf-8", { fatal: true }).decode(bruto);
-  const interpretado = interpretarOrigem(origem.formato, xml, {
+  // O charset é o do registro (padrão utf-8), com decodificação estrita: byte fora dele é bruto que não confere.
+  const charset = arquivo.charset ?? "utf-8";
+  let conteudo: string;
+  try {
+    conteudo = new TextDecoder(charset, { fatal: true }).decode(bruto);
+  } catch {
+    throw new ErroOrigem(`${chave}: o bruto não decodifica como ${charset} (charset do registro)`);
+  }
+  const interpretado = interpretarOrigem(origem.formato, conteudo, {
     verificador: origem.verificador,
     rotuloLivro: entrada.rotuloLivro,
+    gutenberg: configuracaoGutenberg(origem, arquivo),
+    html: arquivo.rotulo_unidade ? { rotuloUnidade: arquivo.rotulo_unidade } : undefined,
   });
   const falhas = conferirEsperado(interpretado, esperadoDoArquivo(origem, arquivo));
   if (falhas.length > 0)
     throw new ErroOrigem(`${chave}: a leitura não confere com o esperado: ${falhas.join("; ")}`);
   return { interpretado, sha256: obtido };
+}
+
+/** A configuração do formato `gutenberg` como o registro a descreve; ausente quando o arquivo não a declara. */
+export function configuracaoGutenberg(
+  origem: OrigemAcervo,
+  arquivo: ArquivoOrigem,
+): ConfigGutenberg | undefined {
+  if (arquivo.estrutura === undefined || arquivo.secoes === undefined) return undefined;
+  return {
+    estrutura: arquivo.estrutura,
+    secoes: arquivo.secoes,
+    correspondencia: origem.correspondencia_refs,
+  };
 }
 
 function restringir(

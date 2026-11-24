@@ -77,3 +77,34 @@ Creative Commons Atribuição-CompartilhaIgual (<https://creativecommons.org/lic
   <https://github.com/PerseusDL/canonical-latinLit>. A tradução de 1869 é de domínio público; o cabeçalho avisa
   que o texto parece seguir a reimpressão de 1942, e por isso o Tácito completo **não** é publicado até a conferência
   contra a edição de 1895.
+
+### Project Gutenberg: fixtures do leitor de texto e do verificador de licença (`gutenberg-plinio-trecho.txt`, `gutenberg-suetonio-bordas.txt`)
+
+Recortes de teste de dois eBooks do Project Gutenberg, baixados uma só vez pelo espelho
+<https://gutenberg.pglaf.org> e fixados pelo sha256 em `data/acervo.lock.json`. O arquivo completo de cada um fica
+só na máquina de quem desenvolve e nunca entra no repositório.
+
+- `gutenberg-plinio-trecho.txt`: seis trechos justapostos, sem nenhuma alteração, do eBook #2811 (*Letters of
+  Pliny*, de Plínio, o Jovem; tradução de William Melmoth, revisão de F. C. T. Bosanquet; arquivo `2811-8.txt`,
+  "Release Date: September, 2001 [Etext #2811]", produzido por David Reed e David Widger). Na ordem: o cabeçalho do
+  Project Gutenberg com a página de rosto (linhas 1 a 43 do arquivo), o começo da "Correspondence with the Emperor
+  Trajan" com a carta I (7166 a 7185), as cartas XCVII e XCVIII (8815 a 8900), o começo do bloco de notas do
+  tradutor (9230 a 9242), as notas 1066 a 1069 (9700 a 9742) e a cauda do arquivo com a declaração de domínio
+  público (9779 a 9808). A tradução é de domínio público; o próprio arquivo declara, na cauda: "Creating the works
+  from public domain print editions means that no one owns a United States copyright in these works". O cabeçalho e
+  a licença do Project Gutenberg são material do Project Gutenberg Literary Archive Foundation, e o próprio arquivo
+  diz que "Project Gutenberg" é marca registrada: aqui só servem de entrada de teste do leitor e do verificador.
+- `gutenberg-suetonio-bordas.txt`: só as duas linhas de marcador do eBook #6400 (*The Lives of the Twelve Caesars*,
+  de Suetônio; tradução de Alexander Thomson, revisão de T. Forester; arquivo `6400-0.txt`). É o controle negativo
+  do verificador: o arquivo não traz declaração de licença em nenhuma das bordas, e a origem fica fora de
+  publicação. Nenhuma linha do texto da obra está no repositório.
+
+### gospels.net: fixture do leitor de HTML (`gospels-tome-trecho.html`)
+
+Recorte de teste da página <https://www.gospels.net/thomas> ("The Gospel of Thomas", tradução de Mark M. Mattison a
+partir do texto copta do Códice II, 2 de Nag Hammadi). O tradutor dedica a tradução ao domínio público na própria
+página: "The following translation has been committed to the public domain and may be freely copied and used,
+changed or unchanged, for any purpose." A fixture junta trechos reais da página, um elemento por linha e sem
+reescrita: itens da navegação do site, o título, o parágrafo da dedicação, a legenda de símbolos, o Prólogo e os
+ditos 1, 2 e 3; depois do recorte, o título final e o cabeçalho "Notes on Translation". Os ditos 4 a 113 e as notas
+do tradutor ficaram fora. O sha256 da página inteira está em `data/acervo.lock.json`.

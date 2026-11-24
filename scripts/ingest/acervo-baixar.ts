@@ -24,8 +24,18 @@ import { buscarArquivo, ErroChecksum, type Obter, sha256 } from "./fontes";
 
 export { ErroChecksum };
 
-/** Hosts de onde o Acervo aceita baixar. Acrescentar um host é decisão revisada, nunca passada por dado. */
-export const HOSTS_PERMITIDOS = ["raw.githubusercontent.com"] as const;
+/**
+ * Hosts de onde o Acervo aceita baixar, com o que fixa cada um. Acrescentar um host é decisão revisada, nunca
+ * passada por dado.
+ *   - fixado por commit: o endereço tem de trazer o `commit` do registro (repositório no GitHub).
+ *   - fixado por sha256: a origem não versiona; o endereço é só https + host, e o que fixa o arquivo é o sha256
+ *     gravado no lock do bruto por `--fixar` (sem hash no lock, `baixarOrigem` recusa).
+ * O endereço principal do Gutenberg (`gutenberg.org`), que bloqueia cliente automatizado, fica FORA da lista de
+ * propósito: do Gutenberg só se baixa pelo espelho.
+ */
+const HOSTS_FIXADOS_POR_COMMIT: readonly string[] = ["raw.githubusercontent.com"];
+const HOSTS_FIXADOS_POR_SHA256: readonly string[] = ["gutenberg.pglaf.org", "www.gospels.net"];
+export const HOSTS_PERMITIDOS = [...HOSTS_FIXADOS_POR_COMMIT, ...HOSTS_FIXADOS_POR_SHA256] as const;
 
 export function validarUrl(url: string, origem: Pick<OrigemAcervo, "commit">): void {
   let u: URL;
@@ -36,7 +46,7 @@ export function validarUrl(url: string, origem: Pick<OrigemAcervo, "commit">): v
   }
   if (u.protocol !== "https:" || !(HOSTS_PERMITIDOS as readonly string[]).includes(u.hostname))
     throw new ErroOrigem(`host fora da lista permitida: ${u.hostname}`);
-  if (!url.includes(origem.commit))
+  if (HOSTS_FIXADOS_POR_COMMIT.includes(u.hostname) && !url.includes(origem.commit))
     throw new ErroOrigem(`o endereço não está fixado no commit ${origem.commit}: ${url}`);
 }
 

@@ -1,14 +1,33 @@
-// Licença e tradutor lidos NO CABEÇALHO do próprio arquivo TEI (Perseus), nunca confiados ao registro (D-06).
-// O cabeçalho "CC BY-SA" do Perseus é licença da EDIÇÃO DIGITAL: não prova que a tradução é de domínio público
-// (caso Luciano `perseus-eng2`, Harmon 1936). Por isso o registro lista os tradutores esperados e a leitura
-// reprova qualquer divergência. Lê só o que vem antes de `</teiHeader>`; o corpo nem é interpretado aqui.
+// Licença e tradutor lidos NO PRÓPRIO ARQUIVO DE ORIGEM, nunca confiados ao registro (D-06).
+//
+//   TEI (Perseus)   lê-se só o cabeçalho TEI. O "CC BY-SA" do Perseus é licença da EDIÇÃO DIGITAL: não prova que a
+//                   tradução é de domínio público (caso Luciano `perseus-eng2`, Harmon 1936). Por isso o registro
+//                   lista os tradutores esperados e a leitura reprova qualquer divergência. O corpo nem é
+//                   interpretado aqui.
+//   Gutenberg       lê-se as DUAS BORDAS do arquivo (antes do marcador de início, depois do marcador de fim): é onde
+//                   o Project Gutenberg declara de que edição o texto veio. Arquivo sem declaração em nenhuma das
+//                   bordas (Suetônio #6400) NÃO tem licença provada na origem, por mais antigo que seja.
+//   HTML            lê-se o texto visível da página: a dedicação ao domínio público feita pelo próprio tradutor
+//                   (Mattison, D-24).
 
 import { Parser } from "htmlparser2";
+import { type PartesGutenberg, separarGutenberg } from "./acervo-parse-gutenberg";
+import { lerParagrafosHtml } from "./acervo-parse-html";
+
+/**
+ * `sem_declaracao`: o arquivo não traz declaração de licença onde ela deveria estar. Não é "aviso": a licença
+ * ficou sem prova na origem. O `acervo:verify` usa o código para relatar a origem já barrada por esse motivo sem
+ * a contar como defeito novo; qualquer OUTRO erro de licença num bruto reprova, publicável ou não.
+ * `sem_marcas`: o arquivo nem tem as marcas que delimitam as bordas do Gutenberg.
+ */
+export type CodigoErroLicenca = "sem_declaracao" | "sem_marcas";
 
 export class ErroLicenca extends Error {
-  constructor(mensagem: string) {
+  readonly codigo: CodigoErroLicenca | undefined;
+  constructor(mensagem: string, codigo?: CodigoErroLicenca) {
     super(mensagem);
     this.name = "ErroLicenca";
+    this.codigo = codigo;
   }
 }
 
@@ -19,7 +38,8 @@ export type ExigenciaTei = {
   licenca: string;
 };
 
-export type CabecalhoTei = {
+/** O que o próprio arquivo declarou, em qualquer formato. `avisoEditorial` é o aviso da edição sobre o próprio texto. */
+export type CabecalhoLido = {
   tradutores: string[];
   licenca: string;
   licencaUrl: string | null;
@@ -27,10 +47,17 @@ export type CabecalhoTei = {
   /** Texto do `editorialDecl` do cabeçalho (vazio se não houver): o aviso da própria edição digital. */
   avisoEditorial: string;
 };
+export type CabecalhoTei = CabecalhoLido;
+
+/** Gutenberg: além do comum, em qual das bordas a declaração foi lida. */
+export type CabecalhoGutenberg = CabecalhoLido & { borda: "inicio" | "fim" };
+export type CabecalhoHtml = CabecalhoLido;
 
 const FIM_DO_CABECALHO = "</teiHeader>";
 
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
+/** Para conferir uma frase: espaços e quebras de linha fechados, sem distinguir maiúsculas. */
+const normalizar = (s: string) => compactar(s).toLowerCase();
 
 /** Lê tradutor(es), licença e ano de edição do cabeçalho TEI. Não valida: só lê. */
 export function lerCabecalhoTei(xml: string): CabecalhoTei {
@@ -131,4 +158,115 @@ export function exigirTraducaoTei(xml: string, exigencia: ExigenciaTei): Cabecal
       `tradutor do cabeçalho não é o esperado (esperado ${JSON.stringify(esperados)}, lido ${JSON.stringify(cabecalho.tradutores)})`,
     );
   return cabecalho;
+}
+
+// ───────────────────────── Gutenberg e HTML ─────────────────────────
+
+export type ExigenciaGutenberg = {
+  /** Todos os tradutores esperados; cada nome tem de aparecer no próprio arquivo (cabeçalho ou página de rosto). */
+  tradutores: readonly string[];
+  /** Declaração que uma das bordas do arquivo tem de conter, sem distinguir maiúsculas e com espaços fechados. */
+  licenca: string;
+};
+export type ExigenciaDedicacao = ExigenciaGutenberg;
+
+/**
+ * Ache a frase esperada no texto já lido e devolva-a como o arquivo a imprime. `compacto` e `minimo` são o mesmo
+ * texto, um na caixa original e outro em minúsculas. Se o trecho esperado já é uma frase inteira (termina em ponto),
+ * devolve só ele; se não, estende até o ponto que fecha a frase no arquivo.
+ */
+function fraseLida(compacto: string, minimo: string, esperado: string): string | null {
+  const i = minimo.indexOf(esperado);
+  if (i < 0) return null;
+  const fonte = compacto.length === minimo.length ? compacto : minimo;
+  const fimDoTrecho = i + esperado.length;
+  if (/[.!?]$/.test(esperado)) return fonte.slice(i, fimDoTrecho);
+  const ponto = fonte.indexOf(". ", fimDoTrecho);
+  return ponto < 0 ? fonte.slice(i) : fonte.slice(i, ponto + 1);
+}
+
+/**
+ * Confere a licença de um arquivo do Project Gutenberg pelo que o PRÓPRIO ARQUIVO declara nas duas bordas: (a) a
+ * declaração de que a obra vem de edição impressa em domínio público e (b) os nomes dos tradutores esperados.
+ * Lança `ErroLicenca` com o código `sem_declaracao` quando nenhuma das bordas traz a declaração: a licença não
+ * está provada na origem (nunca é "aviso"). Declaração escrita no corpo, entre os marcadores, não conta.
+ */
+export function exigirLicencaGutenberg(
+  texto: string,
+  exigencia: ExigenciaGutenberg,
+): CabecalhoGutenberg {
+  let partes: PartesGutenberg;
+  try {
+    partes = separarGutenberg(texto);
+  } catch (erro) {
+    throw new ErroLicenca(
+      `licença não provada na origem: ${(erro as Error).message}`,
+      "sem_marcas",
+    );
+  }
+  const esperado = normalizar(exigencia.licenca);
+  let borda: "inicio" | "fim" | null = null;
+  let licenca = "";
+  for (const [nome, conteudo] of [
+    ["inicio", partes.inicio],
+    ["fim", partes.fim],
+  ] as const) {
+    const achado = fraseLida(compactar(conteudo), normalizar(conteudo), esperado);
+    if (achado !== null) {
+      borda = nome;
+      licenca = achado;
+      break;
+    }
+  }
+  if (borda === null)
+    throw new ErroLicenca(
+      `licença não provada na origem: nenhuma das bordas do arquivo declara "${exigencia.licenca}"`,
+      "sem_declaracao",
+    );
+
+  const lido = normalizar(`${partes.inicio}\n${partes.corpo}`);
+  const faltam = exigencia.tradutores.filter((t) => !lido.includes(normalizar(t)));
+  if (faltam.length > 0)
+    throw new ErroLicenca(
+      `tradutor esperado não aparece no arquivo (esperado ${JSON.stringify(exigencia.tradutores)}, não achado ${JSON.stringify(faltam)})`,
+    );
+  return {
+    tradutores: [...exigencia.tradutores].sort(),
+    licenca,
+    licencaUrl: null,
+    anos: [],
+    avisoEditorial: "",
+    borda,
+  };
+}
+
+/**
+ * Confere, pelo texto VISÍVEL da página, a dedicação ao domínio público feita pelo próprio tradutor e o nome
+ * dele. Página sem a frase lança `ErroLicenca` com o código `sem_declaracao`. Frase que só existe dentro de
+ * `script` ou `style` não conta.
+ */
+export function exigirDedicacaoDominioPublico(
+  html: string,
+  exigencia: ExigenciaDedicacao,
+): CabecalhoHtml {
+  const texto = lerParagrafosHtml(html).texto;
+  const achado = fraseLida(texto, normalizar(texto), normalizar(exigencia.licenca));
+  if (achado === null)
+    throw new ErroLicenca(
+      `licença não provada na origem: a página não traz a dedicação "${exigencia.licenca}"`,
+      "sem_declaracao",
+    );
+  const lido = normalizar(texto);
+  const faltam = exigencia.tradutores.filter((t) => !lido.includes(normalizar(t)));
+  if (faltam.length > 0)
+    throw new ErroLicenca(
+      `tradutor esperado não aparece na página (esperado ${JSON.stringify(exigencia.tradutores)}, não achado ${JSON.stringify(faltam)})`,
+    );
+  return {
+    tradutores: [...exigencia.tradutores].sort(),
+    licenca: achado,
+    licencaUrl: null,
+    anos: [],
+    avisoEditorial: "",
+  };
 }

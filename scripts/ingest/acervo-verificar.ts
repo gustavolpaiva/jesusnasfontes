@@ -3,7 +3,8 @@
 // arquivo bruto em cache: o sha256 contra o lock do bruto, a licença e o tradutor lidos no cabeçalho, o parser e
 // cada fato `esperado`, e que o derivado commitado é exatamente o que essa leitura produz. Uma linha por item:
 // `OK …`, `REPROVADO …: motivo` ou `SEM BRUTO <origem>` (origem sem cache não reprova: é passo de desenvolvedor).
-// Saída 1 se algo reprovar. Nunca importa o baixador.
+// Origem não publicável aparece como `NÃO PUBLICÁVEL …: motivo` sem reprovar. Saída 1 se algo reprovar. Nunca
+// importa o baixador.
 
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -18,6 +19,7 @@ import {
   verificarDerivados,
 } from "../acervo/derivados";
 import { conferirBruto, derivar, serializar } from "./acervo-derivar";
+import { ErroLicenca } from "./acervo-licenca";
 import {
   caminhoDoBruto,
   chaveDoArquivo,
@@ -29,6 +31,9 @@ import {
 } from "./acervo-origens";
 
 const sha256 = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
+/** Primeiros itens de uma lista e, se ela for longa, o último entre parênteses. */
+const listar = (itens: readonly string[], maximo = 5) =>
+  `${itens.slice(0, maximo).join(", ")}${itens.length > maximo ? `, … (${itens.at(-1)})` : ""}`;
 
 export type OpcoesVerificar = {
   origens?: string;
@@ -150,6 +155,15 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
         linhas.push(
           `OK ${chave} (${derivado.secoes.length} seções, ${derivado.secoes.reduce((n, s) => n + s.paragrafos.length, 0)} parágrafos, notas fora)`,
         );
+        // Formatos que numeram as unidades relatam o que a origem não traz e o que ficou com a numeração da origem.
+        if (interpretado.ausentes?.length)
+          linhas.push(
+            `AVISO ${chave}: o arquivo de origem não traz ${interpretado.ausentes.length} unidade(s): ${listar(interpretado.ausentes)} (declaradas em esperado.ausentes; o texto que sobrou fica na unidade anterior)`,
+          );
+        if (interpretado.foraDaTabela?.length)
+          linhas.push(
+            `NUMERAÇÃO ${chave}: ${interpretado.foraDaTabela.length} unidade(s) fora da tabela de correspondência mantêm a numeração da origem (${listar(interpretado.foraDaTabela)})`,
+          );
         const caminhoDerivado = path.join(pastaDerivados, `${arquivo.slug}.json`);
         if (slugsConferidos.has(arquivo.slug) && existsSync(caminhoDerivado)) {
           const esperado = sha256(serializar(derivado));
@@ -162,6 +176,15 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
           else linhas.push(`OK ${arquivo.slug} reproduz a partir do bruto`);
         }
       } catch (erro) {
+        // Origem barrada POR FALTA DE LICENÇA NO ARQUIVO é o estado que o registro já declara: o sha256 do bruto
+        // foi conferido antes (`conferirBruto` só lê a licença depois do hash), e a leitura do arquivo confirma o
+        // motivo. Relata, não reprova. Qualquer OUTRO erro de licença num bruto reprova, publicável ou não.
+        if (!origem.publicavel && erro instanceof ErroLicenca && erro.codigo === "sem_declaracao") {
+          linhas.push(
+            `NÃO PUBLICÁVEL ${chave}: ${origem.motivo} (sha256 do bruto confere; leitura do arquivo: ${erro.message})`,
+          );
+          continue;
+        }
         reprovar(chave, (erro as Error).message);
       }
     }

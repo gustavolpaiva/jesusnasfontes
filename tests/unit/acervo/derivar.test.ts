@@ -308,3 +308,194 @@ describe("derivar: `esperado` por arquivo vale mais que o da origem", () => {
     expect(() => derivar(entrada(o))).not.toThrow();
   });
 });
+
+// ───────────────────────── plano 02-27: lacunas declaradas, Gutenberg e charset ─────────────────────────
+
+describe("conferirEsperado: unidade que a origem não traz só passa se estiver declarada (esperado.ausentes)", () => {
+  const tei = parsearTei(Buffer.from(bruto).toString("utf8"));
+  const esperado = origem().esperado;
+
+  it("sem lacuna no arquivo e sem lacuna declarada: passa (é o caso do TEI)", () => {
+    expect(conferirEsperado({ ...tei, ausentes: [] }, { ...esperado, ausentes: [] })).toEqual([]);
+    expect(conferirEsperado(tei, esperado)).toEqual([]);
+  });
+
+  it("lacuna no arquivo que o registro NÃO declara reprova, nomeando a unidade", () => {
+    const falhas = conferirEsperado({ ...tei, ausentes: ["18.65"] }, { ...esperado, ausentes: [] });
+    expect(falhas.join(" ")).toMatch(/ausentes no arquivo/);
+    expect(falhas.join(" ")).toMatch(/18\.65/);
+  });
+
+  it("lacuna declarada e não achada no arquivo também reprova (o registro não pode declarar o que não falta)", () => {
+    const falhas = conferirEsperado(tei, { ...esperado, ausentes: ["18.65"] });
+    expect(falhas.join(" ")).toMatch(/ausentes/);
+  });
+
+  it("lacuna igual à declarada passa, em qualquer ordem; conteúdo diferente reprova", () => {
+    const r = { ...tei, ausentes: ["18.65", "18.66"] };
+    expect(conferirEsperado(r, { ...esperado, ausentes: ["18.65", "18.66"] })).toEqual([]);
+    expect(conferirEsperado(r, { ...esperado, ausentes: ["18.66", "18.65"] })).toEqual([]);
+    expect(conferirEsperado(r, { ...esperado, ausentes: ["18.65"] }).length).toBeGreaterThan(0);
+    expect(
+      conferirEsperado(r, { ...esperado, ausentes: ["18.65", "18.67"] }).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("total de parágrafos, quando declarado, é conferido no documento inteiro (os 114 ditos de Tomé)", () => {
+    const total = tei.secoes.flatMap((s) => s.paragrafos).length;
+    expect(total).toBe(4);
+    expect(conferirEsperado(tei, { ...esperado, paragrafos_total: total })).toEqual([]);
+    expect(conferirEsperado(tei, { ...esperado, paragrafos_total: total + 1 }).join(" ")).toMatch(
+      /esperados 5 parágrafos no total, lidos 4/,
+    );
+  });
+});
+
+const PLINIO = readFileSync(path.join(FIXTURES, "gutenberg-plinio-trecho.txt"));
+const DECLARACAO_PG =
+  "Creating the works from public domain print editions means that no one owns a United States copyright in these works";
+/** Numerais romanos de 1 a 200, para nomear as cartas que o recorte da fixture tirou. */
+const ROMANOS: string[] = [];
+for (let n = 1; n <= 200; n++) {
+  let resto = n;
+  let s = "";
+  for (const [letras, valor] of [
+    ["C", 100],
+    ["XC", 90],
+    ["L", 50],
+    ["XL", 40],
+    ["X", 10],
+    ["IX", 9],
+    ["V", 5],
+    ["IV", 4],
+    ["I", 1],
+  ] as const)
+    while (resto >= valor) {
+      s += letras;
+      resto -= valor;
+    }
+  ROMANOS.push(s);
+}
+const CARTAS_TIRADAS = ROMANOS.slice(1, 96).map((n) => `trajano.${n}`);
+
+function origemPlinio(mudar: Partial<OrigemAcervo> = {}): OrigemAcervo {
+  return {
+    ...origem(),
+    nome: "Project Gutenberg eBook #2811 (teste)",
+    fonte: "https://gutenberg.pglaf.org/2/8/1/2811/",
+    commit: "0".repeat(64),
+    formato: "gutenberg",
+    verificador: { tradutores: ["William Melmoth", "F. C. T. Bosanquet"], licenca: DECLARACAO_PG },
+    correspondencia_refs: { "trajano.XCVII": "10.96", "trajano.XCVIII": "10.97" },
+    arquivos: [
+      {
+        id: "2811-8.txt",
+        url: "https://gutenberg.pglaf.org/2/8/1/2811/2811-8.txt",
+        slug: "plinio-cartas",
+        idioma: "en",
+        charset: "iso-8859-1",
+        estrutura: "cartas",
+        secoes: ["trajano"],
+      },
+    ],
+    esperado: {
+      secoes: 1,
+      paragrafos: [
+        {
+          ref: "10.96",
+          contem: ["Christians"],
+          nao_contem: ["[1066]", "Project Gutenberg"],
+          ref_inicio: undefined,
+          ref_fim: undefined,
+        },
+        { ref: "10.97", contem: ["Christians"], nao_contem: [] },
+      ],
+      notas_fora_do_texto: true,
+      ausentes: CARTAS_TIRADAS,
+    },
+    ...mudar,
+  };
+}
+const entradaPlinio = (o = origemPlinio(), extra: Record<string, unknown> = {}) => ({
+  origemId: "gutenberg-plinio-2811",
+  origem: o,
+  arquivo: o.arquivos[0] as OrigemAcervo["arquivos"][number],
+  bruto: new Uint8Array(PLINIO),
+  sha256Lock: sha(PLINIO),
+  ...extra,
+});
+
+describe("derivar: Gutenberg (recorte real do Plínio)", () => {
+  it("do bruto ao derivado: 10.96 e 10.97 pela tabela, sem nota nem licença no texto", () => {
+    const d = derivar(entradaPlinio());
+    expect(d.origem_id).toBe("gutenberg-plinio-2811");
+    expect(d.origem_sha256).toBe(sha(PLINIO));
+    expect(d.secoes.map((s) => s.slug)).toEqual(["trajano"]);
+    expect(d.secoes[0]?.paragrafos.map((p) => p.ref)).toEqual(["trajano.I", "10.96", "10.97"]);
+    const textos = d.secoes[0]?.paragrafos.map((p) => p.texto).join("\n") ?? "";
+    expect(textos).toContain("Christians");
+    expect(textos).not.toMatch(/\[\d+\]/);
+    expect(textos).not.toContain("Creating the works");
+  });
+
+  it("lacuna no arquivo que o registro não declara derruba a derivação", () => {
+    const o = origemPlinio();
+    o.esperado = { ...o.esperado, ausentes: [] };
+    expect(() => derivar(entradaPlinio(o))).toThrow(/ausentes no arquivo/);
+  });
+
+  it("entrada da tabela que não é carta do arquivo derruba a derivação: a numeração moderna nunca falha em silêncio", () => {
+    const o = origemPlinio({ correspondencia_refs: { "trajano.XCIX": "10.98" } });
+    expect(() => derivar(entradaPlinio(o))).toThrow(/correspondência/);
+  });
+
+  it("sem a tabela, 10.96 deixa de existir e o fato esperado derruba a derivação", () => {
+    const o = origemPlinio({ correspondencia_refs: undefined });
+    expect(() => derivar(entradaPlinio(o))).toThrow(/parágrafo 10\.96 ausente/);
+  });
+
+  it("o charset do registro é o que decodifica o bruto: ISO-8859-1 sai 'Cæsar'; os mesmos bytes como UTF-8 são recusados", () => {
+    const texto = [
+      "The Project Gutenberg EBook de Teste",
+      "Translator: William Melmoth",
+      "Editor: F. C. T. Bosanquet",
+      "",
+      "*** START OF THE PROJECT GUTENBERG EBOOK TESTE ***",
+      "",
+      "LETTERS GAIUS PLINIUS CAECILIUS SECUNDUS",
+      "",
+      "I -- To ALGUEM",
+      "",
+      "Cæsar wrote to the priests.",
+      "",
+      "FOOTNOTES TO THE LETTERS] 1 (return) [ Nota longa o bastante para a conferência de vazamento procurá-la.]",
+      "",
+      "*** END OF THE PROJECT GUTENBERG EBOOK TESTE ***",
+      "",
+      `${DECLARACAO_PG}, so the Foundation can copy.`,
+      "",
+    ].join("\n");
+    const latin1 = Uint8Array.from(Array.from(texto, (c) => c.charCodeAt(0) & 0xff));
+    const montar = (charset: "iso-8859-1" | "utf-8") =>
+      entradaPlinio(
+        origemPlinio({
+          // documento sintético de uma carta só: sem tabela de correspondência
+          correspondencia_refs: undefined,
+          esperado: {
+            secoes: 1,
+            paragrafos: [{ ref: "trajano.I", contem: ["Cæsar wrote"], nao_contem: [] }],
+            notas_fora_do_texto: true,
+          },
+        }),
+        {
+          bruto: latin1,
+          sha256Lock: sha(latin1),
+          arquivo: { ...(origemPlinio().arquivos[0] as object), charset },
+        },
+      );
+    expect(derivar(montar("iso-8859-1")).secoes[0]?.paragrafos[0]?.texto).toBe(
+      "Cæsar wrote to the priests.",
+    );
+    expect(() => derivar(montar("utf-8"))).toThrow(/utf-8|decodifica/);
+  });
+});
