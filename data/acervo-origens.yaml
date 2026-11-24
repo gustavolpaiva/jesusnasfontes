@@ -79,8 +79,8 @@ perseus-latinlit-tacito:
     de cada capítulo foram unidas e as citações marcadas no arquivo viram aspas curvas; as lacunas ficam com o sinal
     que a própria edição usa; o texto das palavras não foi reescrito.
   formato: tei
-  publicavel: false
-  motivo: conferência de 1895 pendente
+  publicavel: true
+  motivo: "conferência de 1895: IGUAL em 2026-11-24 (capítulo 15.44, o citado; os demais capítulos não foram conferidos)"
   arquivos:
     - id: phi1351.phi005.perseus-eng2.xml
       url: https://raw.githubusercontent.com/PerseusDL/canonical-latinLit/8cef51623130f2412da410858e32c322eb796c0a/data/phi1351/phi005/phi1351.phi005.perseus-eng2.xml
