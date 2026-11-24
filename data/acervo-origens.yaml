@@ -610,8 +610,7 @@ ccel-anf01:
       # Fragmentos de Papias, seção vi: a tradição sobre Marcos, intérprete de Pedro, e sobre Mateus, que
       # pôs por escrito os oráculos em hebraico (Eusébio citado pelos editores; plano 02-11)
       - ref: "vii.ii.vi-p2"
-        contem:
-          ["Mark having become the interpreter of Peter", "Matthew put together the oracles"]
+        contem: ["Mark having become the interpreter of Peter", "Matthew put together the oracles"]
       # Ireneu, Contra as Heresias III.1: o Evangelho como fundamento e coluna da fé
       - ref: "ix.iv.ii-p1"
         contem: ["the ground and pillar of our faith"]
@@ -708,7 +707,17 @@ ccel-anf04:
       idioma: en
       limite_bytes: 8388608
       divisao_secao: div3
-      divisoes: ["vi.ix.i", "vi.ix.ii", "vi.ix.iii", "vi.ix.iv", "vi.ix.v", "vi.ix.vi", "vi.ix.vii", "vi.ix.viii"]
+      divisoes:
+        [
+          "vi.ix.i",
+          "vi.ix.ii",
+          "vi.ix.iii",
+          "vi.ix.iv",
+          "vi.ix.v",
+          "vi.ix.vi",
+          "vi.ix.vii",
+          "vi.ix.viii",
+        ]
       esperado:
         secoes: 260
         paragrafos:
@@ -951,10 +960,7 @@ ccel-npnf201:
       # Eusébio, História Eclesiástica I.11: Josefo citado sobre Jesus (plano 02-11)
       - ref: "iii.vi.xi-p18"
         contem:
-          [
-            "makes mention of our Saviour in the same work",
-            "he was a doer of wonderful works",
-          ]
+          ["makes mention of our Saviour in the same work", "he was a doer of wonderful works"]
     notas_fora_do_texto: true
 
 ccel-lightfoot-fathers:
