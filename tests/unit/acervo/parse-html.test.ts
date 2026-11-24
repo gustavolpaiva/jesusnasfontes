@@ -11,6 +11,7 @@ import {
   ErroHtml,
   lerParagrafosHtml,
   parsearHtml,
+  REF_PROLOGO,
 } from "../../../scripts/ingest/acervo-parse-html";
 
 // Fixture REAL (recorte sem alteração, ver NOTICE.md): a página https://www.gospels.net/thomas do tradutor Mark M.
@@ -35,20 +36,33 @@ const textos = (r: ReturnType<typeof parsearHtml>) =>
 describe("parsearHtml: recorte real do Evangelho de Tomé (Mattison)", () => {
   const r = parsearHtml(tome, OP);
 
-  it("uma seção só, com os três ditos do recorte numerados de 1 a 3, cada um um parágrafo", () => {
+  it("uma seção só: o prólogo (ref `prologo`) antes dos três ditos do recorte, numerados de 1 a 3", () => {
     expect(r.secoes).toHaveLength(1);
     expect(r.secoes[0]?.slug).toBe("texto");
     expect(r.secoes[0]?.ordem).toBe(1);
-    expect(r.secoes[0]?.paragrafos.map((p) => p.ref)).toEqual(["1", "2", "3"]);
+    expect(r.secoes[0]?.paragrafos.map((p) => p.ref)).toEqual(["prologo", "1", "2", "3"]);
     expect(r.secoes[0]?.paragrafos.map((p) => [p.ref_inicio, p.ref_fim])).toEqual([
+      [null, null],
       [null, null],
       [null, null],
       [null, null],
     ]);
   });
 
+  it("o Prólogo real entra no derivado, inteiro, como unidade própria antes do dito 1", () => {
+    const [prologo, um] = r.secoes[0]?.paragrafos ?? [];
+    expect(prologo?.ref).toBe(REF_PROLOGO);
+    expect(prologo?.texto).toBe(
+      "These are the hidden sayings that the living Jesus spoke and Didymos Judas Thomas wrote down.",
+    );
+    expect(um?.ref).toBe("1");
+    // o título "Prologue" é rótulo, não texto da unidade, e não vai para as notas
+    expect(prologo?.texto).not.toContain("Prologue");
+    expect(r.notas).not.toContain("Prologue");
+  });
+
   it("o texto é o do corpo de cada dito, sem o título que o tradutor lhe deu", () => {
-    const [um, dois, tres] = r.secoes[0]?.paragrafos ?? [];
+    const [, um, dois, tres] = r.secoes[0]?.paragrafos ?? [];
     expect(um?.texto).toBe(
       'And he said, "Whoever discovers the meaning of these sayings won\'t taste death."',
     );
@@ -70,7 +84,7 @@ describe("parsearHtml: recorte real do Evangelho de Tomé (Mattison)", () => {
   });
 
   it("dito com mais de um parágrafo de corpo vira um só parágrafo, unido por espaço", () => {
-    const tres = r.secoes[0]?.paragrafos[2]?.texto ?? "";
+    const tres = r.secoes[0]?.paragrafos[3]?.texto ?? "";
     expect(tres).toContain("the fish will precede you.");
     // o segundo parágrafo de corpo do dito 3 vem depois de um espaço, colado na frase anterior
     expect(tres).toMatch(/outside of you\. "When you know yourselves/);
@@ -79,8 +93,8 @@ describe("parsearHtml: recorte real do Evangelho de Tomé (Mattison)", () => {
     expect(tres).not.toMatch(/ {2}/);
   });
 
-  it("navegação, dedicação, legenda de símbolos, Prólogo, título final e 'Notes on Translation' não viram texto", () => {
-    const tudo = textos(r).join("\n");
+  it("navegação, dedicação, legenda de símbolos, título final e 'Notes on Translation' não viram texto (o Prólogo vira, ver acima)", () => {
+    const tudo = textos(r).slice(1).join("\n"); // sem o prólogo: o título "Prologue" é rótulo
     for (const trecho of [
       "Welcome",
       "Sayings of Jesus",
@@ -90,7 +104,6 @@ describe("parsearHtml: recorte real do Evangelho de Tomé (Mattison)", () => {
       "Gap in the text",
       "Editorial insertion",
       "Prologue",
-      "These are the hidden sayings that the living Jesus spoke",
       "The Gospel According to Thomas",
       "Notes on Translation",
       "RECORTE DE TESTE",
@@ -109,12 +122,11 @@ describe("parsearHtml: recorte real do Evangelho de Tomé (Mattison)", () => {
           n.endsWith("the PDF version."),
       ),
     ).toBe(true);
-    expect(r.notas).toContain(
-      "These are the hidden sayings that the living Jesus spoke and Didymos Judas Thomas wrote down.",
-    );
     expect(r.notas).toContain("Notes on Translation");
     expect(r.notas).toContain("The Gospel According to Thomas");
     for (const nota of r.notas) for (const t of textos(r)) expect(t.includes(nota)).toBe(false);
+    // o Prólogo NÃO está entre as notas: é texto da obra
+    expect(r.notas.join("\n")).not.toContain("hidden sayings");
   });
 
   it("é determinístico", () => {
@@ -126,6 +138,9 @@ describe("parsearHtml: recorte real do Evangelho de Tomé (Mattison)", () => {
 const p = (corpo: string) => `<p class="" style="white-space:pre-wrap;">${corpo}</p>`;
 const CABECALHO = (n: number, rotulo = "Saying") =>
   `<p style="text-align:center;white-space:pre-wrap;" class=""><strong>${rotulo} ${n}: Título</strong></p>`;
+const PROLOGO_TITULO =
+  '<p style="text-align:center;white-space:pre-wrap;" class=""><br><strong>Prologue</strong></p>';
+const PROLOGO = (corpo: string) => `${PROLOGO_TITULO}${p(corpo)}`;
 const ESPACO = '<p class="" style="white-space:pre-wrap;">&nbsp;</p>';
 const PAGINA = (inteiros: string[]) =>
   `<!doctype html><html lang="en-US"><head><meta charset="utf-8" /><title>Título do site</title></head><body><nav><ul><li><a href="/">Início</a></li></ul></nav><section><div class="sqs-html-content">${inteiros.join("")}</div></section><script>window.x = "Script";</script></body></html>`;
@@ -146,6 +161,47 @@ describe("parsearHtml: casos sintéticos", () => {
       p("Outra vez."),
     ]);
     expect(() => parsearHtml(repetido, OP)).toThrow(/fora de sequência/);
+  });
+
+  it("prólogo: um título em negrito e UM parágrafo de corpo, antes do dito 1, com a ref `prologo`", () => {
+    const r = parsearHtml(PAGINA([PROLOGO("Abertura."), ESPACO, CABECALHO(1), p("Um.")]), OP);
+    expect(r.secoes[0]?.paragrafos.map((x) => [x.ref, x.texto])).toEqual([
+      ["prologo", "Abertura."],
+      ["1", "Um."],
+    ]);
+    expect(r.notas).toEqual([]);
+  });
+
+  it("prólogo: bloco de texto inesperado entre o prólogo e o dito 1 reprova (nada da obra some em silêncio)", () => {
+    const extra = PAGINA([
+      PROLOGO("Abertura."),
+      p("Bloco inesperado."),
+      ESPACO,
+      CABECALHO(1),
+      p("Um."),
+    ]);
+    expect(() => parsearHtml(extra, OP)).toThrow(ErroHtml);
+    expect(() => parsearHtml(extra, OP)).toThrow(/inesperado entre o prólogo e o dito 1.*Bloco/);
+    // o mesmo vale para um segundo parágrafo de corpo do prólogo e para um descarte com texto no meio
+    expect(() =>
+      parsearHtml(PAGINA([PROLOGO("Abertura."), p("Segundo."), CABECALHO(1), p("Um.")]), OP),
+    ).toThrow(/inesperado entre o prólogo e o dito 1/);
+    expect(() =>
+      parsearHtml(PAGINA([PROLOGO("Abertura."), "<h3>Intruso</h3>", CABECALHO(1), p("Um.")]), OP),
+    ).toThrow(/texto descartado em <h3> no meio da região dos ditos: "Intruso"/);
+  });
+
+  it("prólogo sem corpo reprova", () => {
+    const so = PAGINA([PROLOGO_TITULO]);
+    expect(() => parsearHtml(so, OP)).toThrow(/prólogo sem corpo/);
+    expect(() => parsearHtml(PAGINA([PROLOGO_TITULO, CABECALHO(1), p("Um.")]), OP)).toThrow(
+      /prólogo sem corpo/,
+    );
+  });
+
+  it("sem prólogo na página, os ditos seguem como antes (nenhuma unidade `prologo`)", () => {
+    const r = parsearHtml(PAGINA([CABECALHO(1), p("Um.")]), OP);
+    expect(r.secoes[0]?.paragrafos.map((x) => x.ref)).toEqual(["1"]);
   });
 
   it("a sequência tem de começar no 1", () => {
@@ -337,10 +393,15 @@ describe("parsearHtml: a página REAL em cache (114 ditos; pula sem cache)", () 
       const r = parsearHtml(readFileSync(caminho, "utf8"), OP);
       const paragrafos = r.secoes.flatMap((s) => s.paragrafos);
       expect(r.secoes.map((s) => s.slug)).toEqual(["texto"]);
-      expect(paragrafos).toHaveLength(114);
-      expect(paragrafos.map((x) => Number(x.ref))).toEqual(
-        Array.from({ length: 114 }, (_, i) => i + 1),
+      // o Prólogo vem primeiro, como unidade própria; os 114 ditos seguem de 1 a 114 sem lacuna
+      expect(paragrafos).toHaveLength(115);
+      expect(paragrafos[0]?.ref).toBe(REF_PROLOGO);
+      expect(paragrafos[0]?.texto).toBe(
+        "These are the hidden sayings that the living Jesus spoke and Didymos Judas Thomas wrote down.",
       );
+      const ditos = paragrafos.slice(1);
+      expect(ditos).toHaveLength(114);
+      expect(ditos.map((x) => Number(x.ref))).toEqual(Array.from({ length: 114 }, (_, i) => i + 1));
       const porRef = new Map(paragrafos.map((x) => [x.ref, x.texto]));
       expect(porRef.get("1")).toBe(
         'And he said, "Whoever discovers the meaning of these sayings won\'t taste death."',
@@ -356,14 +417,13 @@ describe("parsearHtml: a página REAL em cache (114 ditos; pula sem cache)", () 
       );
       expect(porRef.get("114")?.startsWith("Simon Peter said to them")).toBe(true);
       expect(porRef.get("114")?.endsWith('will enter the kingdom of heaven."')).toBe(true);
-      const tudo = paragrafos.map((x) => x.texto).join("\n");
+      const tudo = ditos.map((x) => x.texto).join("\n");
       for (const trecho of [
         "Welcome",
         "Gospels.net",
         "committed to the public domain",
         "Notes on Translation",
         "The Gospel According to Thomas",
-        "These are the hidden sayings that the living Jesus spoke",
         "True Meaning",
         "&nbsp;",
       ])

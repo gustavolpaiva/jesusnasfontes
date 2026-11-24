@@ -139,10 +139,11 @@ describe("os dois Evangelhos de Tomé nunca se confundem (Pitfall 5)", () => {
     expect(achado?.origemId).toBe("gospels-net-tome-mattison");
     expect(achado?.origem.formato).toBe("html");
     expect(achado?.arquivo.id).toBe("thomas.html");
-    // 114 ditos é fato conferido pelo `acervo:verify` (paragrafos_total), e os extremos da numeração também
-    expect(achado?.origem.esperado.paragrafos_total).toBe(114);
+    // 114 ditos mais o Prólogo (unidade própria, ref `prologo`) = 115 unidades, fato conferido pelo `acervo:verify`
+    // (paragrafos_total), e os extremos da numeração também
+    expect(achado?.origem.esperado.paragrafos_total).toBe(115);
     expect(achado?.origem.esperado.paragrafos.map((p) => p.ref)).toEqual(
-      expect.arrayContaining(["1", "47", "114"]),
+      expect.arrayContaining(["prologo", "1", "47", "114"]),
     );
     // a dedicação é do tradutor, lida na página
     expect(achado?.origem.verificador.licenca).toContain("committed to the public domain");

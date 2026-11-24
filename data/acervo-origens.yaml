@@ -312,8 +312,9 @@ gospels-net-tome-mattison:
   data_versao: "2026-11-24"
   alteracoes: >-
     Texto da página extraído sem a navegação do site. Vêm só os 114 ditos: ficam fora os títulos que o tradutor
-    deu a cada dito, a legenda de símbolos, o Prólogo e as "Notes on Translation". Os parágrafos de corpo de um
-    mesmo dito foram unidos por um espaço; o texto das palavras não foi reescrito.
+    deu a cada dito, a legenda de símbolos e as "Notes on Translation". Vêm o Prólogo ("These are the hidden
+    sayings…"), como unidade própria antes do dito 1, e os 114 ditos. Os parágrafos de corpo de um mesmo dito
+    foram unidos por um espaço; o texto das palavras não foi reescrito.
   formato: html
   publicavel: true
   motivo: "dedicação ao domínio público feita pelo próprio tradutor, lida na página (D-24)"
@@ -333,8 +334,11 @@ gospels-net-tome-mattison:
       changed or unchanged, for any purpose.
   esperado:
     secoes: 1
-    paragrafos_total: 114
+    paragrafos_total: 115
     paragrafos:
+      - ref: prologo
+        contem: ["These are the hidden sayings", "Didymos Judas Thomas wrote down"]
+        nao_contem: ["Prologue", "Saying 1", "committed to the public domain"]
       - ref: "1"
         contem:
           - 'And he said, "Whoever discovers the meaning of these sayings'

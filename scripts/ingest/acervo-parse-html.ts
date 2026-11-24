@@ -9,10 +9,15 @@
 //               ou mais parágrafos de corpo, até o parágrafo que só tem &nbsp; (o espaçador). Cada dito é UM
 //               parágrafo do derivado; os parágrafos de corpo do mesmo dito são unidos por espaço. O título que o
 //               tradutor deu ao dito ("True Meaning") não entra no texto.
-//   região      começa no cabeçalho do dito 1 e termina no primeiro parágrafo comum onde se esperava o dito
-//               seguinte (na página real: o título final "The Gospel / According to Thomas"). Tudo o mais —
-//               navegação, dedicação, legenda de símbolos, Prólogo, "Notes on Translation" — não é dito e volta
-//               à parte, em `notas`, para o derivador conferir que nada disso entrou num parágrafo.
+//   prólogo     um parágrafo centralizado cujo texto inteiro é "Prologue" (em <strong>), seguido de UM parágrafo
+//               de corpo ("These are the hidden sayings…"), e logo depois o cabeçalho do dito 1. É texto da obra:
+//               entra no derivado como unidade própria, ANTES do dito 1, com a ref estável `prologo`. Dois
+//               parágrafos de corpo, ou qualquer outro bloco de texto entre o prólogo e o dito 1, reprova.
+//   região      começa no cabeçalho do prólogo (ou do dito 1, se a página não tem prólogo) e termina no primeiro
+//               parágrafo comum onde se esperava o dito seguinte (na página real: o título final "The Gospel /
+//               According to Thomas"). Tudo o mais — navegação, dedicação, legenda de símbolos, "Notes on
+//               Translation" — não é dito nem prólogo e volta à parte, em `notas`, para o derivador conferir que
+//               nada disso entrou num parágrafo.
 //   numeração   conferida na ordem, sem lacuna: 1, 2, 3… Salto, repetição ou regresso reprova (nunca renumera).
 // O que é texto de `script`, `style`, `noscript`, `template` ou comentário nunca é lido.
 //
@@ -43,6 +48,11 @@ export type ParagrafoHtml = {
   /** Todo o texto visível do parágrafo está dentro de <strong> (é um título, não corpo). */
   soNegrito: boolean;
 };
+
+/** Ref estável da unidade do prólogo no derivado (vem antes do dito 1). */
+export const REF_PROLOGO = "prologo";
+/** Título (em negrito, sozinho no parágrafo) que abre o prólogo na página do Mattison. */
+const TITULO_PROLOGO = /^prologue$/i;
 
 /** O que o registro diz sobre a página (formato `html`). */
 export type ConfigHtml = {
@@ -274,8 +284,10 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
 
   const blocos: { numero: number; textos: string[] }[] = [];
   const notas: string[] = [];
-  let estado: "procurando" | "corpo" | "entre" | "fim" = "procurando";
-  // A região dos ditos, em índices de parágrafo: do cabeçalho do dito 1 ao último parágrafo que é dito.
+  let estado: "procurando" | "prologo" | "apos-prologo" | "corpo" | "entre" | "fim" = "procurando";
+  // O prólogo: texto da obra antes do dito 1, unidade própria (ref `prologo`).
+  let prologo: string | null = null;
+  // A região dos ditos, em índices de parágrafo: do cabeçalho do prólogo (ou do dito 1) ao último parágrafo que é dito.
   let primeiro = -1;
   let ultimo = -1;
   for (const [indice, p] of paragrafos.entries()) {
@@ -284,13 +296,40 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
       continue;
     }
     if (estado === "procurando") {
-      // O que vem antes do dito 1 (navegação, dedicação, legenda, Prólogo) não é dito.
-      if (numeroDoCabecalho(p) === 1) {
+      // O que vem antes do prólogo e do dito 1 (navegação, dedicação, legenda de símbolos) não é texto da obra.
+      if (p.soNegrito && TITULO_PROLOGO.test(p.texto)) {
+        estado = "prologo";
+        primeiro = indice;
+        ultimo = indice;
+      } else if (numeroDoCabecalho(p) === 1) {
         blocos.push({ numero: 1, textos: [] });
         estado = "corpo";
         primeiro = indice;
         ultimo = indice;
       } else notas.push(p.texto);
+      continue;
+    }
+    if (estado === "prologo") {
+      // Um só parágrafo de corpo, que não é título: o prólogo vazio, ou em negrito, não é aceito.
+      if (p.soNegrito)
+        throw new ErroHtml(
+          `prólogo sem corpo: depois do título veio outro título em negrito ("${p.texto.slice(0, 60)}")`,
+        );
+      prologo = p.texto;
+      estado = "apos-prologo";
+      ultimo = indice;
+      continue;
+    }
+    if (estado === "apos-prologo") {
+      // Depois do corpo do prólogo só pode vir o dito 1: qualquer outro bloco de texto é texto da obra que o
+      // derivador não sabe classificar, e não se perde em silêncio.
+      if (numeroDoCabecalho(p) !== 1)
+        throw new ErroHtml(
+          `bloco de texto inesperado entre o prólogo e o dito 1: "${p.texto.slice(0, 60)}"`,
+        );
+      blocos.push({ numero: 1, textos: [] });
+      estado = "corpo";
+      ultimo = indice;
       continue;
     }
     if (estado === "fim") {
@@ -319,6 +358,8 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
     estado = "fim";
     notas.push(p.texto);
   }
+  if (estado === "prologo")
+    throw new ErroHtml("prólogo sem corpo: a página termina depois do título do prólogo");
   if (blocos.length === 0)
     throw new ErroHtml(
       `nenhum dito encontrado: esperado um título em negrito "${opcoes.rotuloUnidade.trim()} 1: …" seguido de texto`,
@@ -337,13 +378,18 @@ export function parsearHtml(html: string, opcoes: OpcoesHtml): ResultadoHtml {
         slug: "texto",
         titulo: "Text",
         ordem: 1,
-        paragrafos: blocos.map((b) => ({
-          // Um dito, um parágrafo: os parágrafos de corpo do mesmo dito são unidos por espaço.
-          ref: String(b.numero),
-          ref_inicio: null,
-          ref_fim: null,
-          texto: b.textos.join(" "),
-        })),
+        paragrafos: [
+          ...(prologo === null
+            ? []
+            : [{ ref: REF_PROLOGO, ref_inicio: null, ref_fim: null, texto: prologo }]),
+          ...blocos.map((b) => ({
+            // Um dito, um parágrafo: os parágrafos de corpo do mesmo dito são unidos por espaço.
+            ref: String(b.numero),
+            ref_inicio: null,
+            ref_fim: null,
+            texto: b.textos.join(" "),
+          })),
+        ],
       },
     ],
     notas,
