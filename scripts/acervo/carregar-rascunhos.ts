@@ -5,6 +5,11 @@
 // A pasta das fichas é SEMPRE parâmetro (`--fichas <pasta>` ou ACERVO_FICHAS_DIR) e não há pasta padrão: um padrão
 // dentro do produto convidaria a versionar rascunho no repositório público (D-17). Uma transação só, trava
 // consultiva da carga do Acervo, idempotente por slug.
+//
+// `--propostas <pasta>` (ou ACERVO_PROPOSTAS_DIR) carrega as PROPOSTAS de Grau e de Citação das Afirmações dos Estudos
+// (plano 02-20, D-04): `acervo.proposta_grau` e as Citações como linhas que NINGUÉM vê até o dono aprovar (a política
+// de linha da 0028 só devolve Citação com aprovação valendo, ao Admin com segundo fator, à lista dele). Mesma regra da
+// pasta de fichas: sempre parâmetro, nunca padrão (D-17), porque as propostas moram no planejamento privado.
 
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -18,8 +23,13 @@ import {
   ErroContrato,
   type FichaYaml,
   interpretarFichaYaml,
+  interpretarPagina,
+  normalizarEspaco,
+  type PropostaYaml,
 } from "../../src/modules/acervo/schemas";
+import { parsearReferencia } from "../../src/modules/referencias";
 import { abrirCarga, ErroCarga } from "../ingest/carregar-biblia";
+import { descreverErro, lerPastaDePropostas } from "./propostas";
 
 export type ResultadoRascunhos = {
   fichas: number;
@@ -270,10 +280,297 @@ async function carregarUma(c: pg.Client, ficha: FichaYaml, total: Contagem): Pro
     );
 }
 
+// ───────────────────────── propostas de Grau e de Citação ─────────────────────────
+
+export type ResultadoPropostas = {
+  propostas: number;
+  /** Linhas novas: `proposta_grau` e Citações. */
+  inseridas: number;
+  /** `proposta_grau` que mudou (grau, justificativa ou o hash do texto). */
+  atualizadas: number;
+  inalteradas: number;
+  /** Citações de uma Afirmação cujo conjunto mudou: saem as velhas e entram as novas (contadas em `inseridas`). */
+  removidas: number;
+  /** Afirmações com aprovação gravada: a carga NÃO as toca (T-02-56). */
+  jaAprovadas: string[];
+  semCitacao: number;
+};
+
+type AlvoDeCitacao = {
+  paragrafo: string | null;
+  item: string | null;
+  inicio: number | null;
+  fim: number | null;
+  trecho: string | null;
+  idioma: string | null;
+};
+
+type LinhaDeCitacao = {
+  ordem: number;
+  fonte_paragrafo_id: string | null;
+  ficha_item_id: string | null;
+  versiculo_inicio: number | null;
+  versiculo_fim: number | null;
+  trecho: string | null;
+  idioma: string | null;
+};
+
+const mesmoAlvo = (a: AlvoDeCitacao, l: LinhaDeCitacao): boolean =>
+  a.paragrafo === l.fonte_paragrafo_id &&
+  a.item === l.ficha_item_id &&
+  a.inicio === l.versiculo_inicio &&
+  a.fim === l.versiculo_fim &&
+  a.trecho === l.trecho &&
+  a.idioma === l.idioma;
+
+/**
+ * Resolve cada Citação proposta contra o BANCO, dentro da transação: o alvo existe, o trecho do parágrafo é literal do
+ * texto que está lá e a ficha traz a página citada. Erro nomeia só ids (públicos), nunca o trecho proposto.
+ */
+async function resolverCitacoes(c: pg.Client, p: PropostaYaml): Promise<AlvoDeCitacao[]> {
+  const alvos: AlvoDeCitacao[] = [];
+  for (const [i, ct] of p.citacoes.entries()) {
+    const onde = `proposta ${p.afirmacao}, Citação ${i + 1}`;
+    if (ct.alvo === "paragrafo") {
+      const id = `${ct.fonte}/${ct.ref}`;
+      const linha = (
+        await c.query<{ texto: string }>("select texto from acervo.fonte_paragrafo where id = $1", [
+          id,
+        ])
+      ).rows[0];
+      if (!linha) throw new ErroCarga(`${onde}: o parágrafo ${id} não existe no banco`);
+      if (!normalizarEspaco(linha.texto).includes(normalizarEspaco(ct.trecho)))
+        throw new ErroCarga(`${onde}: o trecho não é cópia literal do parágrafo ${id}`);
+      // O idioma fica nulo de propósito: a leitura herda o do parágrafo e o da Fonte.
+      alvos.push({
+        paragrafo: id,
+        item: null,
+        inicio: null,
+        fim: null,
+        trecho: normalizarEspaco(ct.trecho),
+        idioma: null,
+      });
+    } else if (ct.alvo === "ficha") {
+      const id = `${ct.ficha}/${ct.item}`;
+      const linha = (
+        await c.query<{
+          pagina_inicio: number | null;
+          pagina_fim: number | null;
+          pagina_texto: string | null;
+          trecho_original: string | null;
+        }>(
+          "select pagina_inicio, pagina_fim, pagina_texto, trecho_original from acervo.ficha_item where id = $1",
+          [id],
+        )
+      ).rows[0];
+      if (!linha) throw new ErroCarga(`${onde}: o item de ficha ${id} não existe no banco`);
+      const pagina = interpretarPagina(ct.pagina);
+      if (
+        pagina.inicio !== linha.pagina_inicio ||
+        pagina.fim !== linha.pagina_fim ||
+        pagina.texto !== linha.pagina_texto
+      )
+        throw new ErroCarga(`${onde}: a página citada difere da que a ficha traz para ${id}`);
+      let trecho: string | null = null;
+      if (ct.trecho != null) {
+        if (linha.trecho_original === null)
+          throw new ErroCarga(`${onde}: o item ${id} não tem trecho original para citar`);
+        if (!normalizarEspaco(linha.trecho_original).includes(normalizarEspaco(ct.trecho)))
+          throw new ErroCarga(`${onde}: o trecho não é literal do original do item ${id}`);
+        trecho = normalizarEspaco(ct.trecho);
+      }
+      // Idioma nulo: a leitura herda o do item da ficha.
+      alvos.push({ paragrafo: null, item: id, inicio: null, fim: null, trecho, idioma: null });
+    } else {
+      let intervalos: { inicio: number; fim: number }[];
+      try {
+        intervalos = parsearReferencia(ct.referencia);
+      } catch {
+        throw new ErroCarga(`${onde}: referência de Passagem inválida`);
+      }
+      const intervalo = intervalos[0];
+      if (intervalos.length !== 1 || !intervalo)
+        throw new ErroCarga(`${onde}: a Passagem deve ser um intervalo contínuo só`);
+      const chaves = [...new Set([intervalo.inicio, intervalo.fim])];
+      const existem = (
+        await c.query<{ id: number }>("select id from acervo.versiculo where id = any($1::int[])", [
+          chaves,
+        ])
+      ).rows.map((r) => r.id);
+      const falta = chaves.find((k) => !existem.includes(k));
+      if (falta !== undefined)
+        throw new ErroCarga(`${onde}: o versículo ${falta} não existe no banco`);
+      alvos.push({
+        paragrafo: null,
+        item: null,
+        inicio: intervalo.inicio,
+        fim: intervalo.fim,
+        trecho: null,
+        idioma: null,
+      });
+    }
+  }
+  return alvos;
+}
+
+/**
+ * Carga das propostas numa transação só, com a trava da carga do Acervo. Para cada Afirmação (por id, em ordem fixa):
+ * trava a linha (`for update`, o mesmo que `aprovar_afirmacao` faz), confere que o texto do banco é o da proposta,
+ * PULA a que já tem aprovação gravada, grava `proposta_grau` com o `texto_hash` lido do banco e troca o conjunto de
+ * Citações só quando ele mudou. Qualquer erro desfaz tudo.
+ */
+export async function carregarPropostas(
+  propostas: readonly PropostaYaml[],
+  opcoes: { cliente: pg.Client },
+): Promise<ResultadoPropostas> {
+  const c = opcoes.cliente;
+  const vistos = new Set<string>();
+  for (const p of propostas) {
+    if (vistos.has(p.afirmacao)) throw new ErroCarga(`proposta repetida: ${p.afirmacao}`);
+    vistos.add(p.afirmacao);
+  }
+  const r: ResultadoPropostas = {
+    propostas: propostas.length,
+    inseridas: 0,
+    atualizadas: 0,
+    inalteradas: 0,
+    removidas: 0,
+    jaAprovadas: [],
+    semCitacao: 0,
+  };
+  const ordenadas = [...propostas].sort((a, b) => a.afirmacao.localeCompare(b.afirmacao));
+
+  await c.query("begin");
+  try {
+    await c.query("set local lock_timeout = '120s'");
+    await c.query("select pg_advisory_xact_lock(hashtext('jnf-carga-acervo'))");
+    await c.query("set local lock_timeout = 0");
+    const amb = await c.query<{ nome: string }>("select nome from acervo.ambiente");
+    if (amb.rows.length !== 1 || !amb.rows[0])
+      throw new ErroCarga("marcador de ambiente ausente no banco: rode as migrações");
+    decidirAmbiente(amb.rows[0].nome, process.env.VERCEL_ENV);
+
+    for (const p of ordenadas) {
+      // A mesma trava de `aprovar_afirmacao`: aprovação e carga da mesma Afirmação se serializam.
+      const af = (
+        await c.query<{ texto: string; texto_hash: string }>(
+          "select texto, texto_hash from acervo.afirmacao where id = $1 for update",
+          [p.afirmacao],
+        )
+      ).rows[0];
+      if (!af)
+        throw new ErroCarga(
+          `proposta ${p.afirmacao}: a Afirmação não existe no banco (carregue o conteúdo dos Estudos antes)`,
+        );
+      if (normalizarEspaco(af.texto) !== normalizarEspaco(p.texto))
+        throw new ErroCarga(
+          `proposta ${p.afirmacao}: o texto da Afirmação no banco difere do da proposta`,
+        );
+
+      const aprovada = await c.query(
+        "select 1 from acervo.aprovacao_afirmacao where afirmacao_id = $1",
+        [p.afirmacao],
+      );
+      if ((aprovada.rowCount ?? 0) > 0) {
+        r.jaAprovadas.push(p.afirmacao);
+        continue;
+      }
+
+      // ───── a proposta de Grau
+      const justificativa = p.justificativa.trim();
+      const atual = (
+        await c.query<{ grau_proposto: string; justificativa: string; texto_hash: string }>(
+          "select grau_proposto, justificativa, texto_hash from acervo.proposta_grau where afirmacao_id = $1",
+          [p.afirmacao],
+        )
+      ).rows[0];
+      if (!atual) {
+        await c.query(
+          `insert into acervo.proposta_grau (afirmacao_id, grau_proposto, justificativa, texto_hash)
+           values ($1, $2, $3, $4)`,
+          [p.afirmacao, p.grau_proposto, justificativa, af.texto_hash],
+        );
+        r.inseridas++;
+      } else if (
+        atual.grau_proposto === p.grau_proposto &&
+        atual.justificativa === justificativa &&
+        atual.texto_hash === af.texto_hash
+      ) {
+        r.inalteradas++;
+      } else {
+        await c.query(
+          `update acervo.proposta_grau set grau_proposto = $2, justificativa = $3, texto_hash = $4,
+             proposta_em = now() where afirmacao_id = $1`,
+          [p.afirmacao, p.grau_proposto, justificativa, af.texto_hash],
+        );
+        r.atualizadas++;
+      }
+
+      // ───── as Citações: o conjunto inteiro da proposta, na ordem da lista
+      const alvos = await resolverCitacoes(c, p);
+      if (p.sem_citacao) r.semCitacao++;
+      const existentes = (
+        await c.query<LinhaDeCitacao>(
+          `select ordem, fonte_paragrafo_id, ficha_item_id, versiculo_inicio, versiculo_fim, trecho, idioma
+             from acervo.citacao where afirmacao_id = $1 order by ordem`,
+          [p.afirmacao],
+        )
+      ).rows;
+      const igual =
+        existentes.length === alvos.length &&
+        alvos.every((a, i) => {
+          const l = existentes[i];
+          return l !== undefined && l.ordem === i + 1 && mesmoAlvo(a, l);
+        });
+      if (igual) {
+        r.inalteradas += alvos.length;
+        continue;
+      }
+      if (existentes.length > 0) {
+        await c.query("delete from acervo.citacao where afirmacao_id = $1", [p.afirmacao]);
+        r.removidas += existentes.length;
+      }
+      for (const [i, a] of alvos.entries()) {
+        await c.query(
+          `insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id, ficha_item_id, versiculo_inicio,
+             versiculo_fim, trecho, idioma, ordem)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [p.afirmacao, a.paragrafo, a.item, a.inicio, a.fim, a.trecho, a.idioma, i + 1],
+        );
+        r.inseridas++;
+      }
+    }
+    await c.query("commit");
+  } catch (erro) {
+    await c.query("rollback").catch(() => {});
+    throw sanitizarErroDeBanco(erro);
+  }
+  return r;
+}
+
+/** Lê e confere o contrato da pasta de propostas, TUDO antes de qualquer conexão. Erro lista cada entrada ruim. */
+export function lerPropostasConferidas(pasta: string): PropostaYaml[] {
+  const { propostas, erros } = lerPastaDePropostas(pasta);
+  if (erros.length > 0)
+    throw new ErroContrato(
+      `propostas fora do contrato (${erros.length}):\n${erros.map((e) => `  ${descreverErro(e)}`).join("\n")}`,
+    );
+  if (propostas.length === 0)
+    throw new ErroContrato("a pasta de propostas não tem proposta alguma");
+  const vistos = new Set<string>();
+  for (const p of propostas) {
+    if (vistos.has(p.afirmacao)) throw new ErroContrato(`proposta repetida: ${p.afirmacao}`);
+    vistos.add(p.afirmacao);
+  }
+  return propostas;
+}
+
 // ───────────────────────── comando: pnpm acervo:rascunhos ─────────────────────────
 
 export type OpcoesDosRascunhos = {
   fichas: string | undefined;
+  /** A pasta das propostas de Grau e de Citação (planejamento privado). Sem padrão (D-17). */
+  propostas?: string | undefined;
   /** Só confere o contrato de cada YAML: nunca abre conexão com o banco. */
   soValidar?: boolean;
 };
@@ -347,44 +644,87 @@ export async function executarRascunhos(
   deps: DependenciasDosRascunhos = {},
 ): Promise<ResultadoRascunhos | null> {
   const escrever = deps.escrever ?? ((l: string) => console.log(l));
-  if (!opcoes.fichas)
+  if (!opcoes.fichas && !opcoes.propostas)
     throw new ErroCarga(
-      "a pasta de fichas é obrigatória: use --fichas <pasta> ou ACERVO_FICHAS_DIR (não há pasta padrão; D-17)",
+      "a pasta de fichas é obrigatória: use --fichas <pasta> ou ACERVO_FICHAS_DIR (não há pasta padrão; D-17). " +
+        "Para as propostas de Grau e de Citação: --propostas <pasta> ou ACERVO_PROPOSTAS_DIR",
     );
-  if (opcoes.soValidar) {
-    validarPasta(opcoes.fichas, escrever);
-    return null;
+  // O contrato das propostas se confere ANTES de qualquer carga, inclusive a das fichas: contrato ruim não grava nada.
+  const propostas = opcoes.propostas ? lerPropostasConferidas(opcoes.propostas) : null;
+  let resultado: ResultadoRascunhos | null = null;
+
+  if (opcoes.fichas) {
+    if (opcoes.soValidar) {
+      validarPasta(opcoes.fichas, escrever);
+    } else {
+      const fichas = lerYamls(opcoes.fichas);
+      if (fichas.length === 0) {
+        escrever("acervo:rascunhos: não há ficha na pasta");
+      } else {
+        const abrir = deps.abrir ?? abrirCarga;
+        const cliente = await abrir();
+        try {
+          const r = await carregarRascunhos(fichas, { cliente });
+          escrever(
+            `inseridas=${r.inseridas} atualizadas=${r.atualizadas} inalteradas=${r.inalteradas} removidas=${r.removidas}`,
+          );
+          escrever(
+            `fichas=${r.fichas} (todas como rascunho: nenhuma é verificada por este comando)`,
+          );
+          resultado = r;
+        } finally {
+          await cliente.end().catch(() => {});
+        }
+      }
+    }
   }
-  const fichas = lerYamls(opcoes.fichas);
-  if (fichas.length === 0) {
-    escrever("acervo:rascunhos: não há ficha na pasta");
-    return null;
+
+  if (propostas) {
+    if (opcoes.soValidar) {
+      escrever(
+        `propostas=${propostas.length} (só contrato: nada foi aberto no banco; o validador de máquina é acervo:validar-propostas)`,
+      );
+    } else {
+      const abrir = deps.abrir ?? abrirCarga;
+      const cliente = await abrir();
+      try {
+        const r = await carregarPropostas(propostas, { cliente });
+        escrever(
+          `propostas: inseridas=${r.inseridas} atualizadas=${r.atualizadas} inalteradas=${r.inalteradas} removidas=${r.removidas} ja-aprovadas=${r.jaAprovadas.length}`,
+        );
+        for (const id of r.jaAprovadas) escrever(`já aprovada, não alterada: ${id}`);
+        escrever(
+          `propostas=${r.propostas} sem_citacao=${r.semCitacao} (invisíveis ao Estudante e ao Assistente até a aprovação do dono)`,
+        );
+      } finally {
+        await cliente.end().catch(() => {});
+      }
+    }
   }
-  const abrir = deps.abrir ?? abrirCarga;
-  const cliente = await abrir();
-  try {
-    const r = await carregarRascunhos(fichas, { cliente });
-    escrever(
-      `inseridas=${r.inseridas} atualizadas=${r.atualizadas} inalteradas=${r.inalteradas} removidas=${r.removidas}`,
-    );
-    escrever(`fichas=${r.fichas} (todas como rascunho: nenhuma é verificada por este comando)`);
-    return r;
-  } finally {
-    await cliente.end().catch(() => {});
-  }
+  return resultado;
 }
 
-export function lerOpcoes(argumentos: string[], env: NodeJS.ProcessEnv): OpcoesDosRascunhos {
+export function lerOpcoes(
+  argumentos: string[],
+  env: Record<string, string | undefined>,
+): OpcoesDosRascunhos {
   const soValidar = argumentos.includes("--so-validar");
-  const i = argumentos.indexOf("--fichas");
-  if (i >= 0) {
+  const valorDe = (nome: string): string | undefined => {
+    const i = argumentos.indexOf(nome);
+    if (i < 0) return undefined;
     const valor = argumentos[i + 1];
     if (!valor || valor.startsWith("--"))
-      throw new ErroCarga("Uso: acervo:rascunhos --fichas <pasta> [--so-validar]");
-    return { fichas: path.resolve(valor), soValidar };
-  }
-  const daEnv = env.ACERVO_FICHAS_DIR;
-  return { fichas: daEnv ? path.resolve(daEnv) : undefined, soValidar };
+      throw new ErroCarga(
+        "Uso: acervo:rascunhos [--fichas <pasta>] [--propostas <pasta>] [--so-validar]",
+      );
+    return path.resolve(valor);
+  };
+  const daEnv = (v: string | undefined) => (v ? path.resolve(v) : undefined);
+  return {
+    fichas: valorDe("--fichas") ?? daEnv(env.ACERVO_FICHAS_DIR),
+    propostas: valorDe("--propostas") ?? daEnv(env.ACERVO_PROPOSTAS_DIR),
+    soValidar,
+  };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -77,6 +77,7 @@
     "acervo:verify": "tsx scripts/ingest/acervo-verificar.ts",
     "acervo:load": "tsx scripts/acervo/carregar.ts",
     "acervo:rascunhos": "tsx scripts/acervo/carregar-rascunhos.ts",
+    "acervo:validar-propostas": "tsx scripts/acervo/validar-propostas.ts",
     "convidar": "tsx scripts/admin/convidar.ts",
     "admin:semear": "tsx scripts/admin/semear-admin.ts",
     "tipografia:gerar": "bash scripts/tipografia/gerar.sh",

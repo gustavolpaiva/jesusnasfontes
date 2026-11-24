@@ -1,0 +1,45 @@
+# PROPOSTAS DE TESTE: Afirmações inventadas (pc91-a1 a pc91-a4), sem relação com os Estudos reais. Servem só para provar o
+# contrato, o validador de máquina e a carga. A Fonte é o recorte de teste do Josefo e a ficha é a "Obra de Teste"
+# fictícia (tests/fixtures/acervo/rascunhos/fichas). NADA AQUI É APROVADO: o Grau é só uma proposta.
+- afirmacao: pc91-a1
+  texto: Frase sintética um, sobre o testemunho de um historiador antigo.
+  grau_proposto: posicao-majoritaria
+  justificativa: >-
+    MARCADOR-JUSTIFICATIVA-PRIVADA: proposta de teste sobre quanto o recorte de teste é aceito como autêntico.
+  citacoes:
+    - alvo: paragrafo
+      fonte: josefo-antiguidades
+      ref: "18.63"
+      trecho: a wise man, if it be lawful to call him a man
+    - alvo: passagem
+      referencia: Lc 2:7
+- afirmacao: pc91-a2
+  texto: Frase sintética dois, apoiada numa ficha fictícia.
+  grau_proposto: disputada
+  justificativa: >-
+    Proposta de teste: a ficha fictícia relata uma posição sobre o fato, sem relação com obra real alguma.
+  citacoes:
+    - alvo: ficha
+      ficha: obra-de-teste
+      item: argumento-1
+      pagina: 10
+    - alvo: ficha
+      ficha: obra-de-teste
+      item: trecho-1
+      pagina: xi-xii
+      trecho: invented test sentence
+- afirmacao: pc91-a3
+  texto: Frase sintética três, apoiada num texto bíblico.
+  grau_proposto: consenso
+  justificativa: >-
+    Proposta de teste: o texto bíblico diz isso, e os pesquisadores aceitam o fato de forma ampla.
+  citacoes:
+    - alvo: passagem
+      referencia: Lc 2:7-8
+- afirmacao: pc91-a4
+  texto: Frase sintética quatro, sem nenhuma Fonte do Acervo.
+  grau_proposto: disputada
+  justificativa: >-
+    Proposta de teste: nenhuma Fonte do Acervo cobre o fato, e o grau fica só como hipótese de trabalho.
+  sem_citacao: true
+  motivo: Nenhuma Fonte publicada do Acervo trata deste fato de teste.

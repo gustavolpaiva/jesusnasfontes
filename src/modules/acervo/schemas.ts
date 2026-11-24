@@ -284,6 +284,138 @@ export const esquemaFichaYaml = z
   .strict();
 export type FichaYaml = z.infer<typeof esquemaFichaYaml>;
 
+// ───────────────────────── proposta de Grau e de Citação (plano 02-20) ─────────────────────────
+// O agente PROPÕE (D-04): nada aqui aprova coisa alguma, e a relação "este trecho sustenta esta frase" é julgamento do
+// dono. O contrato só diz a FORMA; o que é conferível por máquina (trecho literal, ficha, item, Passagem) é conferido
+// pelo validador (`scripts/acervo/validar-propostas.ts`) e, de novo contra o banco, pela carga. As mensagens de erro
+// nomeiam o campo e a regra, nunca a justificativa nem o trecho propostos.
+
+export const GRAUS = ["consenso", "posicao-majoritaria", "disputada"] as const;
+export type GrauProposto = (typeof GRAUS)[number];
+
+export const TETO_TRECHO_PARAGRAFO = 600;
+export const MINIMO_TRECHO_PARAGRAFO = 12;
+export const MINIMO_JUSTIFICATIVA = 40;
+export const TETO_JUSTIFICATIVA = 900;
+export const PADRAO_ID_DE_AFIRMACAO = /^(bh|pc)[0-9]{2}-a[0-9]+$/;
+export const PADRAO_ID_DE_ITEM = /^(argumento|trecho)-[1-9][0-9]*$/;
+
+// A justificativa descreve o MÉTODO e a posição da Fonte, nunca rotula pessoa (lista fechada dos rótulos que o plano nomeia).
+const ROTULO_DE_PESSOA = /\b(crentes?|c[eé]ticos?|ateus?|incr[eé]dulos?|descrentes?)\b/iu;
+
+/** Espaço em branco repetido vira um espaço só: a conferência de "cópia literal" ignora quebra de linha e recuo. */
+export function normalizarEspaco(texto: string): string {
+  return texto.replace(/\s+/gu, " ").trim();
+}
+
+const trechoDeParagrafo = z
+  .string()
+  .refine((t) => normalizarEspaco(t).length >= MINIMO_TRECHO_PARAGRAFO, {
+    message: `no mínimo ${MINIMO_TRECHO_PARAGRAFO} caracteres`,
+  })
+  .refine((t) => normalizarEspaco(t).length <= TETO_TRECHO_PARAGRAFO, {
+    message: `no máximo ${TETO_TRECHO_PARAGRAFO} caracteres`,
+  });
+
+const esquemaCitacaoDeParagrafo = z
+  .object({
+    alvo: z.literal("paragrafo"),
+    fonte: slug,
+    ref: z.string().regex(REF, "referência inválida"),
+    trecho: trechoDeParagrafo,
+  })
+  .strict();
+
+const esquemaCitacaoDeFicha = z
+  .object({
+    alvo: z.literal("ficha"),
+    ficha: slug,
+    // O item pelo id estável da ficha sem o slug: `argumento-2`, `trecho-1` (o id completo é `<slug>/<item>`).
+    item: z.string().regex(PADRAO_ID_DE_ITEM, "item inválido (use argumento-N ou trecho-N)"),
+    pagina: paginaDoItem,
+    trecho: z
+      .string()
+      .min(1)
+      .max(TETO_TRECHO_ORIGINAL, `no máximo ${TETO_TRECHO_ORIGINAL} caracteres`)
+      .nullish(),
+  })
+  .strict();
+
+const esquemaCitacaoDePassagem = z
+  .object({
+    alvo: z.literal("passagem"),
+    referencia: z.string().trim().min(3).max(60),
+  })
+  .strict();
+
+const esquemaCitacaoProposta = z.discriminatedUnion("alvo", [
+  esquemaCitacaoDeParagrafo,
+  esquemaCitacaoDeFicha,
+  esquemaCitacaoDePassagem,
+]);
+export type CitacaoProposta = z.infer<typeof esquemaCitacaoProposta>;
+
+export const esquemaProposta = z
+  .object({
+    afirmacao: z.string().regex(PADRAO_ID_DE_AFIRMACAO, "id de Afirmação inválido"),
+    // Cópia da frase da Afirmação no momento da proposta: se o Estudo mudar, a proposta deixa de valer (o validador e a carga comparam).
+    texto: textoNaoVazio.refine((t) => t.length <= 2000, "no máximo 2000 caracteres"),
+    grau_proposto: z.enum(GRAUS),
+    justificativa: z
+      .string()
+      .refine((t) => t.trim().length >= MINIMO_JUSTIFICATIVA, {
+        message: `no mínimo ${MINIMO_JUSTIFICATIVA} caracteres`,
+      })
+      .refine((t) => t.trim().length <= TETO_JUSTIFICATIVA, {
+        message: `no máximo ${TETO_JUSTIFICATIVA} caracteres`,
+      })
+      .refine((t) => !ROTULO_DE_PESSOA.test(t), {
+        message: "a justificativa rotula pessoa (descreva o método, não quem pensa)",
+      }),
+    citacoes: z.array(esquemaCitacaoProposta).max(8).default([]),
+    sem_citacao: z.literal(true).optional(),
+    motivo: z.string().trim().min(10).max(500).optional(),
+  })
+  .strict()
+  .superRefine((p, ctx) => {
+    if (p.sem_citacao) {
+      if (p.citacoes.length > 0)
+        ctx.addIssue({
+          code: "custom",
+          path: ["citacoes"],
+          message: "com sem_citacao não pode haver Citação",
+        });
+      if (p.motivo === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["motivo"],
+          message: "sem_citacao exige o motivo",
+        });
+      return;
+    }
+    if (p.citacoes.length === 0)
+      ctx.addIssue({
+        code: "custom",
+        path: ["citacoes"],
+        message: "informe ao menos uma Citação ou marque sem_citacao com o motivo",
+      });
+    if (p.motivo !== undefined)
+      ctx.addIssue({
+        code: "custom",
+        path: ["motivo"],
+        message: "o motivo só vale com sem_citacao",
+      });
+  });
+export type PropostaYaml = z.infer<typeof esquemaProposta>;
+
+export type ErroDeProposta = {
+  /** Posição da entrada na lista do arquivo, a partir de 1. */
+  indice: number;
+  /** O id da Afirmação quando a entrada o traz legível; senão `null`. */
+  afirmacao: string | null;
+  mensagem: string;
+};
+
 // ───────────────────────── leitura ─────────────────────────
 
 function descrever(erro: z.ZodError): string {
@@ -320,6 +452,43 @@ export function interpretarFichaYaml(conteudo: string, rotulo: string): FichaYam
   const r = esquemaFichaYaml.safeParse(bruto);
   if (!r.success) throw new ErroContrato(`YAML ${rotulo} fora do contrato: ${descrever(r.error)}`);
   return r.data;
+}
+
+/**
+ * Lê o YAML de propostas (uma lista, uma entrada por Afirmação). NÃO para na primeira entrada ruim: devolve as boas e
+ * os erros de cada ruim, para o validador mostrar todas de uma vez. Raiz que não é lista lança (o arquivo inteiro está
+ * errado). O erro nomeia o campo e a regra, nunca a justificativa ou o trecho.
+ */
+export function interpretarPropostasYaml(
+  conteudo: string,
+  rotulo: string,
+): { propostas: PropostaYaml[]; erros: ErroDeProposta[] } {
+  let bruto: unknown;
+  try {
+    bruto = lerYaml(conteudo);
+  } catch {
+    throw new ErroContrato(`YAML ${rotulo} ilegível`);
+  }
+  if (!Array.isArray(bruto))
+    throw new ErroContrato(
+      `YAML ${rotulo} fora do contrato: a raiz deve ser uma lista de propostas`,
+    );
+  const propostas: PropostaYaml[] = [];
+  const erros: ErroDeProposta[] = [];
+  for (const [i, entrada] of bruto.entries()) {
+    const r = esquemaProposta.safeParse(entrada);
+    if (r.success) {
+      propostas.push(r.data);
+      continue;
+    }
+    const id = (entrada as { afirmacao?: unknown } | null)?.afirmacao;
+    erros.push({
+      indice: i + 1,
+      afirmacao: typeof id === "string" && PADRAO_ID_DE_AFIRMACAO.test(id) ? id : null,
+      mensagem: descrever(r.error),
+    });
+  }
+  return { propostas, erros };
 }
 
 /** Lê e valida o YAML de uma Fonte. */

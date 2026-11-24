@@ -43,14 +43,36 @@ export function extratoDaFonte(
   }));
 }
 
+/** O texto de UM parágrafo do derivado pela referência (`18.63`), ou `null` quando ela não existe. Só leitura. */
+export function textoDoParagrafo(derivado: Derivado, ref: string): string | null {
+  for (const s of derivado.secoes) for (const p of s.paragrafos) if (p.ref === ref) return p.texto;
+  return null;
+}
+
 function principal(): void {
   const slug = process.argv[2];
   if (!slug || slug.startsWith("--")) {
-    console.error("uso: pnpm acervo:extrato <slug>");
+    console.error("uso: pnpm acervo:extrato <slug> [--paragrafo <ref>]");
     process.exit(2);
   }
   const lock = lerLock();
   const derivado = lerDerivado(PASTA_DERIVADOS, lock, slug);
+  const iRef = process.argv.indexOf("--paragrafo");
+  if (iRef >= 0) {
+    // Lê o parágrafo ANTES de citá-lo numa proposta (plano 02-20): o texto exato, sem recorte e sem YAML.
+    const ref = process.argv[iRef + 1];
+    if (!ref || ref.startsWith("--")) {
+      console.error("uso: pnpm acervo:extrato <slug> --paragrafo <ref>");
+      process.exit(2);
+    }
+    const texto = textoDoParagrafo(derivado, ref);
+    if (texto === null) {
+      console.error(`parágrafo ${slug}/${ref} não existe no derivado`);
+      process.exit(1);
+    }
+    console.log(texto);
+    return;
+  }
   const caminhoYaml = path.join(PASTA_FONTES, `${slug}.yaml`);
   let titulos: ReadonlyMap<string, string> | undefined;
   if (existsSync(caminhoYaml)) {
