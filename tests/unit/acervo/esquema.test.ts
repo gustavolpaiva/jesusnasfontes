@@ -163,3 +163,38 @@ describe("contrato do YAML de Fonte", () => {
     expect(mensagemDe(() => interpretarFonteYaml("a: [b", "f.yaml"))).toContain("f.yaml");
   });
 });
+
+describe("contrato do YAML de Fonte: tradutor da obra e editor do volume são campos distintos", () => {
+  const semTradutor = () => lerYamlBruto().replace(/^tradutor: .*\n/m, "");
+  const comLicencaAberta = (yaml: string) =>
+    yaml.replace(/^licenca: .*$/m, "licenca: dp-declarado-pela-origem");
+
+  it("o tradutor é opcional quando a licença não o cita: a Fonte sem tradutor nomeado é válida", () => {
+    const yaml = comLicencaAberta(semTradutor());
+    expect(yaml).not.toBe(lerYamlBruto());
+    const f = interpretarFonteYaml(yaml, "sem-tradutor");
+    expect(f.tradutor ?? null).toBeNull();
+    expect(f.editor ?? null).toBeNull();
+  });
+
+  it("o editor vem em campo próprio e não toma o lugar do tradutor", () => {
+    const yaml = `${comLicencaAberta(semTradutor()).trimEnd()}\neditor: Philip Schaff\n`;
+    const f = interpretarFonteYaml(yaml, "so-editor");
+    expect(f.editor).toBe("Philip Schaff");
+    expect(f.tradutor ?? null).toBeNull();
+    const ambos = `${lerYamlBruto().trimEnd()}\neditor: Philip Schaff\n`;
+    const g = interpretarFonteYaml(ambos, "ambos");
+    expect(g.tradutor).toBe("William Whiston");
+    expect(g.editor).toBe("Philip Schaff");
+  });
+
+  it("a licença que cita o tradutor continua exigindo `tradutor`: o editor não o substitui", () => {
+    const yaml = `${semTradutor().trimEnd()}\neditor: Philip Schaff\n`;
+    expect(mensagemDe(() => interpretarFonteYaml(yaml, "licenca-cita"))).toContain("tradutor");
+  });
+
+  it("editor vazio é recusado com o nome do campo", () => {
+    const yaml = `${lerYamlBruto().trimEnd()}\neditor: ""\n`;
+    expect(mensagemDe(() => interpretarFonteYaml(yaml, "editor-vazio"))).toContain("editor");
+  });
+});

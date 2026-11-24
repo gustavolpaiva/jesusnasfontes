@@ -238,6 +238,16 @@ test("obra de uma só seção mostra o texto na própria página, sem sumário",
   await expect(resumo).toHaveAttribute("lang", "pt-BR");
   await expect(page.getByText(AVISO)).toHaveCount(0);
   await expect(page.getByText("Domínio público (tradução anterior a 1929)")).toBeVisible();
+  // Tradutor da obra e editor do volume são linhas distintas: o editor nunca entra na linha da tradução.
+  const proveniencia = page.locator('[data-slot="bloco-proveniencia"]');
+  await expect(proveniencia.locator("dt")).toContainText(["Tradução", "Editor do volume"]);
+  await expect(
+    proveniencia.locator("div", { hasText: /^TraduçãoTradutor de teste, 1885/ }),
+  ).toHaveCount(1);
+  await expect(
+    proveniencia.locator("div", { hasText: /^Editor do volumeEditor de teste$/ }),
+  ).toHaveCount(1);
+  await expect(proveniencia).not.toContainText("tradutor não identificado na edição");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -253,13 +263,17 @@ test("Fonte sem limites não mostra a seção nem título solto", async ({ page 
     page.locator('[data-slot="bloco-proveniencia"] dt').filter({ hasText: "Licença" }),
   ).toBeVisible();
   await expect(page.locator('[data-slot="bloco-proveniencia"]')).toContainText("CC BY 4.0");
-  // Sem tradutor, edição nem tradução própria, a linha "Tradução" não existe.
+  // Sem tradutor na origem, a linha "Tradução" diz que não foi identificado (nunca inventa um) e não há editor.
   await expect(page.locator('[data-slot="bloco-proveniencia"] dt')).toHaveText([
     "Nível de fonte",
     "Origem do texto",
     "Licença",
+    "Tradução",
     "Idioma do texto",
   ]);
+  await expect(page.locator('[data-slot="bloco-proveniencia"]')).toContainText(
+    "tradutor não identificado na edição",
+  );
 });
 
 test("Fonte inexistente, não publicada ou de ficha mostram 'Página não encontrada'", async ({

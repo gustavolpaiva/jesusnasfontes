@@ -38,15 +38,19 @@ function Par({ termo, children }: { termo: string; children: ReactNode }) {
   );
 }
 
+export const TRADUTOR_NAO_IDENTIFICADO = "tradutor não identificado na edição";
+
 export function BlocoProveniencia({ fonte }: { fonte: FonteLida["fonte"] }) {
   const traducao = { tradutor: fonte.tradutor, ano: fonte.traducaoAno };
+  // O tradutor é só quem traduziu ESTA obra. Sem nome na origem, a página diz que não há (nunca inventa um) e o
+  // editor do volume aparece à parte, em linha própria.
   const quemTraduziu = [
     fonte.tradutor,
     fonte.traducaoAno === null ? null : String(fonte.traducaoAno),
   ]
     .filter(Boolean)
     .join(", ");
-  const temTraducao = Boolean(quemTraduziu) || Boolean(fonte.edicao) || fonte.traduzidaPorNos;
+  const semTradutor = !fonte.tradutor && !fonte.traduzidaPorNos;
   return (
     <dl
       id="origem"
@@ -71,13 +75,13 @@ export function BlocoProveniencia({ fonte }: { fonte: FonteLida["fonte"] }) {
           ) : null}
         </Par>
       ) : null}
-      {temTraducao ? (
-        <Par termo="Tradução">
-          {fonte.traduzidaPorNos ? <span>Tradução feita por nós</span> : null}
-          {quemTraduziu ? <span>{quemTraduziu}</span> : null}
-          {fonte.edicao ? <span>{fonte.edicao}</span> : null}
-        </Par>
-      ) : null}
+      <Par termo="Tradução">
+        {fonte.traduzidaPorNos ? <span>Tradução feita por nós</span> : null}
+        {quemTraduziu ? <span>{quemTraduziu}</span> : null}
+        {semTradutor ? <span>{TRADUTOR_NAO_IDENTIFICADO}</span> : null}
+        {fonte.edicao ? <span>{fonte.edicao}</span> : null}
+      </Par>
+      {fonte.editor ? <Par termo="Editor do volume">{fonte.editor}</Par> : null}
       <Par termo="Idioma do texto">{IDIOMA[fonte.idioma]}</Par>
     </dl>
   );

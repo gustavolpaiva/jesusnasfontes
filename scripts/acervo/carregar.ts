@@ -73,6 +73,7 @@ type LinhaFonte = {
   edicao: string | null;
   traduzida_por_nos: boolean;
   limites_pt: string | null;
+  editor: string | null;
   publicada: boolean;
   origem_registro: string;
   hash_ultima_carga: string | null;
@@ -133,6 +134,7 @@ const CAMPOS_DA_FONTE = [
   "edicao",
   "traduzida_por_nos",
   "limites_pt",
+  "editor",
 ] as const;
 type CampoDaFonte = (typeof CAMPOS_DA_FONTE)[number];
 type ValoresDaFonte = Record<CampoDaFonte, string | number | boolean | null>;
@@ -168,6 +170,7 @@ function valoresDoYaml(fonte: FonteYaml): ValoresDaFonte {
     edicao: n(fonte.edicao),
     traduzida_por_nos: fonte.traduzida_por_nos,
     limites_pt: n(fonte.limites_pt),
+    editor: n(fonte.editor),
   };
 }
 
@@ -316,7 +319,7 @@ async function carregarUma(
   const existente = (
     await c.query<LinhaFonte>(
       `select id, titulo, autor, nivel, tipo_texto, idioma, epoca, licenca, licenca_url, origem_nome,
-              origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, publicada,
+              origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, editor, publicada,
               origem_registro, hash_ultima_carga, valores_arquivo, publicada_arquivo, conflito_carga
          from acervo.fonte where slug = $1 for update`,
       [fonte.slug],
@@ -382,9 +385,9 @@ async function carregarUma(
   if (!existente) {
     const novo = await c.query<{ id: string }>(
       `insert into acervo.fonte (slug, titulo, autor, nivel, tipo_texto, idioma, epoca, licenca, licenca_url,
-         origem_nome, origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, publicada,
+         origem_nome, origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, editor, publicada,
          hash_ultima_carga, valores_arquivo, publicada_arquivo)
-       values ($17, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $18, $19::jsonb, $20)
+       values ($18, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $19, $20::jsonb, $21)
        returning id`,
       [...valores, fonte.slug, hashNovo, JSON.stringify(novosValores), fonte.publicada],
     );
@@ -399,8 +402,8 @@ async function carregarUma(
       await c.query(
         `update acervo.fonte set titulo = $1, autor = $2, nivel = $3, tipo_texto = $4, idioma = $5, epoca = $6,
            licenca = $7, licenca_url = $8, origem_nome = $9, origem_url = $10, tradutor = $11,
-           traducao_ano = $12, edicao = $13, traduzida_por_nos = $14, limites_pt = $15, publicada = $16
-         where id = $17`,
+           traducao_ano = $12, edicao = $13, traduzida_por_nos = $14, limites_pt = $15, editor = $16, publicada = $17
+         where id = $18`,
         [...valores, fonteId],
       );
       total.fontes.atualizados++;

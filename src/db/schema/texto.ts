@@ -131,6 +131,8 @@ export const fonte = acervo.table("fonte", {
   // 0023: revisão da Fonte (sobe a cada escrita do painel e da carga) e os valores do arquivo na carga recusada.
   revisao: integer("revisao").notNull().default(0),
   valoresRecusados: jsonb("valores_recusados"),
+  // 0027: o editor do volume ou da coleção, à parte do tradutor da obra.
+  editor: text("editor"),
 });
 
 export const fonteSecao = acervo.table(

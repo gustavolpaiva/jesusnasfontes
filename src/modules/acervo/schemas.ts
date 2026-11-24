@@ -136,7 +136,11 @@ export const esquemaFonteYaml = z
     licenca_url: https.nullish(),
     origem_nome: z.string().min(1).nullish(),
     origem_url: https.nullish(),
+    // QUEM traduziu ESTA obra (ausente quando a origem não o nomeia: a página diz "tradutor não identificado na
+    // edição" e nunca inventa um). Editor do volume NÃO é tradutor: vai em `editor`.
     tradutor: z.string().min(1).nullish(),
+    // O editor do volume ou da coleção (Philip Schaff nos ANF/NPNF, por exemplo): crédito da edição, mostrado à parte.
+    editor: z.string().min(1).nullish(),
     traducao_ano: z.number().int().min(1).max(2100).nullish(),
     edicao: z.string().min(1).nullish(),
     traduzida_por_nos: z.boolean().default(false),

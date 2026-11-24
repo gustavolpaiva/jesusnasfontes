@@ -121,6 +121,8 @@ export type FonteLida = {
     licenca: string | null;
     licencaUrl: string | null;
     tradutor: string | null;
+    /** Editor do volume ou da coleção: crédito da edição, nunca confundido com o tradutor da obra. */
+    editor: string | null;
     traducaoAno: number | null;
     edicao: string | null;
     traduzidaPorNos: boolean;
@@ -212,6 +214,7 @@ export async function lerFonte(slugFonte: string): Promise<FonteLida | null> {
         licenca: achada.licenca,
         licencaUrl: achada.licencaUrl,
         tradutor: achada.tradutor,
+        editor: achada.editor,
         traducaoAno: achada.traducaoAno,
         edicao: achada.edicao,
         traduzidaPorNos: achada.traduzidaPorNos,

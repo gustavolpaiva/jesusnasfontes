@@ -295,4 +295,27 @@ describe.skipIf(emNeon())("leitura da seção pelo Estudante", () => {
       );
     }
   });
+
+  it("o editor do volume é gravado à parte do tradutor, e a carga repetida não muda nada", async () => {
+    const comEditor = (): FonteYaml => ({ ...fonteDaFixture(), editor: "Editor de teste" });
+    const antes = await um<{ editor: string | null }>(
+      "select editor from acervo.fonte where slug = 'josefo-antiguidades'",
+    );
+    expect(antes?.editor).toBeNull();
+
+    const r = await carregarFontes([{ fonte: comEditor(), derivado: derivadoDaFixture() }], {
+      cliente: carga,
+    });
+    expect(r.fontes.atualizados).toBe(1);
+    const depois = await um<{ editor: string | null; tradutor: string | null }>(
+      "select editor, tradutor from acervo.fonte where slug = 'josefo-antiguidades'",
+    );
+    expect(depois).toEqual({ editor: "Editor de teste", tradutor: "William Whiston" });
+
+    const repetida = await carregarFontes([{ fonte: comEditor(), derivado: derivadoDaFixture() }], {
+      cliente: carga,
+    });
+    expect(repetida.inseridos).toBe(0);
+    expect(repetida.atualizados).toBe(0);
+  });
 });
