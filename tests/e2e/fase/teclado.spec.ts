@@ -13,13 +13,19 @@ const COM_DIALOGO = new Set([
   "conta-dialogo-apagar",
   "admin-ficha-dialogo",
 ]);
-const MAXIMO_DE_TABS = 70;
+// 100: a página de créditos tem 77 paradas com os "Usado em" do Acervo (plano 02-22); com 70 ela não era
+// percorrida até o fim.
+const MAXIMO_DE_TABS = 100;
+
+type Peco = { topo: number; esquerda: number };
 
 type Passo = {
   nome: string;
   chave: string;
   topo: number;
   esquerda: number;
+  // Os pedaços de linha do elemento, na ordem (vazio para o indicador do Next e para o corpo).
+  pecos: Peco[];
   fixo: boolean;
   contorno: number;
   estiloDoContorno: string;
@@ -37,6 +43,7 @@ async function focoAtual(page: Page): Promise<Passo> {
         chave: "nextjs-portal",
         topo: 0,
         esquerda: 0,
+        pecos: [],
         fixo: true,
         contorno: 99,
         estiloDoContorno: "solid",
@@ -50,6 +57,7 @@ async function focoAtual(page: Page): Promise<Passo> {
         chave: "body",
         topo: 0,
         esquerda: 0,
+        pecos: [],
         fixo: false,
         contorno: 0,
         estiloDoContorno: "none",
@@ -80,6 +88,9 @@ async function focoAtual(page: Page): Promise<Passo> {
       chave: `${el.tagName}#${indice}`,
       topo: r.top + window.scrollY,
       esquerda: r.left + window.scrollX,
+      pecos: [...el.getClientRects()]
+        .filter((p) => p.width > 0 && p.height > 0)
+        .map((p) => ({ topo: p.top + window.scrollY, esquerda: p.left + window.scrollX })),
       fixo,
       contorno: Number.parseFloat(c.outlineWidth) || 0,
       estiloDoContorno: c.outlineStyle,
@@ -87,6 +98,32 @@ async function focoAtual(page: Page): Promise<Passo> {
       corpo: false,
     };
   });
+}
+
+// Um elemento em linha que quebra de linha tem mais de um pedaço, e o retângulo que os junta começa na linha de
+// baixo: ele diria que o elemento está "à esquerda" do que veio antes, quando na verdade começa logo depois dele, no
+// fim da linha (plano 02-22: o "Usado em" dos créditos é frase corrida, como o UI-SPEC manda, e os links quebram).
+// Por isso a parada anterior conta pelo seu ÚLTIMO pedaço (onde termina) e a seguinte pelo PRIMEIRO (onde começa).
+// Para elemento de um pedaço só (botão, link em bloco, campo) é exatamente a mesma conta de antes.
+const porPosicao = (a: Peco, b: Peco) => a.topo - b.topo || a.esquerda - b.esquerda;
+const fimDe = (p: Passo): Peco =>
+  [...p.pecos].sort(porPosicao).at(-1) ?? { topo: p.topo, esquerda: p.esquerda };
+const inicioDe = (p: Passo): Peco =>
+  [...p.pecos].sort(porPosicao)[0] ?? { topo: p.topo, esquerda: p.esquerda };
+
+/** As violações da ordem visual entre paradas consecutivas do fluxo: uma mensagem por violação. */
+function violacoesDeOrdem(fluxo: Passo[]): string[] {
+  const violacoes: string[] = [];
+  for (let i = 1; i < fluxo.length; i++) {
+    const anterior = fluxo[i - 1] as Passo;
+    const atual = fluxo[i] as Passo;
+    const a = fimDe(anterior);
+    const b = inicioDe(atual);
+    if (b.topo < a.topo - 4) violacoes.push(`ordem: ${atual.nome} está acima de ${anterior.nome}`);
+    else if (Math.abs(b.topo - a.topo) <= 8 && b.esquerda < a.esquerda - 4)
+      violacoes.push(`ordem: ${atual.nome} está à esquerda de ${anterior.nome}`);
+  }
+  return violacoes;
 }
 
 for (const tela of TELAS) {
@@ -139,19 +176,7 @@ for (const tela of TELAS) {
       // Ordem visual: de cima para baixo e, na mesma linha, da esquerda para a direita. O que é fixo ou
       // grudado (cabeçalho, faixa da Sessão) muda de posição com a rolagem e fica fora da conta.
       const fluxo = passos.filter((p) => !p.fixo);
-      for (let i = 1; i < fluxo.length; i++) {
-        const a = fluxo[i - 1] as Passo;
-        const b = fluxo[i] as Passo;
-        expect(b.topo, `ordem: ${b.nome} está acima de ${a.nome}`).toBeGreaterThanOrEqual(
-          a.topo - 4,
-        );
-        if (Math.abs(b.topo - a.topo) <= 8) {
-          expect(
-            b.esquerda,
-            `ordem: ${b.nome} está à esquerda de ${a.nome}`,
-          ).toBeGreaterThanOrEqual(a.esquerda - 4);
-        }
-      }
+      expect(violacoesDeOrdem(fluxo)).toEqual([]);
     }
     // Foco visível em todo elemento que o recebeu.
     for (const p of passos) {
@@ -160,6 +185,43 @@ for (const tela of TELAS) {
     }
   });
 }
+
+// Controle positivo do medidor de ordem visual (a regra mudou no plano 02-22, por causa do link em prosa que quebra
+// de linha): dois links em ordem, o segundo começando no fim da linha do primeiro e quebrando, NÃO dão violação; o
+// segundo link posto ACIMA do primeiro dá. Prova que o medidor continua acusando desordem de verdade.
+test("teclado: controle positivo, a ordem visual aceita o link em prosa que quebra de linha e acusa o que está fora de ordem", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName === "webkit", "o foco do Safari por clique não segue a regra de teclado");
+  // Como na página de créditos: o primeiro link vem depois de texto, no meio da linha; o segundo começa logo
+  // depois dele e quebra para a linha de baixo.
+  await page.setContent(
+    '<!doctype html><p style="width:236px;margin:8px;font:16px/20px sans-serif">Antes, <a id="a" href="#a">Papias</a>, <a id="b" href="#b">Primeira Apologia e Segunda Apologia</a></p>',
+  );
+  await page.keyboard.press("Tab");
+  const a = await focoAtual(page);
+  await page.keyboard.press("Tab");
+  const b = await focoAtual(page);
+  // A condição do controle: o primeiro link tem um pedaço só; o segundo começa na mesma linha e quebra.
+  expect(a.chave).toBe("A#0");
+  expect(b.chave).toBe("A#1");
+  expect(a.pecos).toHaveLength(1);
+  expect(b.pecos.length).toBeGreaterThan(1);
+  expect(inicioDe(b).topo).toBe(fimDe(a).topo);
+  // O retângulo que junta os pedaços do segundo link começa na linha de baixo: à esquerda do primeiro.
+  expect(b.esquerda).toBeLessThan(a.esquerda);
+  expect(violacoesDeOrdem([a, b])).toEqual([]);
+  // Agora o segundo link fica ACIMA do primeiro (fora da ordem visual): o medidor acusa.
+  await page.setContent(
+    '<!doctype html><p style="margin:40px 8px;font:16px/20px sans-serif"><a id="a" href="#a">Primeiro no Tab</a> <a id="b" href="#b" style="position:absolute;top:0;left:8px">Segundo no Tab</a></p>',
+  );
+  await page.keyboard.press("Tab");
+  const c = await focoAtual(page);
+  await page.keyboard.press("Tab");
+  const d = await focoAtual(page);
+  expect(violacoesDeOrdem([c, d])).toEqual([`ordem: ${d.nome} está acima de ${c.nome}`]);
+});
 
 const FOLHAS = [
   { id: "menu-aberto", botao: "Abrir menu" },
