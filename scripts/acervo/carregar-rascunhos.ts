@@ -15,6 +15,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type pg from "pg";
+import { parse as lerYaml } from "yaml";
+import { z } from "zod";
 import { decidirAmbiente } from "../../src/db/ambiente";
 import { sanitizarErroDeBanco } from "../../src/db/erro-banco";
 import { registrarErro } from "../../src/lib/registro";
@@ -567,12 +569,121 @@ export function lerPropostasConferidas(pasta: string): PropostaYaml[] {
   return propostas;
 }
 
+// ───────────────────────── seleção do dono (--selecao, plano 02-25) ─────────────────────────
+//
+// O dono marca, num arquivo próprio (D-23), quais das obras rascunhadas ele tem ou consulta, e escreve
+// a edição que tem em mãos. Só as marcadas viram ficha no banco: obra sem o `tenho: sim` não entra. A
+// edição informada é fato que só o dono sabe (D-08) e sem ela o banco recusa verificar — por isso
+// `tenho: sim` com edição vazia ou ainda "A confirmar" derruba o comando ANTES de qualquer conexão,
+// nomeando a obra, sem gravar nada. O YAML da ficha nunca é alterado: a edição do dono vale só no banco.
+
+export type EntradaSelecao = {
+  slug: string;
+  tenho: "sim" | "nao";
+  /** A edição que o dono consulta; obrigatória quando `tenho` é "sim". */
+  edicao: string;
+};
+
+const esquemaSelecao = z
+  .object({
+    obras: z
+      .array(
+        z
+          .object({
+            slug: z.string().min(1),
+            tenho: z.enum(["sim", "nao"]),
+            edicao: z.string().default(""),
+          })
+          .strict(),
+      )
+      .min(1),
+  })
+  .strict();
+
+/**
+ * Lê e confere o arquivo de seleção, TUDO antes de qualquer conexão. Contrato ruim, obra repetida ou
+ * obra marcada sem a edição consultada preenchida (ou ainda "A confirmar") lançam, nomeando a obra;
+ * nada é gravado. Os erros nomeiam só slugs (públicos), nunca o conteúdo dos campos.
+ */
+export function lerSelecao(caminho: string): EntradaSelecao[] {
+  let conteudo: string;
+  try {
+    conteudo = readFileSync(caminho, "utf8");
+  } catch {
+    throw new ErroCarga("o arquivo de seleção não existe");
+  }
+  let bruto: unknown;
+  try {
+    bruto = lerYaml(conteudo);
+  } catch {
+    throw new ErroContrato("a seleção não é um YAML válido");
+  }
+  const r = esquemaSelecao.safeParse(bruto);
+  if (!r.success)
+    throw new ErroContrato(
+      `seleção fora do contrato: ${r.error.issues
+        .map((i) => `${i.path.join(".") || "(raiz)"}: ${i.message}`)
+        .join("; ")}`,
+    );
+  const obras = r.data.obras;
+  const vistos = new Set<string>();
+  for (const o of obras) {
+    if (vistos.has(o.slug)) throw new ErroContrato(`obra repetida na seleção: ${o.slug}`);
+    vistos.add(o.slug);
+  }
+  const semEdicao = obras
+    .filter((o) => o.tenho === "sim")
+    .filter((o) => {
+      const edicao = o.edicao.trim();
+      return edicao === "" || edicao.startsWith("A confirmar");
+    });
+  if (semEdicao.length > 0)
+    throw new ErroCarga(
+      `obra marcada como "tenho" sem a edição consultada preenchida e diferente de "A confirmar": ` +
+        `${semEdicao.map((o) => o.slug).join(", ")} ` +
+        `(escreva a edição que você tem em mãos; sem ela a ficha não pode ser verificada)`,
+    );
+  return obras;
+}
+
+/**
+ * Filtra as fichas pela seleção: entram só as marcadas com `tenho: sim`, já com a edição do dono no
+ * lugar da suposta pelo redator (objeto novo; o YAML da ficha não é tocado). Obra da pasta fora da
+ * seleção, obra marcada com "nao" e slug da seleção sem ficha na pasta são relatados, sem erro.
+ */
+export function aplicarSelecao(
+  fichas: readonly FichaYaml[],
+  selecao: readonly EntradaSelecao[],
+  escrever: (linha: string) => void,
+): FichaYaml[] {
+  const porSlug = new Map(selecao.map((o) => [o.slug, o]));
+  const encontrados = new Set<string>();
+  const escolhidas: FichaYaml[] = [];
+  for (const f of fichas) {
+    const entrada = porSlug.get(f.slug);
+    if (!entrada) {
+      escrever(`fora da seleção: ${f.slug}`);
+      continue;
+    }
+    encontrados.add(f.slug);
+    if (entrada.tenho === "nao") {
+      escrever(`não marcada pelo dono: ${f.slug}`);
+      continue;
+    }
+    escolhidas.push({ ...f, edicao_consultada: entrada.edicao.trim() });
+  }
+  for (const o of selecao) if (!encontrados.has(o.slug)) escrever(`sem ficha na pasta: ${o.slug}`);
+  return escolhidas;
+}
+
 // ───────────────────────── comando: pnpm acervo:rascunhos ─────────────────────────
 
 export type OpcoesDosRascunhos = {
   fichas: string | undefined;
   /** A pasta das propostas de Grau e de Citação (planejamento privado). Sem padrão (D-17). */
   propostas?: string | undefined;
+  /** O arquivo de seleção do dono (D-23): só as obras marcadas com `tenho: sim` entram. */
+  selecao?: string | undefined;
   /** Só confere o contrato de cada YAML: nunca abre conexão com o banco. */
   soValidar?: boolean;
 };
@@ -653,15 +764,28 @@ export async function executarRascunhos(
     );
   // O contrato das propostas se confere ANTES de qualquer carga, inclusive a das fichas: contrato ruim não grava nada.
   const propostas = opcoes.propostas ? lerPropostasConferidas(opcoes.propostas) : null;
+  // A seleção também se confere inteira antes de qualquer conexão (a edição exigida é regra de contrato).
+  const selecao = opcoes.selecao ? lerSelecao(opcoes.selecao) : null;
   let resultado: ResultadoRascunhos | null = null;
 
   if (opcoes.fichas) {
     if (opcoes.soValidar) {
-      validarPasta(opcoes.fichas, escrever);
+      const aprovadas = validarPasta(opcoes.fichas, escrever);
+      if (selecao) {
+        const escolhidas = aplicarSelecao(aprovadas, selecao, escrever);
+        escrever(
+          `selecionadas=${escolhidas.length} de fichas=${aprovadas.length} (só validação: nada foi aberto no banco)`,
+        );
+      }
     } else {
-      const fichas = lerYamls(opcoes.fichas);
+      let fichas = lerYamls(opcoes.fichas);
+      if (selecao) fichas = aplicarSelecao(fichas, selecao, escrever);
       if (fichas.length === 0) {
-        escrever("acervo:rascunhos: não há ficha na pasta");
+        escrever(
+          selecao
+            ? "acervo:rascunhos: a seleção não marca obra alguma com tenho: sim"
+            : "acervo:rascunhos: não há ficha na pasta",
+        );
       } else {
         const abrir = deps.abrir ?? abrirCarga;
         const cliente = await abrir();
@@ -717,7 +841,7 @@ export function lerOpcoes(
     const valor = argumentos[i + 1];
     if (!valor || valor.startsWith("--"))
       throw new ErroCarga(
-        "Uso: acervo:rascunhos [--fichas <pasta>] [--propostas <pasta>] [--so-validar]",
+        "Uso: acervo:rascunhos [--fichas <pasta>] [--propostas <pasta>] [--selecao <arquivo>] [--so-validar]",
       );
     return path.resolve(valor);
   };
@@ -725,6 +849,7 @@ export function lerOpcoes(
   return {
     fichas: valorDe("--fichas") ?? daEnv(env.ACERVO_FICHAS_DIR),
     propostas: valorDe("--propostas") ?? daEnv(env.ACERVO_PROPOSTAS_DIR),
+    selecao: valorDe("--selecao"),
     soValidar,
   };
 }
