@@ -635,7 +635,7 @@ export function lerSelecao(caminho: string): EntradaSelecao[] {
     .filter((o) => o.tenho === "sim")
     .filter((o) => {
       const edicao = o.edicao.trim();
-      return edicao === "" || edicao.startsWith("A confirmar");
+      return edicao === "" || /^a confirmar/i.test(edicao);
     });
   if (semEdicao.length > 0)
     throw new ErroCarga(

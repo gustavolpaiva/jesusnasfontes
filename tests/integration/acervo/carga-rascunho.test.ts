@@ -333,36 +333,43 @@ describe.skipIf(emNeon())("carga com seleção do dono (--selecao)", () => {
     );
   });
 
-  it("tenho: sim com edição ainda 'A confirmar' sai 1 pelo comando, nomeando a obra e sem abrir o banco", () => {
-    const pasta = mkdtempSync(path.join(tmpdir(), "jnf-selecao-"));
-    try {
-      writeFileSync(
-        path.join(pasta, "selecao.yaml"),
-        [
-          "obras:",
-          "  - slug: obra-nao-marcada-de-teste",
-          "    tenho: sim",
-          '    edicao: "A confirmar: edição que o redator supôs"',
-        ].join("\n"),
-      );
-      const r = spawnSync(
-        "node_modules/.bin/tsx",
-        [
-          "scripts/acervo/carregar-rascunhos.ts",
-          "--fichas",
-          PASTA_SELECAO,
-          "--selecao",
+  it.each([
+    "A confirmar: edição que o redator supôs",
+    "a confirmar: edição pendente",
+    "A CONFIRMAR",
+  ])(
+    "tenho: sim com edição ainda '%s' sai 1 pelo comando, nomeando a obra e sem abrir o banco",
+    (edicao) => {
+      const pasta = mkdtempSync(path.join(tmpdir(), "jnf-selecao-"));
+      try {
+        writeFileSync(
           path.join(pasta, "selecao.yaml"),
-        ],
-        { cwd: RAIZ, env: semBanco(), encoding: "utf8" },
-      );
-      expect(r.status).toBe(1);
-      expect(r.stderr).toMatch(/obra-nao-marcada-de-teste/);
-      expect(r.stderr).toMatch(/edição/);
-    } finally {
-      rmSync(pasta, { recursive: true, force: true });
-    }
-  });
+          [
+            "obras:",
+            "  - slug: obra-nao-marcada-de-teste",
+            "    tenho: sim",
+            `    edicao: "${edicao}"`,
+          ].join("\n"),
+        );
+        const r = spawnSync(
+          "node_modules/.bin/tsx",
+          [
+            "scripts/acervo/carregar-rascunhos.ts",
+            "--fichas",
+            PASTA_SELECAO,
+            "--selecao",
+            path.join(pasta, "selecao.yaml"),
+          ],
+          { cwd: RAIZ, env: semBanco(), encoding: "utf8" },
+        );
+        expect(r.status).toBe(1);
+        expect(r.stderr).toMatch(/obra-nao-marcada-de-teste/);
+        expect(r.stderr).toMatch(/edição/);
+      } finally {
+        rmSync(pasta, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("slug na seleção sem ficha na pasta e ficha fora da seleção são relatados, sem erro", async () => {
     await comSelecaoTemporaria(
