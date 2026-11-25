@@ -141,6 +141,24 @@ export type FonteLida = {
 };
 
 /**
+ * Os slugs das Fontes de texto integral que o Estudante vê AGORA (publicada no banco), numa leitura só e no mesmo
+ * instantâneo. É o que a página de créditos usa para só oferecer link de "Usado em" para Fonte que abre: o painel
+ * despublica uma Fonte sem passar pelo YAML, e o link para ela viraria 404.
+ */
+export async function slugsDasFontesPublicadas(): Promise<ReadonlySet<string>> {
+  return comAcervo(
+    async (tx) => {
+      const linhas = await tx
+        .select({ slug: fonte.slug })
+        .from(fonte)
+        .where(and(eq(fonte.publicada, true), eq(fonte.tipoTexto, "integral")));
+      return new Set(linhas.map((l) => l.slug));
+    },
+    { instantaneo: true },
+  );
+}
+
+/**
  * Página da Fonte de texto integral. Só Fonte publicada; Fonte de ficha (a ficha tem a própria tela),
  * inexistente ou não publicada dão o mesmo `null` (a tela mostra "Página não encontrada").
  */

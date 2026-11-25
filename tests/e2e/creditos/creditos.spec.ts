@@ -48,6 +48,16 @@ const DA_FASE_1 = [
 const ROTULOS_DA_FASE_1 = ["Autores", "Licença", "Versão ou data", "Alterações feitas por nós"];
 
 const secao = (page: Page) => page.locator('[data-slot="creditos-do-acervo"]');
+/**
+ * Abre a página e espera o conteúdo: ela lê do banco quais Fontes estão publicadas e, como as outras páginas dinâmicas,
+ * mostra o "Carregando…" antes de chegar (leitura de DOM logo depois do `goto` pegaria a página sem as entradas).
+ */
+async function abrir(page: Page) {
+  const resposta = await page.goto("/creditos");
+  await expect(page.getByRole("heading", { level: 1, name: "Créditos" })).toBeVisible();
+  await expect(secao(page)).toBeVisible();
+  return resposta;
+}
 /** A entrada (`li`) cujo título de nível 3 é este nome. */
 const entrada = (page: Page, nome: string) =>
   page
@@ -65,7 +75,7 @@ test.describe.configure({ timeout: 60_000 });
 test("abre sem sessão: as cinco entradas da Fase 1 intactas e, depois, a seção Textos do Acervo", async ({
   page,
 }) => {
-  const resposta = await page.goto("/creditos");
+  const resposta = await abrir(page);
   expect(resposta?.status()).toBe(200);
   await expect(page).toHaveURL(/\/creditos$/);
   await expect(page.getByRole("heading", { level: 1, name: "Créditos" })).toBeVisible();
@@ -100,7 +110,7 @@ test("abre sem sessão: as cinco entradas da Fase 1 intactas e, depois, a seçã
 test("uma entrada de cada família (Perseus, CCEL, Gutenberg, gospels.net), com a licença e o endereço do registro", async ({
   page,
 }) => {
-  await page.goto("/creditos");
+  await abrir(page);
   for (const prefixo of ["perseus-", "ccel-", "gutenberg-", "gospels-"]) {
     const familia = daFamilia(prefixo);
     expect(familia.length, `origem da família ${prefixo}`).toBeGreaterThan(0);
@@ -125,7 +135,7 @@ test("uma entrada de cada família (Perseus, CCEL, Gutenberg, gospels.net), com 
 test("'Usado em' tem um link para a página de cada Fonte publicada, em frase corrida", async ({
   page,
 }) => {
-  await page.goto("/creditos");
+  await abrir(page);
   const links = secao(page).locator("dd a[href^='/acervo/']");
   // Cada Fonte publicada aparece uma vez, e só as publicadas aparecem.
   const hrefs = (await links.evaluateAll((as) => as.map((a) => a.getAttribute("href")))).sort();
@@ -151,7 +161,7 @@ test("'Usado em' tem um link para a página de cada Fonte publicada, em frase co
 test("a origem do Perseus mostra a licença da edição digital e a da tradução separadas; Mattison, a dedicação", async ({
   page,
 }) => {
-  await page.goto("/creditos");
+  await abrir(page);
   const josefo = usadas.find(([, o]) => usadasDa(o).includes("josefo-antiguidades"))?.[1];
   const mattison = usadas.find(([, o]) => usadasDa(o).includes("evangelho-de-tome"))?.[1];
   expect(josefo).toBeDefined();
@@ -169,7 +179,7 @@ test("a origem do Perseus mostra a licença da edição digital e a da traduçã
 test("a Bíblia Livre aparece com o crédito literal do registro, a versão e as alterações", async ({
   page,
 }) => {
-  await page.goto("/creditos");
+  await abrir(page);
   const corpo = ((await page.locator("main").textContent()) ?? "").replace(/\s+/g, " ");
   expect(biblia?.credito_literal).toBeTruthy();
   expect(corpo).toContain((biblia?.credito_literal ?? "").replace(/\s+/g, " "));
@@ -192,7 +202,7 @@ test("sem rolagem horizontal em 320 px no passo 5 do tamanho do texto, e axe zer
 }) => {
   await context.addCookies([{ name: "escala-texto", value: "5", url: baseURL as string }]);
   await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto("/creditos");
+  await abrir(page);
   await expect(page.getByRole("heading", { level: 1, name: "Créditos" })).toBeVisible();
   const estouro = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

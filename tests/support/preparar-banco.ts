@@ -166,6 +166,52 @@ export async function semearAcervo(
 }
 
 /**
+ * Para a página de créditos: ela só oferece link de "Usado em" para Fonte que o BANCO diz publicada (o painel despublica
+ * sem passar pelo YAML). O banco do e2e só tem o recorte do Josefo; aqui cada Fonte de texto integral publicada no YAML
+ * de `content/acervo/fontes` que ainda não existe no banco ganha uma linha mínima, publicada e SEM seções (a página da
+ * Fonte abre vazia; nenhum teste de leitura visita essas). O recorte do Josefo e as Fontes de outros testes ficam como
+ * estão (nada é sobrescrito).
+ */
+export async function semearFontesDoRegistro(
+  pasta: string,
+  env: FonteDeEnv = process.env,
+): Promise<number> {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const path = await import("node:path");
+  const { interpretarFonteYaml } = await import("../../src/modules/acervo/schemas");
+  const fontes = readdirSync(pasta)
+    .filter((nome) => nome.endsWith(".yaml"))
+    .sort()
+    .map((nome) => interpretarFonteYaml(readFileSync(path.join(pasta, nome), "utf8"), nome))
+    .filter((f) => f.publicada && f.tipo_texto === "integral");
+  return comCarga(env, async (cliente) => {
+    let novas = 0;
+    for (const f of fontes) {
+      const r = await cliente.query(
+        `insert into acervo.fonte (slug, titulo, nivel, tipo_texto, idioma, licenca, licenca_url, origem_nome,
+           origem_url, tradutor, traducao_ano, publicada)
+         values ($1, $2, $3, 'integral', $4, $5, $6, $7, $8, $9, $10, true)
+         on conflict (slug) do nothing`,
+        [
+          f.slug,
+          f.titulo,
+          f.nivel,
+          f.idioma,
+          f.licenca ?? null,
+          f.licenca_url ?? null,
+          f.origem_nome ?? null,
+          f.origem_url ?? null,
+          f.tradutor ?? null,
+          f.traducao_ano ?? null,
+        ],
+      );
+      novas += r.rowCount ?? 0;
+    }
+    return novas;
+  });
+}
+
+/**
  * Carrega no banco da execução as Fontes REAIS do repositório (`content/acervo/fontes` com o derivado conferido pelo
  * lock), como o `acervo:load`. Só para a conferência visual com `E2E_ACERVO_REAL=1`: sobrescreve a fixture do mesmo
  * slug (o Josefo) pelo texto completo.

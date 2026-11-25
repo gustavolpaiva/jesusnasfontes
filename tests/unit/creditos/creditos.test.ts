@@ -249,6 +249,69 @@ describe("montarCreditos", () => {
       expect(acervo.flatMap((e) => e.usadoEm.map((f) => f.slug))).not.toContain(slug);
   });
 
+  it("o que o BANCO diz publicado vale sobre o YAML: Fonte despublicada pelo painel perde o link de 'Usado em'", () => {
+    const publicadas = fontes.filter((f) => f.publicada).map((f) => f.slug);
+    // Controle: com o banco igual ao YAML, a página é a mesma.
+    expect(montarCreditos({ publicadasNoBanco: new Set(publicadas) })).toEqual(entradas);
+
+    // O painel despublica uma Fonte de uma origem que tem outras (Perseus: Josefo tem duas)...
+    const alvo = "josefo-antiguidades";
+    expect(acervo.flatMap((e) => e.usadoEm.map((f) => f.slug))).toContain(alvo);
+    const depois = montarCreditos({
+      publicadasNoBanco: new Set(publicadas.filter((slug) => slug !== alvo)),
+    });
+    const links = depois.flatMap((e) => e.usadoEm.map((f) => f.slug));
+    expect(links).not.toContain(alvo);
+    // ...e só ela some: todas as outras continuam, na mesma ordem.
+    expect(links).toEqual(
+      acervo.flatMap((e) => e.usadoEm.map((f) => f.slug)).filter((slug) => slug !== alvo),
+    );
+  });
+
+  it("origem cuja única Fonte foi despublicada no banco perde a entrada inteira", () => {
+    const [id, o] = origensUsadas.find(([, x]) => publicadasDe(x).length === 1) ?? [];
+    expect(id, "há origem com uma só Fonte publicada").toBeDefined();
+    const unica = publicadasDe(o as Origem)[0]?.slug;
+    const publicadas = fontes.filter((f) => f.publicada).map((f) => f.slug);
+    const depois = montarCreditos({
+      publicadasNoBanco: new Set(publicadas.filter((slug) => slug !== unica)),
+    });
+    expect(depois.find((e) => e.nome === (o as Origem).nome)).toBeUndefined();
+    expect(depois).toHaveLength(entradas.length - 1);
+  });
+
+  it("banco sem nenhuma Fonte publicada: sai só o que é da Fase 1, sem erro", () => {
+    const depois = montarCreditos({ publicadasNoBanco: new Set() });
+    expect(depois).toEqual(geral);
+  });
+
+  it("Fonte sem origem no registro, que o painel publicou: não derruba a página e não ganha link", () => {
+    const pasta = copiaDosRegistros();
+    const fontesNovas = copiaDasFontes();
+    // Uma Fonte que nenhuma origem alimenta, NÃO publicada no YAML (o build passa) e publicada pelo painel (o banco diz sim).
+    const modelo = readdirSync(fontesNovas).find((n) => n.endsWith(".yaml")) as string;
+    const texto = readFileSync(join(fontesNovas, modelo), "utf8")
+      .replace(/^slug: .*$/m, "slug: fonte-sem-origem")
+      .replace(/^publicada: .*$/m, "publicada: false");
+    expect(texto).toContain("publicada: false");
+    writeFileSync(join(fontesNovas, "fonte-sem-origem.yaml"), texto);
+    const publicadas = fontes.filter((f) => f.publicada).map((f) => f.slug);
+    const montadas = montarCreditos({
+      diretorio: pasta,
+      diretorioFontes: fontesNovas,
+      publicadasNoBanco: new Set([...publicadas, "fonte-sem-origem"]),
+    });
+    expect(montadas.flatMap((e) => e.usadoEm.map((f) => f.slug))).not.toContain("fonte-sem-origem");
+    // No build (o YAML decide) a mesma Fonte, publicada no YAML, derruba a geração.
+    writeFileSync(
+      join(fontesNovas, "fonte-sem-origem.yaml"),
+      texto.replace(/^publicada: .*$/m, "publicada: true"),
+    );
+    expect(() => montarCreditos({ diretorio: pasta, diretorioFontes: fontesNovas })).toThrow(
+      /fonte-sem-origem/,
+    );
+  });
+
   it("origem sem Fonte publicada não ganha entrada: o site não usa texto dela", () => {
     const semUso = Object.entries(origens).filter(([, o]) => publicadasDe(o).length === 0);
     // Controle positivo: há origem nessa situação no registro (as barradas de licença).

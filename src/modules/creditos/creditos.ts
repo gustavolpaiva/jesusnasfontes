@@ -214,10 +214,15 @@ function tradutoresNaoNomeados(autores: readonly string[], fontes: readonly Font
 function entradasDoAcervo(
   origens: Record<string, OrigemAcervo>,
   fontes: readonly FonteYaml[],
+  publicadasNoBanco: ReadonlySet<string> | undefined,
 ): EntradaDeCredito[] {
   const porSlug = new Map(fontes.map((f) => [f.slug, f]));
+  // O que vale como "publicada": o BANCO, quando a página o traz (o painel despublica uma Fonte sem passar pelo YAML, e o
+  // link de "Usado em" para uma Fonte despublicada vira 404); sem o banco (o build, o teste de unidade), o YAML.
+  const estaPublicada = (f: FonteYaml): boolean =>
+    publicadasNoBanco ? publicadasNoBanco.has(f.slug) : f.publicada === true;
   const ehUsada = (f: FonteYaml | undefined): f is FonteYaml =>
-    f?.publicada === true && f.tipo_texto === "integral";
+    f !== undefined && estaPublicada(f) && f.tipo_texto === "integral";
   // A mesma ordem alfabética em português da lista do Acervo.
   const porTitulo = (a: FonteYaml, b: FonteYaml) => a.titulo.localeCompare(b.titulo, "pt-BR");
 
@@ -262,7 +267,9 @@ function entradasDoAcervo(
   }
 
   for (const f of fontes) {
-    if (ehUsada(f) && !daOrigemDe.has(f.slug))
+    // Em tempo de execução (o banco decide) uma Fonte publicada sem origem não derruba a página: é inconsistência do
+    // painel, e a atribuição dela fica a cargo do registro. No build (o YAML decide) ela derruba, como sempre.
+    if (publicadasNoBanco === undefined && ehUsada(f) && !daOrigemDe.has(f.slug))
       throw new Error(
         `acervo-origens.yaml: a Fonte publicada "${f.slug}" não é alimentada por nenhuma origem do registro`,
       );
@@ -272,9 +279,23 @@ function entradasDoAcervo(
 
 // Ordem na página: texto bíblico, conteúdo, código, fontes (a do contrato de copy) e, por último, os textos
 // do Acervo. Dentro de cada registro, a ordem do arquivo.
+export type OpcoesDeCreditos = {
+  diretorio?: string;
+  diretorioFontes?: string;
+};
+
+/** Os registros lidos e validados UMA vez; `montar` aplica, por requisição, o que o banco diz estar publicado. */
+export type CreditosPreparados = {
+  montar: (publicadasNoBanco?: ReadonlySet<string>) => EntradaDeCredito[];
+};
+
 export function montarCreditos(
-  opcoes: { diretorio?: string; diretorioFontes?: string } = {},
+  opcoes: OpcoesDeCreditos & { publicadasNoBanco?: ReadonlySet<string> } = {},
 ): EntradaDeCredito[] {
+  return prepararCreditos(opcoes).montar(opcoes.publicadasNoBanco);
+}
+
+export function prepararCreditos(opcoes: OpcoesDeCreditos = {}): CreditosPreparados {
   const diretorio = opcoes.diretorio ?? join(process.cwd(), "data");
   const diretorioFontes =
     opcoes.diretorioFontes ?? join(process.cwd(), "content", "acervo", "fontes");
@@ -325,8 +346,15 @@ export function montarCreditos(
     grupo: "geral",
   }));
 
-  const acervo = entradasDoAcervo(lerOrigens(diretorio), lerFontes(diretorioFontes));
-
+  const origens = lerOrigens(diretorio);
+  const fontesYaml = lerFontes(diretorioFontes);
   // O conteúdo e o código ficam entre o texto bíblico e as fontes, na ordem do contrato.
-  return [...texto, ...nossos, ...fontes, ...acervo];
+  const gerais = [...texto, ...nossos, ...fontes];
+  const montar = (publicadasNoBanco?: ReadonlySet<string>): EntradaDeCredito[] => [
+    ...gerais,
+    ...entradasDoAcervo(origens, fontesYaml, publicadasNoBanco),
+  ];
+  // Valida já no carregamento (o build): registro fora do contrato derruba aqui, não na primeira requisição.
+  montar();
+  return { montar };
 }

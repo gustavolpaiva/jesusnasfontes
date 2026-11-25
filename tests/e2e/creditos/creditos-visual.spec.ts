@@ -644,6 +644,7 @@ for (const variante of ["projeto", "390-claro"] as const) {
 
     await page.goto("/creditos");
     await expect(page.getByRole("heading", { level: 1, name: "Créditos" })).toBeVisible();
+    await expect(page.locator('[data-slot="creditos-do-acervo"]')).toBeVisible();
 
     todas.push(...(await controlesPositivos(page)));
     // A página volta ao topo depois dos controles e do percurso por Tab.
@@ -680,6 +681,7 @@ for (const variante of ["projeto", "390-claro"] as const) {
         .addCookies([{ name: "escala-texto", value: "5", url: baseURL as string }]);
       await page.reload();
       await expect(page.getByRole("heading", { level: 1, name: "Créditos" })).toBeVisible();
+      await expect(page.locator('[data-slot="creditos-do-acervo"]')).toBeVisible();
       const escala = await page.evaluate(() =>
         getComputedStyle(document.documentElement).getPropertyValue("--escala-texto").trim(),
       );
@@ -724,12 +726,14 @@ test("creditos no WebKit: 320 px, passo 5, sem texto além da borda e sem rolage
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto("/creditos");
   await expect(page.getByRole("heading", { level: 1, name: "Créditos" })).toBeVisible();
+  await expect(page.locator('[data-slot="creditos-do-acervo"]')).toBeVisible();
   const linhas: Linha[] = [];
   linhas.push(...(await controlesPositivos(page)));
   linhas.push(...(await medirPasso(page, 1, "claro")).linhas);
   await page.context().addCookies([{ name: "escala-texto", value: "5", url: baseURL as string }]);
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: "Créditos" })).toBeVisible();
+  await expect(page.locator('[data-slot="creditos-do-acervo"]')).toBeVisible();
   linhas.push(...(await medirPasso(page, 5, "claro")).linhas);
   await rolarAte(page, '[data-slot="creditos-do-acervo"] a.break-all');
   await capturar(page, "passo5-endereco-webkit-celular");

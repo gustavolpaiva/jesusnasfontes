@@ -1,15 +1,30 @@
 import Link from "next/link";
 import { Fragment } from "react";
-import { type EntradaDeCredito, montarCreditos } from "@/modules/creditos/creditos";
+import { registrarErro } from "@/lib/registro";
+import { slugsDasFontesPublicadas } from "@/modules/acervo/consultas";
+import { type EntradaDeCredito, prepararCreditos } from "@/modules/creditos/creditos";
 
 // Os registros são lidos uma vez, quando o módulo é carregado (no build, o `next build` carrega a
-// página e um registro com campo faltando derruba o build). A página não depende de sessão nem de banco.
+// página e um registro com campo faltando derruba o build). O que muda a cada requisição é só QUAIS Fontes estão
+// publicadas no banco: o "Usado em" só oferece link para Fonte que o Estudante abre (o painel despublica sem passar pelo
+// YAML, e o link viraria 404). Sem o banco, vale o estado do YAML e o erro é registrado: a atribuição nunca some.
 //
 // Sem `export const dynamic = "force-static"`: o layout raiz é dinâmico de propósito (o nonce da
 // política de conteúdo muda a cada requisição, e o tema e o tamanho do texto vêm dos cookies). Com
 // `force-static` a página saía sem nonce e sem ler os cookies: medido no e2e, o passo 5 do tamanho do
-// texto virava o padrão em /creditos (UI-03). O conteúdo continua vindo só dos registros.
-const entradas = montarCreditos();
+// texto virava o padrão em /creditos (UI-03).
+export const dynamic = "force-dynamic";
+
+const creditos = prepararCreditos();
+
+async function entradasDaPagina(): Promise<EntradaDeCredito[]> {
+  try {
+    return creditos.montar(await slugsDasFontesPublicadas());
+  } catch (erro) {
+    registrarErro("creditos-fontes-publicadas", erro);
+    return creditos.montar();
+  }
+}
 
 export const metadata = { title: "Créditos" };
 
@@ -138,7 +153,8 @@ function Entrada({ entrada: e, nivel }: { entrada: EntradaDeCredito; nivel: 2 | 
   );
 }
 
-export default function PaginaCreditos() {
+export default async function PaginaCreditos() {
+  const entradas = await entradasDaPagina();
   const gerais = entradas.filter((e) => e.grupo === "geral");
   const doAcervo = entradas.filter((e) => e.grupo === "acervo");
   return (

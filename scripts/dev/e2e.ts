@@ -8,6 +8,7 @@ import {
   semearAcervo,
   semearAcervoReal,
   semearConteudo,
+  semearFontesDoRegistro,
   semearTexto,
 } from "../../tests/support/preparar-banco";
 
@@ -49,6 +50,9 @@ async function main(): Promise<number> {
     await semearAcervo(path.resolve("tests/fixtures/acervo"), envBanco);
     // Conferência visual sobre o texto REAL (Josefo inteiro): só quando pedida; os e2e comuns seguem no recorte.
     if (process.env.E2E_ACERVO_REAL === "1") await semearAcervoReal(envBanco);
+    // A página de créditos lê do banco quais Fontes estão publicadas: o que o registro publica e o banco não tem ganha
+    // uma linha mínima, para a página mostrar o "Usado em" de todas as origens.
+    await semearFontesDoRegistro(path.resolve("content/acervo/fontes"), envBanco);
     const porta = await portaLivre();
     const filho = spawn("pnpm", ["exec", "playwright", "test", ...process.argv.slice(2)], {
       stdio: "inherit",
