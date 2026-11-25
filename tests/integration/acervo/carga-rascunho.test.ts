@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
@@ -242,6 +243,201 @@ describe.skipIf(emNeon())("carga de rascunho de ficha", () => {
     expect("insert into acervo.verificacao_ficha").toMatch(
       /insert\s+into\s+acervo\.verificacao_ficha/,
     );
+  });
+});
+
+describe.skipIf(emNeon())("carga com seleção do dono (--selecao)", () => {
+  // Plano 02-25: `--selecao <arquivo>` carrega só as obras com `tenho: sim`, grava a edição que o dono
+  // informou no lugar da suposta pelo redator e continua sem nunca gravar verificação. Fichas
+  // sintéticas da pasta selecao/, lidas pela fixture selecao-de-teste.yaml.
+  const PASTA_SELECAO = path.join(PASTA_FIXTURES, "..", "selecao");
+  const SELECAO = path.join(PASTA_FIXTURES, "..", "selecao-de-teste.yaml");
+  const semBanco = () => {
+    const limpo = { ...process.env };
+    delete limpo.ACERVO_FICHAS_DIR;
+    delete limpo.ACERVO_PROPOSTAS_DIR;
+    for (const chave of Object.keys(limpo))
+      if (/DATABASE|PG|NEON|DB_/i.test(chave)) delete limpo[chave];
+    return limpo;
+  };
+  const abrirNova = async () => {
+    const c = new pg.Client({ connectionString: urlDoPapel("carga", { agrupada: false }) });
+    await c.connect();
+    return c;
+  };
+  const edicaoNoBanco = async (slug: string) =>
+    (
+      await migra.query(
+        `select fi.edicao_consultada from acervo.ficha fi
+           join acervo.fonte fo on fo.id = fi.fonte_id where fo.slug = $1`,
+        [slug],
+      )
+    ).rows[0]?.edicao_consultada as string | undefined;
+  const comSelecaoTemporaria = (
+    conteudo: string,
+    corpo: (arquivo: string) => void | Promise<void>,
+  ) => {
+    const pasta = mkdtempSync(path.join(tmpdir(), "jnf-selecao-"));
+    const arquivo = path.join(pasta, "selecao.yaml");
+    try {
+      writeFileSync(arquivo, conteudo);
+      return corpo(arquivo);
+    } finally {
+      rmSync(pasta, { recursive: true, force: true });
+    }
+  };
+
+  it("carrega só as obras com tenho: sim; as com nao não são lidas para o banco", async () => {
+    const linhas: string[] = [];
+    const r = await executarRascunhos(
+      { fichas: PASTA_SELECAO, selecao: SELECAO },
+      { abrir: abrirNova, escrever: (l) => linhas.push(l) },
+    );
+    // Só a obra marcada entra: 1 Fonte + 1 ficha + 1 item.
+    expect(r).toMatchObject({ fichas: 1, inseridas: 3 });
+    expect(await edicaoNoBanco("obra-selecionada-de-teste")).toBeDefined();
+    expect(await edicaoNoBanco("obra-nao-marcada-de-teste")).toBeUndefined();
+    expect(linhas.some((l) => l.includes("obra-nao-marcada-de-teste"))).toBe(true);
+    expect(linhas.some((l) => /nunca é verificada|nenhuma é verificada/.test(l))).toBe(true);
+  });
+
+  it("a edição informada substitui a edicao_consultada no banco, e o YAML da ficha não é alterado", async () => {
+    expect(await edicaoNoBanco("obra-selecionada-de-teste")).toBe(
+      "Edição de teste informada pelo dono, 2011",
+    );
+    // O arquivo da ficha continua com a edição suposta pelo redator: a seleção não toca o YAML.
+    const yaml = readFileSync(path.join(PASTA_SELECAO, "obra-selecionada-de-teste.yaml"), "utf8");
+    expect(yaml).toContain("A confirmar: edição de teste suposta pelo redator, 2011");
+    expect(yaml).not.toContain("Edição de teste informada pelo dono");
+  });
+
+  it("tenho: sim com edição vazia sai 1, nomeia a obra e não grava nada", async () => {
+    await comSelecaoTemporaria(
+      ["obras:", "  - slug: obra-nao-marcada-de-teste", "    tenho: sim", '    edicao: ""'].join(
+        "\n",
+      ),
+      async (arquivo) => {
+        await expect(
+          executarRascunhos(
+            { fichas: PASTA_SELECAO, selecao: arquivo },
+            {
+              abrir: async () => {
+                throw new Error("não deveria abrir conexão");
+              },
+            },
+          ),
+        ).rejects.toThrow(/obra-nao-marcada-de-teste/);
+        // Nada foi gravado: a obra da seleção inválida não existe no banco.
+        expect(await edicaoNoBanco("obra-nao-marcada-de-teste")).toBeUndefined();
+      },
+    );
+  });
+
+  it("tenho: sim com edição ainda 'A confirmar' sai 1 pelo comando, nomeando a obra e sem abrir o banco", () => {
+    const pasta = mkdtempSync(path.join(tmpdir(), "jnf-selecao-"));
+    try {
+      writeFileSync(
+        path.join(pasta, "selecao.yaml"),
+        [
+          "obras:",
+          "  - slug: obra-nao-marcada-de-teste",
+          "    tenho: sim",
+          '    edicao: "A confirmar: edição que o redator supôs"',
+        ].join("\n"),
+      );
+      const r = spawnSync(
+        "node_modules/.bin/tsx",
+        [
+          "scripts/acervo/carregar-rascunhos.ts",
+          "--fichas",
+          PASTA_SELECAO,
+          "--selecao",
+          path.join(pasta, "selecao.yaml"),
+        ],
+        { cwd: RAIZ, env: semBanco(), encoding: "utf8" },
+      );
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/obra-nao-marcada-de-teste/);
+      expect(r.stderr).toMatch(/edição/);
+    } finally {
+      rmSync(pasta, { recursive: true, force: true });
+    }
+  });
+
+  it("slug na seleção sem ficha na pasta e ficha fora da seleção são relatados, sem erro", async () => {
+    await comSelecaoTemporaria(
+      [
+        "obras:",
+        "  - slug: obra-selecionada-de-teste",
+        "    tenho: sim",
+        '    edicao: "Edição de teste informada pelo dono, 2011"',
+        "  - slug: obra-inexistente-de-teste",
+        "    tenho: sim",
+        '    edicao: "Edição de teste qualquer, 1999"',
+      ].join("\n"),
+      async (arquivo) => {
+        const linhas: string[] = [];
+        const r = await executarRascunhos(
+          { fichas: PASTA_SELECAO, selecao: arquivo },
+          { abrir: abrirNova, escrever: (l) => linhas.push(l) },
+        );
+        // A obra marcada e existente carrega (já carregada acima: inalterada); a ausente é relatada.
+        expect(r).toMatchObject({ fichas: 1, inseridas: 0, atualizadas: 0 });
+        expect(linhas.some((l) => /sem ficha na pasta: obra-inexistente-de-teste/.test(l))).toBe(
+          true,
+        );
+        expect(linhas.some((l) => /fora da seleção: obra-nao-marcada-de-teste/.test(l))).toBe(true);
+        // A obra inexistente não criou nada.
+        expect(await edicaoNoBanco("obra-inexistente-de-teste")).toBeUndefined();
+      },
+    );
+  });
+
+  it("a carga com seleção é idempotente e continua sem gravar verificação", async () => {
+    // O banco descartável é compartilhado com a suíte anterior (que deixa conferências de teste):
+    // o que se prova é que a carga com seleção NÃO toca a evidência — as contagens não mudam.
+    const antes = {
+      verificacao: await contar("select count(*)::int as n from acervo.verificacao_ficha"),
+      conferencia: await contar("select count(*)::int as n from acervo.conferencia_item"),
+      registro: await contar("select count(*)::int as n from admin.registro_verificacao"),
+    };
+    expect(antes.verificacao).toBe(0);
+    expect(antes.registro).toBe(0);
+    const r = await executarRascunhos(
+      { fichas: PASTA_SELECAO, selecao: SELECAO },
+      { abrir: abrirNova, escrever: () => {} },
+    );
+    expect(r).toMatchObject({ fichas: 1, inseridas: 0, atualizadas: 0, inalteradas: 3 });
+    expect(await contar("select count(*)::int as n from acervo.verificacao_ficha")).toBe(
+      antes.verificacao,
+    );
+    expect(await contar("select count(*)::int as n from acervo.conferencia_item")).toBe(
+      antes.conferencia,
+    );
+    expect(await contar("select count(*)::int as n from admin.registro_verificacao")).toBe(
+      antes.registro,
+    );
+  });
+
+  it("--so-validar com seleção confere o contrato e a seleção, sai 0 e não usa banco", () => {
+    const r = spawnSync(
+      "node_modules/.bin/tsx",
+      [
+        "scripts/acervo/carregar-rascunhos.ts",
+        "--fichas",
+        PASTA_SELECAO,
+        "--selecao",
+        SELECAO,
+        "--so-validar",
+      ],
+      { cwd: RAIZ, env: semBanco(), encoding: "utf8" },
+    );
+    expect(r.stderr).toBe("");
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/^OK obra-selecionada-de-teste$/m);
+    expect(r.stdout).toMatch(/reprovadas=0/);
+    expect(r.stdout).toMatch(/selecionadas=1 de fichas=2/);
+    expect(r.stdout).not.toMatch(/inseridas=/);
   });
 });
 

@@ -1,0 +1,12 @@
+# SELEÇÃO DE TESTE (plano 02-25): cobre o modo --selecao do carregador de rascunhos contra as fichas
+# sintéticas da pasta selecao/. Obras inventadas; nada aqui é fato nem confere livro algum.
+# Formato do arquivo que o dono preenche: uma entrada por obra, com `tenho` ("sim" ou "nao") e a
+# `edicao` que ele tem em mãos. Obra com `tenho: sim` exige `edicao` preenchida e que não comece por
+# "A confirmar" — sem isso o comando sai 1, nomeando a obra, sem gravar nada.
+obras:
+  - slug: obra-selecionada-de-teste
+    tenho: sim
+    edicao: "Edição de teste informada pelo dono, 2011"
+  - slug: obra-nao-marcada-de-teste
+    tenho: nao
+    edicao: ""

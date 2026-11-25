@@ -1,0 +1,21 @@
+# FICHA DE TESTE do modo --selecao: obra inventada ("Obra Selecionada de Teste"), sem relação com
+# livro algum. Serve só para provar que o carregador com seleção carrega o que o dono marcou e grava a
+# edição que ele informou. RASCUNHO NÃO VERIFICADO.
+slug: obra-selecionada-de-teste
+titulo: Obra Selecionada de Teste
+autor: Autor de Teste
+ano: 2011
+editora: Editora de Teste
+edicao_consultada: "A confirmar: edição de teste suposta pelo redator, 2011"
+estado: rascunho
+origem_do_rascunho: memoria-do-modelo
+idioma_trechos: en
+tese_pt: A obra selecionada de teste afirma, só para fins de teste, que a edição que o dono informa é a que vale no banco.
+limites_pt: Obra inventada; nada nela é fato histórico.
+serve_a:
+  - bh00-a0
+itens:
+  - tipo: argumento
+    texto_pt: Argumento de teste da obra selecionada, em português.
+    pagina: "20"
+    confianca: media
