@@ -20,11 +20,13 @@ import { abrirCarga, ErroCarga } from "../ingest/carregar-biblia";
 import {
   CAMINHO_LOCK,
   ErroDerivado,
+  type LockDerivados,
   lerDerivado,
   lerLock,
   PASTA_DERIVADOS,
   verificarDerivados,
 } from "./derivados";
+import { hashDoYaml, shaDaEntrada } from "./entrada";
 
 export type Contagem = {
   inseridos: number;
@@ -34,7 +36,7 @@ export type Contagem = {
 };
 /** Uma Fonte do arquivo que a carga RECUSOU porque o painel a editou: os campos em conflito, e nada foi escrito nela. */
 export type ConflitoDeCarga = { slug: string; campos: string[] };
-/** Uma Fonte que a carga PULOU porque o banco já tem uma revisão do derivado MAIOR que a deste build (nada foi escrito). */
+/** Uma Fonte que a carga PULOU porque o banco já tem uma revisão da entrada MAIOR que a deste build (nada foi escrito). */
 export type PuladaPorRevisao = { slug: string; revisaoDoBanco: number; revisaoDoBuild: number };
 /** Uma Fonte que a carga RECUSOU porque escreveria mais unidades que o teto (nada foi escrito nela). */
 export type RecusadaPeloTeto = { slug: string; unidades: number; teto: number };
@@ -65,8 +67,46 @@ export const CODIGO_DE_CONFLITO = 3;
 export const TETO_DE_UNIDADES_POR_FONTE = 250;
 
 /**
- * Um item da carga: o YAML da Fonte já validado e o derivado dela já validado. `versao` é a revisão e o sha256 do
- * derivado no lock: com ela a carga nunca leva uma Fonte para trás; sem ela (só testes de unidade da carga) não há essa
+ * Teto de unidades (parágrafos e seções, contando os parágrafos que a remoção de uma seção leva) que UMA carga apaga
+ * numa Fonte, mesmo autorizadas. 50: remover é ato manual e raro, e o que ele apaga cabe numa lista que se confere a
+ * olho; acima disso a carga aborta sem escrever nada e pede `--teto-remocoes <n>`, para um id colado errado, ou uma
+ * seção grande demais, não apagar uma obra inteira.
+ */
+export const TETO_DE_REMOCOES_POR_FONTE = 50;
+
+/** A forma de uma autorização de remoção: tipada, porque o mesmo id pode existir como seção e como parágrafo. */
+export const FORMA_DA_AUTORIZACAO = /^(secao|paragrafo):[a-z0-9]+(-[a-z0-9]+)*\/\S+$/;
+
+/**
+ * Onde ficam, numa lista de posições (seção numa Fonte, parágrafo numa seção), os itens que a carga RETÉM e que não
+ * estão no derivado. `usadas` são as posições do derivado, que ganham as suas de qualquer jeito. O retido que não
+ * colide com nenhuma fica onde está; o que colide vai para o fim, numa posição acima de todas as ocupadas, na ordem em
+ * que estava. Assim, qualquer mistura de itens retidos e itens inseridos entre eles termina sem duas posições iguais.
+ */
+export function posicoesDosRetidos(
+  usadas: ReadonlySet<number>,
+  retidos: readonly { id: string; ordem: number }[],
+): Map<string, number> {
+  const ordenados = [...retidos].sort((a, b) => a.ordem - b.ordem);
+  const resultado = new Map<string, number>();
+  const ocupadas = new Set(usadas);
+  const colidem: { id: string; ordem: number }[] = [];
+  for (const r of ordenados) {
+    if (usadas.has(r.ordem)) colidem.push(r);
+    else {
+      resultado.set(r.id, r.ordem);
+      ocupadas.add(r.ordem);
+    }
+  }
+  let proxima = Math.max(0, ...ocupadas) + 1;
+  for (const r of colidem) resultado.set(r.id, proxima++);
+  return resultado;
+}
+
+/**
+ * Um item da carga: o YAML da Fonte já validado e o derivado dela já validado. `versao` é a revisão e o sha256 da
+ * ENTRADA inteira (o derivado e o YAML, `scripts/acervo/entrada.ts`) no lock: com ela a carga nunca leva uma Fonte para
+ * trás, nem por um derivado mais velho nem por um YAML mais velho; sem ela (só testes de unidade da carga) não há essa
  * guarda. O `acervo:load` e o build SEMPRE a passam.
  */
 export type FonteParaCarga = {
@@ -107,8 +147,8 @@ type LinhaFonte = {
   valores_arquivo: Partial<ValoresDaFonte> | null;
   publicada_arquivo: boolean | null;
   conflito_carga: string[];
-  derivado_revisao: number | null;
-  derivado_sha256: string | null;
+  entrada_revisao: number | null;
+  entrada_sha256: string | null;
 };
 
 type LinhaSecao = {
@@ -130,7 +170,7 @@ type Acumulado = {
   maisNovasNoBanco: PuladaPorRevisao[];
   recusadasPeloTeto: RecusadaPeloTeto[];
   mantidos: { secoes: number; paragrafos: number };
-  /** Os ids de remoção autorizados que a carga de fato aplicou (os que sobram são erro: a autorização não casou com nada). */
+  /** As autorizações de remoção (tipadas) que a carga de fato aplicou (os que sobram são erro: a autorização não casou com nada). */
   remocoesAplicadas: Set<string>;
 };
 
@@ -138,6 +178,7 @@ type OpcoesDaCarga = {
   /** Os ids (de parágrafo ou de seção) que ESTA execução está autorizada a apagar. Padrão: nenhum. */
   remocoesAutorizadas: ReadonlySet<string>;
   tetoDeUnidades: number;
+  tetoDeRemocoes: number;
 };
 
 type LinhaParagrafo = {
@@ -289,20 +330,30 @@ export async function carregarFontes(
   opcoes: {
     cliente: pg.Client;
     /**
-     * Os ids (de parágrafo ou de seção) que ESTA execução está autorizada a apagar. Padrão: nenhum. A carga NUNCA apaga
-     * por conta própria o que sumiu do derivado: o que sai é só o que alguém listou, de propósito (`acervo:load --remover`).
+     * As autorizações, TIPADAS (`secao:<id>` ou `paragrafo:<id>`), do que ESTA execução pode apagar. Padrão: nenhuma. A
+     * carga NUNCA apaga por conta própria o que sumiu do derivado: o que sai é só o que alguém listou, de propósito
+     * (`acervo:load --remover`).
      * O build de produção não passa lista nenhuma.
      */
     remocoesAutorizadas?: readonly string[];
     /** Teto de unidades escritas por Fonte existente numa carga. Padrão: `TETO_DE_UNIDADES_POR_FONTE`. */
     tetoDeUnidades?: number;
+    /** Teto de unidades apagadas por Fonte, mesmo autorizadas. Padrão: `TETO_DE_REMOCOES_POR_FONTE`. */
+    tetoDeRemocoes?: number;
   },
 ): Promise<ResultadoFontes> {
   const c = opcoes.cliente;
   const config: OpcoesDaCarga = {
     remocoesAutorizadas: new Set(opcoes.remocoesAutorizadas ?? []),
     tetoDeUnidades: opcoes.tetoDeUnidades ?? TETO_DE_UNIDADES_POR_FONTE,
+    tetoDeRemocoes: opcoes.tetoDeRemocoes ?? TETO_DE_REMOCOES_POR_FONTE,
   };
+  // Autorização sem tipo (`fonte-x/1`) é recusada: não diz se é a seção ou o parágrafo, e valeria para os dois.
+  for (const a of config.remocoesAutorizadas)
+    if (!FORMA_DA_AUTORIZACAO.test(a))
+      throw new ErroCarga(
+        "remoção: a autorização tem a forma secao:<slug>/<seção> ou paragrafo:<slug>/<ref>",
+      );
   for (const item of itens) {
     conferirItem(item);
     conferirTetoDeSecao(item);
@@ -428,7 +479,7 @@ async function carregarUma(
       `select id, titulo, autor, nivel, tipo_texto, idioma, epoca, licenca, licenca_url, origem_nome,
               origem_url, tradutor, traducao_ano, edicao, traduzida_por_nos, limites_pt, editor, publicada,
               origem_registro, hash_ultima_carga, valores_arquivo, publicada_arquivo, conflito_carga,
-              derivado_revisao, derivado_sha256
+              entrada_revisao, entrada_sha256
          from acervo.fonte where slug = $1 for update`,
       [fonte.slug],
     )
@@ -438,23 +489,20 @@ async function carregarUma(
 
   // ───── nunca para trás: o banco já tem uma revisão MAIS NOVA do derivado desta Fonte (build de uma versão
   // anterior, redeploy ou rollback). Nada é lido nem escrito além desta linha: a Fonte fica como está e a carga avisa.
-  if (versao && existente && existente.derivado_revisao !== null) {
-    if (versao.revisao < existente.derivado_revisao) {
+  if (versao && existente && existente.entrada_revisao !== null) {
+    if (versao.revisao < existente.entrada_revisao) {
       total.maisNovasNoBanco.push({
         slug: fonte.slug,
-        revisaoDoBanco: existente.derivado_revisao,
+        revisaoDoBanco: existente.entrada_revisao,
         revisaoDoBuild: versao.revisao,
       });
       return;
     }
     // Mesma revisão com outro conteúdo: o derivado mudou sem a revisão subir (lock editado à mão). Não há como saber
     // qual dos dois é o mais novo, então não se grava nenhum.
-    if (
-      versao.revisao === existente.derivado_revisao &&
-      versao.sha256 !== existente.derivado_sha256
-    )
+    if (versao.revisao === existente.entrada_revisao && versao.sha256 !== existente.entrada_sha256)
       throw new ErroCarga(
-        `Fonte ${fonte.slug}: a revisão ${versao.revisao} do derivado tem outro sha256 que o do banco; a revisão tem de subir quando o derivado muda (acervo:derivar)`,
+        `Fonte ${fonte.slug}: a revisão ${versao.revisao} da entrada (derivado e YAML) tem outro sha256 que o do banco; a revisão tem de subir quando o derivado ou o YAML muda (acervo:derivar, acervo:travar)`,
       );
   }
 
@@ -527,18 +575,81 @@ async function carregarUma(
       : [],
   );
 
-  // ───── teto: numa Fonte que já existe, uma carga que escreveria mais unidades (seções e parágrafos novos ou
-  // diferentes) que o teto é recusada ANTES de qualquer escrita nela. Fonte nova só insere, e não tem o que sobrescrever.
+  // ───── o que sumiu do derivado: NUNCA sai sozinho. A carga só apaga o que esta execução foi autorizada a apagar,
+  // com autorização TIPADA (`secao:<id>` ou `paragrafo:<id>`: o mesmo id pode existir como seção e como parágrafo) e
+  // até o teto de remoções; o resto fica, e é contado e avisado. Um build de produção não autoriza nada, então nunca
+  // apaga. Parágrafo com Citação não sai nem autorizado: a carga falha e nada é apagado.
+  const queFicamP = new Set(querParagrafos.map((p) => p.id));
+  const queFicamS = new Set(querSecoes.map((s) => s.id));
+  const secoesSumidas = [...secoesAtuais.keys()].filter((id) => !queFicamS.has(id));
+  const secoesQueSaem = secoesSumidas.filter((id) => config.remocoesAutorizadas.has(`secao:${id}`));
+  // Apagar uma seção leva os parágrafos dela: todos têm de ter sumido do derivado também, senão a remoção é recusada.
+  for (const secaoId of secoesQueSaem) {
+    const seguem = [...paragrafosAtuais.values()].filter(
+      (p) => p.secao_id === secaoId && queFicamP.has(p.id),
+    );
+    if (seguem.length > 0)
+      throw new ErroCarga(
+        `Fonte ${fonte.slug}: a seção ${secaoId} ainda tem parágrafos no derivado e não pode ser removida`,
+      );
+  }
+  const paragrafosSumidos = [...paragrafosAtuais.values()].filter((p) => !queFicamP.has(p.id));
+  const paragrafosQueSaem = paragrafosSumidos
+    .filter(
+      (p) =>
+        config.remocoesAutorizadas.has(`paragrafo:${p.id}`) || secoesQueSaem.includes(p.secao_id),
+    )
+    .map((p) => p.id);
+  const remocoes = paragrafosQueSaem.length + secoesQueSaem.length;
+  if (remocoes > config.tetoDeRemocoes)
+    throw new ErroCarga(
+      `Fonte ${fonte.slug}: a remoção apagaria ${remocoes} unidades (parágrafos e seções), acima do teto de ${config.tetoDeRemocoes}; nada foi escrito (--teto-remocoes <n> à mão)`,
+    );
+  if (paragrafosQueSaem.length > 0) {
+    const citados = await c.query<{ fonte_paragrafo_id: string }>(
+      "select distinct fonte_paragrafo_id from acervo.citacao where fonte_paragrafo_id = any($1::text[])",
+      [paragrafosQueSaem],
+    );
+    if (citados.rows.length > 0)
+      throw new ErroCarga(
+        `Fonte ${fonte.slug}: o parágrafo ${citados.rows[0]?.fonte_paragrafo_id} saiu do derivado e já tem Citação`,
+      );
+  }
+
+  // ───── posições dos que FICAM e não estão no derivado: ninguém pode herdar a posição de quem ficou (UNIQUE na
+  // posição), então o retido que colide com o derivado vai para o fim, em posição livre; o que não colide não se mexe.
+  const saem = new Set(paragrafosQueSaem);
+  const retidasS = secoesSumidas
+    .filter((id) => !secoesQueSaem.includes(id))
+    .map((id) => secoesAtuais.get(id) as LinhaSecao);
+  const posicaoDasS = posicoesDosRetidos(new Set(querSecoes.map((x) => x.ordem)), retidasS);
+  const moversS = retidasS.filter((r) => posicaoDasS.get(r.id) !== r.ordem);
+  const retidosP = paragrafosSumidos.filter((p) => !saem.has(p.id));
+  const posicaoDosP = new Map<string, number>();
+  for (const secaoId of new Set(retidosP.map((p) => p.secao_id))) {
+    const usadas = new Set(querParagrafos.filter((p) => p.secaoId === secaoId).map((p) => p.ordem));
+    for (const [id, ordem] of posicoesDosRetidos(
+      usadas,
+      retidosP.filter((p) => p.secao_id === secaoId),
+    ))
+      posicaoDosP.set(id, ordem);
+  }
+  const moversP = retidosP.filter((p) => posicaoDosP.get(p.id) !== p.ordem);
+
+  // ───── teto: numa Fonte que já existe, uma carga que escreveria mais unidades (seções e parágrafos novos, diferentes
+  // ou reposicionados) que o teto é recusada ANTES de qualquer escrita nela. Fonte nova só insere.
   if (existente) {
     const unidades =
-      querSecoes.filter((s) => {
-        const a = secoesAtuais.get(s.id);
-        return !a || !secaoIgual(a, s);
+      querSecoes.filter((x) => {
+        const a = secoesAtuais.get(x.id);
+        return !a || !secaoIgual(a, x);
       }).length +
       querParagrafos.filter((p) => {
         const a = paragrafosAtuais.get(p.id);
         return !a || !paragrafoIgual(a, p);
-      }).length;
+      }).length +
+      moversS.length +
+      moversP.length;
     if (unidades > config.tetoDeUnidades) {
       total.recusadasPeloTeto.push({
         slug: fonte.slug,
@@ -596,41 +707,14 @@ async function carregarUma(
     );
   }
 
-  // ───── o que sumiu do derivado: NUNCA sai sozinho. A carga só apaga o que esta execução foi autorizada a apagar
-  // (`remocoesAutorizadas`, ids listados de propósito); o resto fica, e é contado e avisado. Um build de produção não
-  // autoriza nada, então nunca apaga. Parágrafo com Citação não sai nem autorizado: a carga falha e nada é apagado.
-  const queFicamP = new Set(querParagrafos.map((p) => p.id));
-  const queFicamS = new Set(querSecoes.map((s) => s.id));
-  const autorizada = (id: string) => config.remocoesAutorizadas.has(id);
-  const secoesSumidas = [...secoesAtuais.keys()].filter((id) => !queFicamS.has(id));
-  const secoesQueSaem = secoesSumidas.filter(autorizada);
-  // Apagar uma seção leva os parágrafos dela: todos têm de ter sumido do derivado também, senão a remoção é recusada.
-  for (const secaoId of secoesQueSaem) {
-    const seguem = [...paragrafosAtuais.values()].filter(
-      (p) => p.secao_id === secaoId && queFicamP.has(p.id),
-    );
-    if (seguem.length > 0)
-      throw new ErroCarga(
-        `Fonte ${fonte.slug}: a seção ${secaoId} ainda tem parágrafos no derivado e não pode ser removida`,
-      );
-  }
-  const paragrafosQueSaem = [...paragrafosAtuais.values()]
-    .filter((p) => !queFicamP.has(p.id) && (autorizada(p.id) || secoesQueSaem.includes(p.secao_id)))
-    .map((p) => p.id);
-  const paragrafosSumidos = [...paragrafosAtuais.keys()].filter((id) => !queFicamP.has(id));
+  // ───── remoções autorizadas (já conferidas acima)
   total.mantidos.paragrafos += paragrafosSumidos.length - paragrafosQueSaem.length;
   total.mantidos.secoes += secoesSumidas.length - secoesQueSaem.length;
-  for (const id of [...paragrafosQueSaem, ...secoesQueSaem])
-    if (autorizada(id)) total.remocoesAplicadas.add(id);
+  for (const id of secoesQueSaem) total.remocoesAplicadas.add(`secao:${id}`);
+  for (const id of paragrafosQueSaem)
+    if (config.remocoesAutorizadas.has(`paragrafo:${id}`))
+      total.remocoesAplicadas.add(`paragrafo:${id}`);
   if (paragrafosQueSaem.length > 0) {
-    const citados = await c.query<{ fonte_paragrafo_id: string }>(
-      "select distinct fonte_paragrafo_id from acervo.citacao where fonte_paragrafo_id = any($1::text[])",
-      [paragrafosQueSaem],
-    );
-    if (citados.rows.length > 0)
-      throw new ErroCarga(
-        `Fonte ${fonte.slug}: o parágrafo ${citados.rows[0]?.fonte_paragrafo_id} saiu do derivado e já tem Citação`,
-      );
     await c.query("delete from acervo.fonte_paragrafo where id = any($1::text[])", [
       paragrafosQueSaem,
     ]);
@@ -641,18 +725,29 @@ async function carregarUma(
     total.secoes.removidos += secoesQueSaem.length;
   }
 
-  // ───── seções: as que mudam de ordem saem da posição antes (UNIQUE fonte_id, ordem); a posição
-  // provisória é negativa e nunca sobrevive à transação.
+  // ───── seções: as que mudam de ordem (as do derivado e as retidas que colidiriam) saem da posição antes (UNIQUE
+  // fonte_id, ordem); a posição provisória é negativa e nunca sobrevive à transação.
   const mudamDeOrdemS = querSecoes
-    .filter((s) => {
-      const a = secoesAtuais.get(s.id);
-      return a !== undefined && a.ordem !== s.ordem;
+    .filter((x) => {
+      const a = secoesAtuais.get(x.id);
+      return a !== undefined && a.ordem !== x.ordem;
     })
-    .map((s) => s.id);
-  if (mudamDeOrdemS.length > 0)
+    .map((x) => x.id);
+  const paraEstacionarS = [...mudamDeOrdemS, ...moversS.map((r) => r.id)];
+  if (paraEstacionarS.length > 0)
     await c.query("update acervo.fonte_secao set ordem = -ordem - 1 where id = any($1::text[])", [
-      mudamDeOrdemS,
+      paraEstacionarS,
     ]);
+  // As retidas vão já para a posição livre (acima de todas as usadas): não colidem com nenhuma do derivado.
+  if (moversS.length > 0) {
+    await c.query(
+      `update acervo.fonte_secao s set ordem = v.ordem
+         from unnest($1::text[], $2::int4[]) as v(id, ordem) where s.id = v.id`,
+      [moversS.map((r) => r.id), moversS.map((r) => posicaoDasS.get(r.id))],
+    );
+    total.secoes.atualizados += moversS.length;
+  }
+
   for (const s of querSecoes) {
     const a = secoesAtuais.get(s.id);
     const valoresS: ValoresDaSecao = {
@@ -707,17 +802,29 @@ async function carregarUma(
       mudaram.push(p);
     }
   }
-  const saemDaPosicao = mudaram
-    .filter((p) => {
-      const a = paragrafosAtuais.get(p.id);
-      return a !== undefined && (a.ordem !== p.ordem || a.secao_id !== p.secaoId);
-    })
-    .map((p) => p.id);
+  const saemDaPosicao = [
+    ...mudaram
+      .filter((p) => {
+        const a = paragrafosAtuais.get(p.id);
+        return a !== undefined && (a.ordem !== p.ordem || a.secao_id !== p.secaoId);
+      })
+      .map((p) => p.id),
+    ...moversP.map((r) => r.id),
+  ];
   if (saemDaPosicao.length > 0)
     await c.query(
       "update acervo.fonte_paragrafo set ordem = -ordem - 1 where id = any($1::text[])",
       [saemDaPosicao],
     );
+  // Os retidos vão já para a posição livre (acima de todas as usadas na seção): não colidem com nenhum do derivado.
+  if (moversP.length > 0) {
+    await c.query(
+      `update acervo.fonte_paragrafo p set ordem = v.ordem
+         from unnest($1::text[], $2::int2[]) as v(id, ordem) where p.id = v.id`,
+      [moversP.map((r) => r.id), moversP.map((r) => posicaoDosP.get(r.id))],
+    );
+    total.paragrafos.atualizados += moversP.length;
+  }
   for (let i = 0; i < mudaram.length; i += LOTE_DE_PARAGRAFOS) {
     const lote = mudaram.slice(i, i + LOTE_DE_PARAGRAFOS);
     await c.query(
@@ -743,8 +850,8 @@ async function carregarUma(
   // conta como mudança nem sobe a revisão do painel.
   if (versao)
     await c.query(
-      `update acervo.fonte set derivado_revisao = $1, derivado_sha256 = $2
-        where id = $3 and (derivado_revisao is distinct from $1 or derivado_sha256 is distinct from $2)`,
+      `update acervo.fonte set entrada_revisao = $1, entrada_sha256 = $2
+        where id = $3 and (entrada_revisao is distinct from $1 or entrada_sha256 is distinct from $2)`,
       [versao.revisao, versao.sha256, fonteId],
     );
 
@@ -762,8 +869,10 @@ export type OpcoesDoComando = {
   fontes: string;
   derivados: string;
   lock: string;
-  /** Ids (de parágrafo ou de seção) que ESTA execução pode apagar. Só o `acervo:load` à mão passa; o build nunca. */
+  /** Autorizações tipadas (`secao:<id>`, `paragrafo:<id>`) do que ESTA execução pode apagar. Só o `acervo:load` à mão; o build nunca. */
   remover?: readonly string[];
+  /** Outro teto de remoções por Fonte, só à mão (`--teto-remocoes`). */
+  tetoDeRemocoes?: number;
   /** Outro teto de unidades por Fonte, só à mão (`--teto`). O build usa o padrão. */
   teto?: number;
 };
@@ -794,6 +903,24 @@ function lerYamls(pasta: string): FonteYaml[] {
 }
 
 /**
+ * A revisão e o sha256 da entrada de uma Fonte: o YAML lido tem de ser o que o lock travou (senão o YAML mudou sem a
+ * revisão subir, e não há como saber qual é o mais novo), e o sha256 da entrada junta o do derivado e o do YAML.
+ */
+function versaoDaEntrada(
+  lock: LockDerivados,
+  fonte: FonteYaml,
+): { revisao: number; sha256: string } {
+  const entrada = lock.derivados[fonte.slug];
+  if (!entrada) throw new ErroDerivado(`derivado ${fonte.slug}: fora do lock`);
+  const yaml = hashDoYaml(fonte);
+  if (yaml !== entrada.yaml_sha256)
+    throw new ErroDerivado(
+      `Fonte ${fonte.slug}: o YAML mudou sem a revisão subir no lock (rode pnpm acervo:travar e faça o commit do lock)`,
+    );
+  return { revisao: entrada.revisao, sha256: shaDaEntrada(entrada.sha256, yaml) };
+}
+
+/**
  * Confere o lock, o orçamento e o contrato de cada YAML e de cada derivado, TUDO antes de criar o cliente do banco;
  * só então carrega. Sem derivado a carregar, não abre conexão. Erro lança (o comando sai com 1); nada é gravado.
  */
@@ -819,11 +946,9 @@ export async function executarCarga(
       itens.push({
         fonte,
         derivado: lerDerivado(opcoes.derivados, lock, fonte.slug),
-        // Revisão e sha256 do lock já conferido: a carga nunca leva uma Fonte para uma revisão menor que a do banco.
-        versao: {
-          revisao: (lock.derivados[fonte.slug] as { revisao: number }).revisao,
-          sha256: (lock.derivados[fonte.slug] as { sha256: string }).sha256,
-        },
+        // Revisão e sha256 da ENTRADA (derivado + YAML) do lock já conferido: a carga nunca leva uma Fonte para uma
+        // revisão menor que a do banco.
+        versao: versaoDaEntrada(lock, fonte),
       });
     } else if (fonte.publicada) {
       throw new ErroCarga(`Fonte ${fonte.slug}: publicada e sem derivado`);
@@ -850,13 +975,14 @@ export async function executarCarga(
       cliente,
       remocoesAutorizadas: opcoes.remover,
       tetoDeUnidades: opcoes.teto,
+      tetoDeRemocoes: opcoes.tetoDeRemocoes,
     });
     escrever(
       `inseridos=${resultado.inseridos} atualizados=${resultado.atualizados} inalterados=${resultado.inalterados} removidos=${resultado.removidos}`,
     );
     for (const m of resultado.maisNovasNoBanco)
       escrever(
-        `aviso: ${m.slug}: o banco já tem a revisão ${m.revisaoDoBanco} do derivado e este build traz a ${m.revisaoDoBuild}; a carga não a tocou (build de uma versão anterior?).`,
+        `aviso: ${m.slug}: o banco já tem a revisão ${m.revisaoDoBanco} da entrada (derivado e YAML) e este build traz a ${m.revisaoDoBuild}; a carga não a tocou (build de uma versão anterior?).`,
       );
     for (const r of resultado.recusadasPeloTeto)
       escrever(
@@ -864,7 +990,7 @@ export async function executarCarga(
       );
     if (resultado.mantidos.paragrafos + resultado.mantidos.secoes > 0)
       escrever(
-        `aviso: ficaram no banco ${resultado.mantidos.paragrafos} parágrafos e ${resultado.mantidos.secoes} seções que não estão mais no derivado; a carga não apaga sozinha (acervo:load --remover <ids> à mão).`,
+        `aviso: ficaram no banco ${resultado.mantidos.paragrafos} parágrafos e ${resultado.mantidos.secoes} seções que não estão mais no derivado; a carga não apaga sozinha (acervo:load --remover secao:<id> ou paragrafo:<id> à mão).`,
       );
     for (const c of resultado.conflitos)
       escrever(
@@ -889,7 +1015,7 @@ export function codigoDeSaida(r: ResultadoDoComando): number {
 }
 
 const USO =
-  "Uso: acervo:load [--fontes <pasta>] [--derivados <pasta>] [--lock <arquivo>] [--remover <id,id,...>] [--teto <n>]";
+  "Uso: acervo:load [--fontes <pasta>] [--derivados <pasta>] [--lock <arquivo>] [--remover <secao:id,paragrafo:id,...>] [--teto <n>] [--teto-remocoes <n>]";
 
 export function lerOpcoes(argumentos: string[]): OpcoesDoComando {
   const valorBruto = (flag: string): string | undefined => {
@@ -911,18 +1037,27 @@ export function lerOpcoes(argumentos: string[]): OpcoesDoComando {
     return v.split(",").map((x) => x.trim());
   };
   const remover = lista("--remover");
-  if (remover?.some((id) => !/^[a-z0-9]+(-[a-z0-9]+)*\/[^\s/][^\s]*$/.test(id)))
-    throw new ErroCarga("--remover: cada id tem a forma <slug da Fonte>/<seção ou ref>");
-  const tetoTexto = valorBruto("--teto");
-  const teto = tetoTexto === undefined ? undefined : Number(tetoTexto);
-  if (teto !== undefined && (!Number.isInteger(teto) || teto < 1))
-    throw new ErroCarga("--teto: um inteiro maior que zero");
+  if (remover?.some((a) => !FORMA_DA_AUTORIZACAO.test(a)))
+    throw new ErroCarga(
+      "--remover: cada autorização é tipada, secao:<slug>/<seção> ou paragrafo:<slug>/<ref>",
+    );
+  const inteiro = (flag: string): number | undefined => {
+    const texto = valorBruto(flag);
+    if (texto === undefined) return undefined;
+    const numero = Number(texto);
+    if (!Number.isInteger(numero) || numero < 1)
+      throw new ErroCarga(`${flag}: um inteiro maior que zero`);
+    return numero;
+  };
+  const teto = inteiro("--teto");
+  const tetoDeRemocoes = inteiro("--teto-remocoes");
   return {
     fontes: valor("--fontes", PASTA_FONTES),
     derivados: valor("--derivados", PASTA_DERIVADOS),
     lock: valor("--lock", CAMINHO_LOCK),
     ...(remover ? { remover } : {}),
     ...(teto === undefined ? {} : { teto }),
+    ...(tetoDeRemocoes === undefined ? {} : { tetoDeRemocoes }),
   };
 }
 

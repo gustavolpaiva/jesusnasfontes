@@ -32,9 +32,12 @@ const esquemaLock = z
         .object({
           sha256: z.string().regex(/^[0-9a-f]{64}$/),
           bytes: z.number().int().min(0),
-          // Número monótono da versão do derivado: sobe a cada `acervo:derivar` que muda o arquivo. É o que a carga
-          // compara com o do banco para nunca levar o conteúdo para trás (build de uma versão anterior). Obrigatório:
-          // lock sem ele não carrega (plano 02-22, revisão cruzada).
+          // sha256 do YAML da Fonte normalizado (`scripts/acervo/entrada.ts`). Com o do derivado forma a ENTRADA da carga.
+          // Atualizado por `pnpm acervo:travar`; a carga recusa um YAML que não confere com ele.
+          yaml_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+          // Número monótono da versão da ENTRADA (o derivado e o YAML): sobe quando qualquer um dos dois muda
+          // (`acervo:derivar` e `acervo:travar`). É o que a carga compara com o do banco para nunca levar o conteúdo
+          // para trás (build de uma versão anterior, redeploy ou rollback). Obrigatório: lock sem ele não carrega.
           revisao: z.number().int().min(1),
         })
         .strict(),

@@ -170,7 +170,7 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
   it("parágrafo que sumiu do derivado e foi AUTORIZADO, sem Citação, é apagado (só ele)", async () => {
     const r = await carregarFontes([{ fonte: fonteDaFixture(), derivado: derivadoDaFixture() }], {
       cliente: carga,
-      remocoesAutorizadas: ["josefo-antiguidades/18.65"],
+      remocoesAutorizadas: ["paragrafo:josefo-antiguidades/18.65"],
     });
     expect(r.paragrafos.removidos).toBe(1);
     expect(r.mantidos).toEqual({ secoes: 0, paragrafos: 0 });
@@ -194,7 +194,7 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
     await expect(
       carregarFontes([{ fonte: fonteDaFixture(), derivado: derivadoDaFixture() }], {
         cliente: carga,
-        remocoesAutorizadas: ["josefo-antiguidades/18.65"],
+        remocoesAutorizadas: ["paragrafo:josefo-antiguidades/18.65"],
       }),
     ).rejects.toThrow(ErroCarga);
     expect(await contar("select count(*) as n from acervo.fonte_paragrafo")).toBe(antes);
@@ -203,7 +203,7 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
     await dono.query("delete from acervo.afirmacao where id = 'teste-a1'");
     await carregarFontes([{ fonte: fonteDaFixture(), derivado: derivadoDaFixture() }], {
       cliente: carga,
-      remocoesAutorizadas: ["josefo-antiguidades/18.65"],
+      remocoesAutorizadas: ["paragrafo:josefo-antiguidades/18.65"],
     });
   });
 

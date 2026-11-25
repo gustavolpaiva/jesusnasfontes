@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
+import { YAML_NAO_TRAVADO } from "../../../scripts/acervo/entrada";
 import { ErroChecksum } from "../../../scripts/ingest/acervo-baixar";
 import {
   conferirEsperado,
@@ -191,6 +192,7 @@ describe("derivarParaDisco", () => {
     expect(lock.derivados["josefo-antiguidades"]).toEqual({
       sha256: r.sha256,
       bytes: r.bytes,
+      yaml_sha256: YAML_NAO_TRAVADO,
       revisao: 1,
     });
     const lockAntes = readFileSync(opcoes.lockDerivados, "utf8");
@@ -205,7 +207,12 @@ describe("derivarParaDisco", () => {
     expect(r1.revisao).toBe(1);
     // O lock passa a dizer que o derivado anterior era OUTRO (sha256 diferente), na revisão 4: derivar de novo sobe a 5.
     const lock = JSON.parse(readFileSync(opcoes.lockDerivados, "utf8"));
-    lock.derivados["josefo-antiguidades"] = { sha256: "0".repeat(64), bytes: 1, revisao: 4 };
+    lock.derivados["josefo-antiguidades"] = {
+      sha256: "0".repeat(64),
+      bytes: 1,
+      yaml_sha256: "a".repeat(64),
+      revisao: 4,
+    };
     writeFileSync(opcoes.lockDerivados, JSON.stringify(lock));
     const r2 = derivarParaDisco("josefo-antiguidades", opcoes);
     expect(r2.revisao).toBe(5);
@@ -214,6 +221,7 @@ describe("derivarParaDisco", () => {
     ).toEqual({
       sha256: r1.sha256,
       bytes: r1.bytes,
+      yaml_sha256: "a".repeat(64),
       revisao: 5,
     });
     // Mesmo conteúdo outra vez: a revisão não sobe.

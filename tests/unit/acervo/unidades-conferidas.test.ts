@@ -186,7 +186,12 @@ describe("acervo:verify com unidades_conferidas", () => {
         orcamento_arquivo_bytes: 8_388_608,
         orcamento_total_bytes: 31_457_280,
         derivados: {
-          "tacito-anais": { sha256: sha(conteudo), bytes: conteudo.byteLength, revisao: 1 },
+          "tacito-anais": {
+            sha256: sha(conteudo),
+            bytes: conteudo.byteLength,
+            yaml_sha256: "0".repeat(64),
+            revisao: 1,
+          },
         },
       }),
     );

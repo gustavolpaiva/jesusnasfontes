@@ -22,6 +22,7 @@ import {
   PORTA_BANCO_LOCAL,
   removerBancoDeExecucao,
 } from "../../support/banco-local";
+import { yamlSha256DoArquivo } from "../../support/entrada";
 
 // O passo do Acervo do build de produção (plano 02-22), provado de ponta a ponta em PROCESSO NOVO, com a rede
 // bloqueada por um módulo carregado antes (tests/support/bloquear-rede.ts). Dois níveis:
@@ -146,6 +147,7 @@ function copiaDaFixture(): {
           "josefo-antiguidades": {
             sha256: createHash("sha256").update(bytes).digest("hex"),
             bytes: bytes.length,
+            yaml_sha256: yamlSha256DoArquivo(path.join(fontes, "josefo-antiguidades.yaml")),
             revisao: 1,
           },
         },

@@ -11,6 +11,7 @@ import {
 } from "../../../scripts/acervo/carregar";
 import type { Derivado, FonteYaml } from "../../../src/modules/acervo/schemas";
 import { interpretarFonteYaml } from "../../../src/modules/acervo/schemas";
+import { yamlSha256DoArquivo } from "../../support/entrada";
 
 // Pitfall 9: uma seção acima de 80.000 caracteres de texto estoura a página de leitura no celular. O
 // carregador recusa ANTES de abrir a transação, nomeando a Fonte e a seção; a Fonte pode registrar um teto
@@ -128,6 +129,14 @@ secao_max_caracteres:
     const json = JSON.stringify(d);
     writeFileSync(path.join(derivados, "fonte-x.json"), json);
     writeFileSync(
+      path.join(fontes, "fonte-x.yaml"),
+      `${fonteBase}
+secao_max_caracteres:
+  caracteres: 90000
+  motivo: "seção de leitura contínua conferida no UI-SPEC"
+`,
+    );
+    writeFileSync(
       path.join(raiz, "lock.json"),
       JSON.stringify({
         orcamento_arquivo_bytes: 10_000_000,
@@ -136,18 +145,11 @@ secao_max_caracteres:
           "fonte-x": {
             sha256: createHash("sha256").update(json).digest("hex"),
             bytes: Buffer.byteLength(json),
+            yaml_sha256: yamlSha256DoArquivo(path.join(fontes, "fonte-x.yaml")),
             revisao: 1,
           },
         },
       }),
-    );
-    writeFileSync(
-      path.join(fontes, "fonte-x.yaml"),
-      `${fonteBase}
-secao_max_caracteres:
-  caracteres: 90000
-  motivo: "seção de leitura contínua conferida no UI-SPEC"
-`,
     );
     const linhas: string[] = [];
     await executarCarga(

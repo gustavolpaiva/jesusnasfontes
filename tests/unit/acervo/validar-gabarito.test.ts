@@ -59,7 +59,10 @@ function acervoEmDisco(fontes: readonly FonteSintetica[]): AcervoEmDisco {
   const lock = {
     orcamento_arquivo_bytes: 1_000_000,
     orcamento_total_bytes: 10_000_000,
-    derivados: {} as Record<string, { sha256: string; bytes: number; revisao: number }>,
+    derivados: {} as Record<
+      string,
+      { sha256: string; bytes: number; yaml_sha256: string; revisao: number }
+    >,
   };
   for (const f of fontes) {
     writeFileSync(
@@ -99,6 +102,7 @@ traducao_ano: 1900
     lock.derivados[f.slug] = {
       sha256: sha256(derivado),
       bytes: Buffer.byteLength(derivado),
+      yaml_sha256: "0".repeat(64),
       revisao: 1,
     };
   }

@@ -14,6 +14,7 @@ import {
   lerLock as lerLockDerivados,
   PASTA_DERIVADOS,
 } from "../acervo/derivados";
+import { YAML_NAO_TRAVADO } from "../acervo/entrada";
 import { interpretarOrigem, type ResultadoInterpretado } from "./acervo-interpretar";
 import {
   type ArquivoOrigem,
@@ -301,11 +302,20 @@ export function derivarParaDisco(slug: string, opcoes: OpcoesCli = {}): Resultad
     : anterior.sha256 === hash
       ? anterior.revisao
       : anterior.revisao + 1;
-  const derivados: Record<string, { sha256: string; bytes: number; revisao: number }> = {
+  // O sha256 do YAML não é assunto do derivador: segue o que o lock já tinha (ou "não travado", num derivado novo, até
+  // `pnpm acervo:travar`).
+  const yamlSha256 = anterior?.yaml_sha256 ?? YAML_NAO_TRAVADO;
+  const derivados: Record<
+    string,
+    { sha256: string; bytes: number; yaml_sha256: string; revisao: number }
+  > = {
     ...lock.derivados,
-    [slug]: { sha256: hash, bytes, revisao },
+    [slug]: { sha256: hash, bytes, yaml_sha256: yamlSha256, revisao },
   };
-  const ordenado: Record<string, { sha256: string; bytes: number; revisao: number }> = {};
+  const ordenado: Record<
+    string,
+    { sha256: string; bytes: number; yaml_sha256: string; revisao: number }
+  > = {};
   for (const k of Object.keys(derivados).sort()) ordenado[k] = derivados[k] as never;
   writeFileSync(
     caminhoLock,

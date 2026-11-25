@@ -5,186 +5,223 @@
     "1-clemente": {
       "sha256": "ba099289a316f86c38144e3e6ab6c921f9126a846313fc1d6bda4718ed024906",
       "bytes": 101570,
+      "yaml_sha256": "0b6324221676b2f7bb1955c5a561fba4cac43b31940abb8ac4d97cdc2af1325b",
       "revisao": 1
     },
     "2-clemente": {
       "sha256": "78ae152adc40696bfe851996191f83ac5ef3c9fabb33009f93e53bdcdecbd562",
       "bytes": 30629,
+      "yaml_sha256": "a2aa6fe6685263158bd4c86b53d0549614f9f9339e1abd4492263c1047109bbb",
       "revisao": 1
     },
     "apocalipse-de-pedro": {
       "sha256": "44187b4cd34c3e33abac215bc76c2ef7da75ebdf90a6e550edc098136468220b",
       "bytes": 10178,
+      "yaml_sha256": "5f0f62efba6df7824cee6348e6fd39d96f31ca31ce4b73b5452494ec9f4b88f1",
       "revisao": 1
     },
     "aristides-apologia": {
       "sha256": "16d7415fa232675e27bf32fa656f834385563e4b19c34374fefb8e13cbdad657",
       "bytes": 71353,
+      "yaml_sha256": "bdabf1ee95e18c53a5d593f529c907979706c0b2ed3c1467f1552f68ee2fee65",
       "revisao": 1
     },
     "atos-de-paulo-e-tecla": {
       "sha256": "5fbf1ca0204d37af42324dfb99988e29f194d5dc21f56e2c3925e795423b2dd5",
       "bytes": 32090,
+      "yaml_sha256": "13fc57c25df058896f8f94396b7e893d826f90fd1dfc3fa8e1cdfc3410756e4b",
       "revisao": 1
     },
     "atos-de-pilatos": {
       "sha256": "16b9c221fa61f10388ace4c71aae124e82be7b4b1dd8c57be131552664f7d900",
       "bytes": 149716,
+      "yaml_sha256": "21e64fe4a1608e7151a89faf88cb7eb00da226176db610f4bb91ab0fbeb8af82",
       "revisao": 1
     },
     "barnabe": {
       "sha256": "7c3d8c74e1d36b8342d1e11a9eb98e70f350fa0fd9daab8f6a20ed8929fb98f2",
       "bytes": 65356,
+      "yaml_sha256": "2713b57ad9b5ddca3d415ff70a3f1feadddf283e8b7409d3d965eacbe3d286d2",
       "revisao": 1
     },
     "cartas-e-relatorio-de-pilatos": {
       "sha256": "84e51463f57c4546107787b42a10e90ee7eefdfea83fcf701b1c8d7d6c86f621",
       "bytes": 16753,
+      "yaml_sha256": "338f63338451b8f941396f1e4a557c5bcd3bb8bcca4934fd5347773e5f73b9be",
       "revisao": 1
     },
     "didaque": {
       "sha256": "2a76329d7c2f1d47739b6bf41fd6328427ebdcea5b8597dc69165f5da2ad9332",
       "bytes": 24195,
+      "yaml_sha256": "546fb28c56d715671188b612d5bf434f7b18d4bb02d7d75a03507f80ac68c9a9",
       "revisao": 1
     },
     "diogneto": {
       "sha256": "eb826a444cf19b940ee814fdb51501004dfc9d1a3d3d3f4ea0dc4dba100305d5",
       "bytes": 29006,
+      "yaml_sha256": "692a5afcad431f845da31269e4236270e8c446f85f688d8a5323283b741fb614",
       "revisao": 1
     },
     "eusebio-historia-eclesiastica": {
       "sha256": "0b9d8233c950ae26b36ed8ca7c21d9591ab5e49d936e53189ab16059fb31ad1d",
       "bytes": 921604,
+      "yaml_sha256": "60e3e955604e8e7ae7664714709b3aaff90ad1503025d880f64b135c694d7b02",
       "revisao": 1
     },
     "evangelho-arabe-da-infancia": {
       "sha256": "5a7da0c1589d3d53b20b3d0ec1810d726bb95e44ee8878d9938e02220b49e267",
       "bytes": 59501,
+      "yaml_sha256": "64a6950d69820754bd073168e2bb181a84cae3b11af68f2586065d139d1427de",
       "revisao": 1
     },
     "evangelho-da-infancia-de-tome": {
       "sha256": "367db78547a3b91ac60722275810038bc8fa1f6073530146aeb609ff395570f5",
       "bytes": 48667,
+      "yaml_sha256": "c245c2e1046cf02af9f2edb9cd4ae5e5631989af470bc151b8faab1c34f10a43",
       "revisao": 1
     },
     "evangelho-de-pedro": {
       "sha256": "907539bc987833afacae8a873c5622ab1e3c1e04ea10b8c80d46c292e5724897",
       "bytes": 9943,
+      "yaml_sha256": "05e2006b8c6836e3825affdea12d8e12c8b0c973472618bc6a96f830b45c60cd",
       "revisao": 1
     },
     "evangelho-de-pseudo-mateus": {
       "sha256": "a8f3e283a99eecc8c791e47fb83ab1fc94ec04a68a6a80be459a9a83de3094f6",
       "bytes": 81467,
+      "yaml_sha256": "b2019449adc59c794ad73ec286c167da9c6bb2ed4e980abc81f2fbd22ff9df65",
       "revisao": 1
     },
     "evangelho-de-tome": {
       "sha256": "1adf025d041574f6800098789c7f8fb082c8bc797c78b23dc2e5c8b22c559c74",
       "bytes": 33871,
+      "yaml_sha256": "9fac3fd1f4d7e7dd67d38cdc1fb1f7c6e511cd94cd367f6b9e7d458d710b88bf",
       "revisao": 1
     },
     "hermas": {
       "sha256": "bcbfc2e87503bfa437de28c91bb85f4b5d5f6acd6799d901d5a7ce7e0f8d07f3",
       "bytes": 258857,
+      "yaml_sha256": "2022b3f8bbca680d461352f4a56d51e25b67a2815f4dcd2b2396ff45806a8ffe",
       "revisao": 1
     },
     "historia-de-jose-o-carpinteiro": {
       "sha256": "71a1d94b66a45a98488573f35191dc0bbf181ce057eae688446fb980fd81fc79",
       "bytes": 34125,
+      "yaml_sha256": "87a4aec19dccd0fef2805f09829aaab642f6ddca9d32a4a17311927ab4a0d285",
       "revisao": 1
     },
     "inacio-cartas": {
       "sha256": "dbd0292c2b17965f10bb6949a7dcc77c0334495eda5cfad5b4db67bbdc1741a7",
       "bytes": 77145,
+      "yaml_sha256": "3b081ed586de983e2fded6bb796d9802b7b85c28d4a7a5132072f8623d605500",
       "revisao": 1
     },
     "ireneu-contra-heresias": {
       "sha256": "962bb95ff06e939610fa6ae13f9949143f795c806d017d2b25b8bd44c7e86581",
       "bytes": 1264601,
+      "yaml_sha256": "b2b09ff9dc4fd953c53aa32bdf4e97b1a09ae6b24bbacd683ea9da4b10d0e738",
       "revisao": 1
     },
     "josefo-antiguidades": {
       "sha256": "1d3d83162fceb012bb30cfb739c1fc6dff3b9598bcb8399bc4302405436af6f8",
       "bytes": 2743226,
+      "yaml_sha256": "fb60732e7312e9fa8a79b667dc4d8ccfd47d5c2f2163bed75869bec5facae250",
       "revisao": 1
     },
     "josefo-guerra-judaica": {
       "sha256": "2feb12b514cba3d9dabac33d4530e3cfdf6296bf318ab3b1cd3da2ac0c9b4141",
       "bytes": 1264496,
+      "yaml_sha256": "7e268cc047ff0439d866dec673309e42217b9dba5ae3d394d102050f4291f2a9",
       "revisao": 1
     },
     "julio-africano-fragmentos": {
       "sha256": "f8dd0cc7baeec55ad392670ffec69d7f737fa17a96d2935ee3f55472457124d5",
       "bytes": 40079,
+      "yaml_sha256": "4aa9ebc3a89afcb8e3a4b4846e9899e1e39ca0e1d11b98fd58926b3a736778b8",
       "revisao": 1
     },
     "justino-1-apologia": {
       "sha256": "1ec5470da55e8abac495cb45ec7b37d98bc842e376356697ab3ffce0faaca004",
       "bytes": 120635,
+      "yaml_sha256": "c87534877529447de282e37c081578276ba3527c3ab2eccf289a19352cfb1def",
       "revisao": 1
     },
     "justino-2-apologia": {
       "sha256": "0d8c87f8e684d3102f9907cc38aa787e984103b5e439eccf8eb1b50a46666ca1",
       "bytes": 26971,
+      "yaml_sha256": "5016a4bd5a2240416f7450b7cb2ab84be511ab8e50691b8de2aa8c69ac3baa21",
       "revisao": 1
     },
     "justino-dialogo-trifao": {
       "sha256": "585a55d35c65785509597fea03fba75c1b77643cc5c7221c65cdd33fd705c8a9",
       "bytes": 393298,
+      "yaml_sha256": "0071f50646efd2957eb8f673348730535bbde65b44ab729952f59fd5c80eda0c",
       "revisao": 1
     },
     "luciano-peregrino": {
       "sha256": "a44af0d6c19d8b6d6032935b629b83678c2431486ea408901bd798a78136316c",
       "bytes": 37483,
+      "yaml_sha256": "63b9d455545fb3dfaac0f2f5d605062a0f482e410081b90cb20e414e3ffc2832",
       "revisao": 1
     },
     "mara-bar-serapiao": {
       "sha256": "eb3be517756ab3aedf137736e0c7a9726d6a7fbd2c14920a38443cf90956866f",
       "bytes": 20192,
+      "yaml_sha256": "ee83a3182224d7bb578f5dfe2c291599a571d947c1805e4578db490a83632e53",
       "revisao": 1
     },
     "martirio-de-policarpo": {
       "sha256": "7e963755b840b1a9442217e96d6203d8d783881801bb0a937e2433fe7179ea10",
       "bytes": 25219,
+      "yaml_sha256": "624bfba62d77c9bb7c5b7b749e539429a323871ee9ab724e042c91091f2e7ccc",
       "revisao": 1
     },
     "origenes-contra-celso": {
       "sha256": "c70b733968949df04030758d50626d32ee8a54adedb0ddf9d4656995178a0f65",
       "bytes": 1464933,
+      "yaml_sha256": "d8c9b7562d1528f8f4bd79898d9920850d7cbbeb64b194ae7111bdd8c9a02b6f",
       "revisao": 1
     },
     "papias-fragmentos": {
       "sha256": "558bbc63779b9af6fdb2cae881330ee0fad85b822f8d97529546aa7f2af0fd82",
       "bytes": 11581,
+      "yaml_sha256": "3a54014658c1b9afc43283a21b66b6ad4adc0b9c9ee3e6c82811aba048801184",
       "revisao": 1
     },
     "plinio-cartas": {
       "sha256": "bf2dd0b35372cd60a05d3266921beb40cda66b8a1b0aef69b24473231a26a7e4",
       "bytes": 470523,
+      "yaml_sha256": "e89472c35f7039c6c22df42f08f79962ddba308c61571c43ba7949ae9b9e5c16",
       "revisao": 1
     },
     "policarpo-filipenses": {
       "sha256": "bdbf70c5edf49ae452c8d2d07987868bfe1691e06361fd890cc86ac6e2e21149",
       "bytes": 15005,
+      "yaml_sha256": "532b8b82087b3dfc93afc019c8ef3293424b7081b0b13c1e358acda77bcef30f",
       "revisao": 1
     },
     "protoevangelho-de-tiago": {
       "sha256": "ca285a59db2b7c09a7d70cb1e1af5109c206b0e66f441ddfebc1f6aa032b4a9e",
       "bytes": 30380,
+      "yaml_sha256": "e620269ca2f4b288a59e127d44db26572e7a65d6edc33baee0aaa5ab9e8303d5",
       "revisao": 1
     },
     "taciano-diatessaron": {
       "sha256": "aff956854cff96068c69dfbfbf2cf029b7a0cdac44e70c1ce719aef1e508916b",
       "bytes": 394958,
+      "yaml_sha256": "8c83960703f1b9bce4b9e72538dac876fcf6263d87670f61753563dd7df4ee5d",
       "revisao": 1
     },
     "tacito-anais": {
       "sha256": "067508cf7bb2aeb0f0962e8579b0a9e9f65d52984769a159764cdd248ed4397b",
       "bytes": 2686,
+      "yaml_sha256": "5bfecec8bb898edbf24c5db0f467da72dbfea650f27880f80271b547d9758fad",
       "revisao": 1
     },
     "tertuliano-apologetico": {
       "sha256": "1f9682fcfc3cb8ff3b42278d5ef73e1718e9fc5934ad42482aa67775cc58b3a8",
       "bytes": 221254,
+      "yaml_sha256": "e5d0f891488bd007e96698a72795d482fd1d3071f06a56ab9d0803f46bd48007",
       "revisao": 1
     }
   }

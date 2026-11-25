@@ -28,6 +28,7 @@ import {
   criarBancoPreparado,
   removerBancoDeExecucao,
 } from "../../support/banco-local";
+import { yamlSha256DoArquivo } from "../../support/entrada";
 
 // O build de produção nunca apaga e nunca leva o conteúdo para trás (plano 02-22, revisão cruzada do Codex, CRÍTICA):
 // um build de uma versão ANTERIOR (redeploy ou rollback na Vercel) carregava o derivado velho por cima do banco novo e
@@ -51,12 +52,17 @@ const temporarios: string[] = [];
 
 const SHA = (c: string) => c.repeat(64);
 
-function fonteDaFixture(slug = "josefo-antiguidades", soSecao18 = false): FonteYaml {
+function fonteDaFixture(
+  slug = "josefo-antiguidades",
+  soSecao18 = false,
+  soSecao20 = false,
+): FonteYaml {
   const y = interpretarFonteYaml(
     readFileSync(path.join(FIXTURES, "fontes", "josefo-antiguidades.yaml"), "utf8"),
     "josefo-antiguidades.yaml",
   );
-  return { ...y, slug, secoes: soSecao18 ? y.secoes.filter((s) => s.slug === "18") : y.secoes };
+  const quer = soSecao18 ? "18" : soSecao20 ? "20" : null;
+  return { ...y, slug, secoes: quer ? y.secoes.filter((x) => x.slug === quer) : y.secoes };
 }
 // biome-ignore lint/suspicious/noExplicitAny: o teste mexe no JSON bruto para fabricar derivados
 function derivadoDaFixture(slug = "josefo-antiguidades", alterar?: (b: any) => void): Derivado {
@@ -70,9 +76,14 @@ function derivadoDaFixture(slug = "josefo-antiguidades", alterar?: (b: any) => v
 const item = (
   revisao: number,
   sha: string,
-  opcoes: { slug?: string; soSecao18?: boolean; alterar?: (b: never) => void } = {},
+  opcoes: {
+    slug?: string;
+    soSecao18?: boolean;
+    soSecao20?: boolean;
+    alterar?: (b: never) => void;
+  } = {},
 ): FonteParaCarga => ({
-  fonte: fonteDaFixture(opcoes.slug, opcoes.soSecao18),
+  fonte: fonteDaFixture(opcoes.slug, opcoes.soSecao18, opcoes.soSecao20),
   derivado: derivadoDaFixture(opcoes.slug, opcoes.alterar as never),
   versao: { revisao, sha256: SHA(sha) },
 });
@@ -105,7 +116,7 @@ const foto = async (slug: string) =>
       [slug],
     ),
     await linhas(
-      "select titulo, publicada, revisao, derivado_revisao, derivado_sha256 from acervo.fonte where slug = $1",
+      "select titulo, publicada, revisao, entrada_revisao, entrada_sha256 from acervo.fonte where slug = $1",
       [slug],
     ),
   ]);
@@ -140,9 +151,9 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
     await apagarTudo();
     await carregarFontes([item(1, "a")], { cliente: carga });
     const [f] = await linhas(
-      "select derivado_revisao, derivado_sha256 from acervo.fonte where slug = 'josefo-antiguidades'",
+      "select entrada_revisao, entrada_sha256 from acervo.fonte where slug = 'josefo-antiguidades'",
     );
-    expect(f).toEqual({ derivado_revisao: 1, derivado_sha256: SHA("a") });
+    expect(f).toEqual({ entrada_revisao: 1, entrada_sha256: SHA("a") });
   });
 
   it("(a) derivado MAIS VELHO sobre banco MAIS NOVO: nada é apagado, nada é sobrescrito, e avisa", async () => {
@@ -184,7 +195,7 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
     });
     expect(codigoDeSaida(r)).toBe(0);
     expect(saida.find((l) => l.startsWith("aviso: josefo-antiguidades:"))).toContain(
-      "o banco já tem a revisão 2 do derivado e este build traz a 1",
+      "o banco já tem a revisão 2 da entrada (derivado e YAML) e este build traz a 1",
     );
     expect(await foto("josefo-antiguidades")).toBe(antes);
   });
@@ -211,7 +222,7 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
     // O conteúdo ficou igual; só o registro da revisão carregada subiu para 3.
     const depois = JSON.parse(await foto("josefo-antiguidades")) as unknown[][];
     expect(depois.slice(0, 2)).toEqual((JSON.parse(antes) as unknown[][]).slice(0, 2));
-    expect((depois[2] as { derivado_revisao: number }[])[0]?.derivado_revisao).toBe(3);
+    expect((depois[2] as { entrada_revisao: number }[])[0]?.entrada_revisao).toBe(3);
   });
 
   it("(b) o comando imprime que o que sumiu ficou e como apagar de propósito", async () => {
@@ -237,7 +248,7 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
     };
     const r = await carregarFontes(
       [item(3, "c", { soSecao18: true, alterar: semSecao20 as never })],
-      { cliente: carga, remocoesAutorizadas: ["josefo-antiguidades/20"] },
+      { cliente: carga, remocoesAutorizadas: ["secao:josefo-antiguidades/20"] },
     );
     expect(r.secoes.removidos).toBe(1);
     expect(r.paragrafos.removidos).toBe(1);
@@ -254,7 +265,10 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
       carregarFontes([item(2, "b", { alterar: novo as never })], {
         cliente: carga,
         // 18.63 NÃO sumiu do derivado; 99.1 não existe.
-        remocoesAutorizadas: ["josefo-antiguidades/18.63", "josefo-antiguidades/99.1"],
+        remocoesAutorizadas: [
+          "paragrafo:josefo-antiguidades/18.63",
+          "paragrafo:josefo-antiguidades/99.1",
+        ],
       }),
     ).rejects.toThrow(/remoção autorizada que não se aplicou/);
     expect(await foto("josefo-antiguidades")).toBe(antes);
@@ -291,7 +305,7 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
     const outraDepois = await foto("outra-fonte");
     const r2 = await carregarFontes([item(3, "8"), item(2, "7", { slug: "outra-fonte" })], {
       cliente: carga,
-      remocoesAutorizadas: ["josefo-antiguidades/18.65"],
+      remocoesAutorizadas: ["paragrafo:josefo-antiguidades/18.65"],
     });
     expect(r2.paragrafos.removidos).toBe(1);
     expect(
@@ -386,13 +400,13 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
     await apagarTudo();
     await carregarFontes([item(1, "a")], { cliente: carga });
     await dono.query(
-      "update acervo.fonte set derivado_revisao = null, derivado_sha256 = null where slug = 'josefo-antiguidades'",
+      "update acervo.fonte set entrada_revisao = null, entrada_sha256 = null where slug = 'josefo-antiguidades'",
     );
     await carregarFontes([item(5, "f")], { cliente: carga });
     const [f] = await linhas(
-      "select derivado_revisao, derivado_sha256 from acervo.fonte where slug = 'josefo-antiguidades'",
+      "select entrada_revisao, entrada_sha256 from acervo.fonte where slug = 'josefo-antiguidades'",
     );
-    expect(f).toEqual({ derivado_revisao: 5, derivado_sha256: SHA("f") });
+    expect(f).toEqual({ entrada_revisao: 5, entrada_sha256: SHA("f") });
   });
 
   it("revisão maior, mesmo derivado antigo: a Fonte avança e a revisão registrada sobe", async () => {
@@ -402,7 +416,7 @@ describe.skipIf(emNeon())("a carga nunca leva o conteúdo para trás nem apaga s
     expect(r.maisNovasNoBanco).toEqual([]);
     expect(r.paragrafos.atualizados).toBe(1);
     expect(r.paragrafos.inseridos).toBe(1);
-    expect(await contar("select count(*) n from acervo.fonte where derivado_revisao = 2")).toBe(1);
+    expect(await contar("select count(*) n from acervo.fonte where entrada_revisao = 2")).toBe(1);
   });
 });
 
@@ -417,7 +431,14 @@ const abrirCliente = async (): Promise<pg.Client> => {
 /** Pastas temporárias com a Fonte de fixture, o derivado e um lock com a revisão pedida (sha256 e bytes de verdade). */
 function montarPastas(
   revisao: number,
-  como: { semSecao20?: boolean; muitos?: boolean } = {},
+  como: {
+    semSecao20?: boolean;
+    muitos?: boolean;
+    titulo?: string;
+    outra?: { revisao: number; titulo?: string };
+    /** O YAML foi editado e o lock ficou com o sha256 do YAML anterior (faltou `pnpm acervo:travar`). */
+    semTravar?: boolean;
+  } = {},
 ): { opcoes: { fontes: string; derivados: string; lock: string } } {
   const raiz = mkdtempSync(path.join(tmpdir(), "jnf-nunca-tras-"));
   temporarios.push(raiz);
@@ -437,6 +458,15 @@ function montarPastas(
     y.secoes = y.secoes.filter((x) => x.slug !== "20");
     writeFileSync(arquivo, stringify(y));
   }
+  const yamlOriginal = yamlSha256DoArquivo(path.join(fontes, "josefo-antiguidades.yaml"));
+  if (como.titulo) {
+    // Só o YAML muda (o derivado é o mesmo): a correção de um título.
+    const arquivo = path.join(fontes, "josefo-antiguidades.yaml");
+    writeFileSync(
+      arquivo,
+      readFileSync(arquivo, "utf8").replace(/^titulo: .*$/m, `titulo: ${como.titulo}`),
+    );
+  }
   if (como.muitos)
     for (let i = 0; i < TETO_DE_UNIDADES_POR_FONTE + 10; i++)
       bruto.secoes[0]?.paragrafos.push({ ref: `18.${1000 + i}`, texto: `Parágrafo ${i}.` });
@@ -452,10 +482,379 @@ function montarPastas(
         "josefo-antiguidades": {
           sha256: createHash("sha256").update(json).digest("hex"),
           bytes: Buffer.byteLength(json),
+          yaml_sha256: como.semTravar
+            ? yamlOriginal
+            : yamlSha256DoArquivo(path.join(fontes, "josefo-antiguidades.yaml")),
           revisao,
         },
       },
     }),
   );
+  if (como.outra) {
+    // Uma segunda Fonte, cópia da primeira com outro slug (o derivado e o YAML dela, e a entrada dela no lock).
+    const yamlOutra = path.join(fontes, "outra-fonte.yaml");
+    let texto = readFileSync(path.join(fontes, "josefo-antiguidades.yaml"), "utf8").replace(
+      /^slug: .*$/m,
+      "slug: outra-fonte",
+    );
+    if (como.outra.titulo) texto = texto.replace(/^titulo: .*$/m, `titulo: ${como.outra.titulo}`);
+    writeFileSync(yamlOutra, texto);
+    const jsonOutra = JSON.stringify({ ...bruto, slug: "outra-fonte" });
+    writeFileSync(path.join(derivados, "outra-fonte.json"), jsonOutra);
+    const lido = JSON.parse(readFileSync(lock, "utf8"));
+    lido.derivados["outra-fonte"] = {
+      sha256: createHash("sha256").update(jsonOutra).digest("hex"),
+      bytes: Buffer.byteLength(jsonOutra),
+      yaml_sha256: yamlSha256DoArquivo(yamlOutra),
+      revisao: como.outra.revisao,
+    };
+    writeFileSync(lock, JSON.stringify(lido));
+  }
   return { opcoes: { fontes, derivados, lock } };
 }
+
+// ───────────────────────── segunda revisão cruzada: posições, YAML e remoção tipada ─────────────────────────
+
+type B = { secoes: { slug: string; paragrafos: { ref: string; texto: string }[] }[] };
+const refs = (...rs: string[]) => rs.map((ref) => ({ ref, texto: `Texto do parágrafo ${ref}.` }));
+/** O derivado com a seção 18 trocada pelos parágrafos pedidos (nesta ordem). */
+const secao18 =
+  (...rs: string[]) =>
+  (b: B) => {
+    (b.secoes[0] as B["secoes"][number]).paragrafos = refs(...rs);
+  };
+/** A posição e o texto de cada parágrafo de uma seção, na ordem da posição. */
+const ordens = async (secao: string) =>
+  (
+    await linhas(
+      "select id, ordem, texto from acervo.fonte_paragrafo where secao_id = $1 order by ordem",
+      [secao],
+    )
+  ).map((r) => `${r.ordem}:${r.id.split("/")[1]}`);
+
+describe.skipIf(emNeon())(
+  "posições: o retido nunca herda a posição do que o derivado inseriu",
+  () => {
+    it("o exemplo da revisão: A/B/C no banco e A/C no derivado: B fica (sem apagar), C vai para a posição 2, B para a 3", async () => {
+      await apagarTudo();
+      await carregarFontes([item(1, "a", { alterar: secao18("18.1", "18.2", "18.3") as never })], {
+        cliente: carga,
+      });
+      expect(await ordens("josefo-antiguidades/18")).toEqual(["1:18.1", "2:18.2", "3:18.3"]);
+      const r = await carregarFontes(
+        [item(2, "b", { alterar: secao18("18.1", "18.3") as never })],
+        { cliente: carga },
+      );
+      // Antes da correção: violação da restrição UNIQUE (secao_id, ordem) e a carga inteira revertida (o build quebrava).
+      expect(await ordens("josefo-antiguidades/18")).toEqual(["1:18.1", "2:18.3", "3:18.2"]);
+      expect(r.mantidos).toEqual({ secoes: 0, paragrafos: 1 });
+      expect(r.removidos).toBe(0);
+      const [b] = await linhas(
+        "select texto from acervo.fonte_paragrafo where id = 'josefo-antiguidades/18.2'",
+      );
+      expect(b?.texto).toBe("Texto do parágrafo 18.2.");
+    });
+
+    it("vários retidos e inserções entre eles: todas as posições distintas, o derivado na sua ordem, o retido intacto", async () => {
+      await apagarTudo();
+      await carregarFontes(
+        [
+          item(1, "a", {
+            alterar: secao18("18.1", "18.2", "18.3", "18.4", "18.5", "18.6") as never,
+          }),
+        ],
+        { cliente: carga },
+      );
+      // O derivado novo: 18.1, duas novas, 18.4 e 18.6; ficam retidos o 18.2, o 18.3 e o 18.5.
+      const r = await carregarFontes(
+        [item(2, "b", { alterar: secao18("18.1", "18.90", "18.91", "18.4", "18.6") as never })],
+        { cliente: carga },
+      );
+      const final = await ordens("josefo-antiguidades/18");
+      const posicoes = final.map((x) => Number(x.split(":")[0]));
+      expect(new Set(posicoes).size).toBe(posicoes.length);
+      // O derivado, na ordem do derivado, nas posições 1 a 5.
+      expect(final.slice(0, 5)).toEqual(["1:18.1", "2:18.90", "3:18.91", "4:18.4", "5:18.6"]);
+      // Os três retidos depois, e nenhum foi apagado nem teve o texto mexido.
+      expect(
+        final
+          .slice(5)
+          .map((x) => x.split(":")[1])
+          .sort(),
+      ).toEqual(["18.2", "18.3", "18.5"]);
+      expect(r.mantidos.paragrafos).toBe(3);
+      expect(
+        await contar(
+          "select count(*) n from acervo.fonte_paragrafo where texto like 'Texto do parágrafo %'",
+        ),
+      ).toBe(8);
+    });
+
+    it("seção nova que ocuparia a posição de uma seção retida: a retida vai para o fim, sem colisão", async () => {
+      await apagarTudo();
+      await carregarFontes([item(1, "a")], { cliente: carga });
+      // O derivado novo: a seção 20 vira 19 (a posição do derivado é 20, a mesma da retida, e o parágrafo 20.197 vai junto) e o YAML só lista a 18 e a 19.
+      const renomear = (b: B & { secoes: { slug: string }[] }) => {
+        (b.secoes[1] as { slug: string }).slug = "19";
+      };
+      const yaml19 = item(2, "b", { alterar: renomear as never });
+      yaml19.fonte = {
+        ...yaml19.fonte,
+        secoes: yaml19.fonte.secoes.map((x) => (x.slug === "20" ? { ...x, slug: "19" } : x)),
+      };
+      const r = await carregarFontes([yaml19], { cliente: carga });
+      expect(r.mantidos.secoes).toBe(1);
+      const secoes = await linhas(
+        "select slug, ordem from acervo.fonte_secao where fonte_id = (select id from acervo.fonte where slug = 'josefo-antiguidades') order by ordem",
+      );
+      expect(secoes.map((x) => `${x.ordem}:${x.slug}`)).toEqual(["18:18", "20:19", "21:20"]);
+    });
+
+    it("controle negativo: a posição de outra Fonte não é tocada", async () => {
+      await apagarTudo();
+      const tres = secao18("18.1", "18.2", "18.3") as never;
+      await carregarFontes(
+        [item(1, "a", { alterar: tres }), item(1, "a", { slug: "outra-fonte", alterar: tres })],
+        { cliente: carga },
+      );
+      const outraAntes = await foto("outra-fonte");
+      await carregarFontes(
+        [
+          item(2, "b", { alterar: secao18("18.1", "18.3") as never }),
+          item(1, "a", { slug: "outra-fonte", alterar: tres }),
+        ],
+        { cliente: carga },
+      );
+      expect(await ordens("josefo-antiguidades/18")).toEqual(["1:18.1", "2:18.3", "3:18.2"]);
+      expect(await foto("outra-fonte")).toBe(outraAntes);
+    });
+
+    it("o reposicionamento do retido conta para o teto de unidades (a Fonte é recusada, sem escrever)", async () => {
+      await apagarTudo();
+      await carregarFontes([item(1, "a", { alterar: secao18("18.1", "18.2", "18.3") as never })], {
+        cliente: carga,
+      });
+      const antes = await foto("josefo-antiguidades");
+      // Muda 1 (18.3 ganha a posição 2) e reposiciona 1 (18.2): 2 unidades. Teto 1: recusada.
+      const r = await carregarFontes(
+        [item(2, "b", { alterar: secao18("18.1", "18.3") as never })],
+        { cliente: carga, tetoDeUnidades: 1 },
+      );
+      expect(r.recusadasPeloTeto).toEqual([{ slug: "josefo-antiguidades", unidades: 2, teto: 1 }]);
+      expect(await foto("josefo-antiguidades")).toBe(antes);
+    });
+  },
+);
+
+describe.skipIf(emNeon())(
+  "o YAML também é versionado: entrada mais velha nunca sobrescreve a mais nova",
+  () => {
+    const titulo = async () =>
+      (await linhas("select titulo from acervo.fonte where slug = 'josefo-antiguidades'"))[0]
+        ?.titulo;
+    const rodar = (revisao: number, como: Parameters<typeof montarPastas>[1] = {}) => {
+      const saida: string[] = [];
+      return executarCarga(montarPastas(revisao, como).opcoes, {
+        abrir: abrirCliente,
+        escrever: (l) => saida.push(l),
+      }).then((r) => ({ r, saida }));
+    };
+
+    it("uma versão corrige só o YAML (o derivado é o mesmo); o redeploy do build anterior NÃO desfaz a correção", async () => {
+      await apagarTudo();
+      // A: o YAML original, revisão 1. B: só o título corrigido no YAML, revisão 2 (o derivado é o mesmo).
+      await rodar(1);
+      await rodar(2, { titulo: "Título corrigido" });
+      expect(await titulo()).toBe("Título corrigido");
+      const antes = await foto("josefo-antiguidades");
+      // O redeploy do build A: mesmo derivado (mesmo sha256), YAML velho, revisão 1.
+      const { r, saida } = await rodar(1);
+      expect(r.resultado?.maisNovasNoBanco).toEqual([
+        { slug: "josefo-antiguidades", revisaoDoBanco: 2, revisaoDoBuild: 1 },
+      ]);
+      expect(saida.join("\n")).toContain("aviso: josefo-antiguidades: o banco já tem a revisão 2");
+      expect(codigoDeSaida(r)).toBe(0);
+      expect(await titulo()).toBe("Título corrigido");
+      expect(await foto("josefo-antiguidades")).toBe(antes);
+    });
+
+    it("o YAML editado sem `pnpm acervo:travar` (a revisão não subiu) é recusado ANTES de abrir conexão", async () => {
+      await apagarTudo();
+      await rodar(1);
+      const antes = await foto("josefo-antiguidades");
+      let abriu = false;
+      await expect(
+        executarCarga(montarPastas(1, { titulo: "Título corrigido", semTravar: true }).opcoes, {
+          abrir: async () => {
+            abriu = true;
+            return abrirCliente();
+          },
+          escrever: () => {},
+        }),
+      ).rejects.toThrow(/o YAML mudou sem a revisão subir/);
+      expect(abriu).toBe(false);
+      expect(await foto("josefo-antiguidades")).toBe(antes);
+    });
+
+    it("controle negativo: outra Fonte da mesma carga avança, e a velha é a única pulada", async () => {
+      await apagarTudo();
+      await rodar(2, { titulo: "Título corrigido", outra: { revisao: 1 } });
+      const outraAntes = await foto("outra-fonte");
+      // O build anterior: a josefo na revisão 1 (pulada); a outra na revisão 2, com título novo (avança).
+      const { r } = await rodar(1, { outra: { revisao: 2, titulo: "Outra, revista" } });
+      expect(r.resultado?.maisNovasNoBanco.map((x) => x.slug)).toEqual(["josefo-antiguidades"]);
+      expect(await titulo()).toBe("Título corrigido");
+      expect(await foto("outra-fonte")).not.toBe(outraAntes);
+      const [o] = await linhas("select titulo from acervo.fonte where slug = 'outra-fonte'");
+      expect(o?.titulo).toBe("Outra, revista");
+    });
+  },
+);
+
+describe.skipIf(emNeon())("remoção: autorização tipada e teto de remoções", () => {
+  /** Estado: seção 18 (com o parágrafo 18.63) e seção 20; o parágrafo `18` (mesmo id da seção) na seção 20. */
+  async function prepararColisao() {
+    await apagarTudo();
+    const comParagrafo18 = (b: B) => {
+      (b.secoes[1] as B["secoes"][number]).paragrafos.push({
+        ref: "18",
+        texto: "Um parágrafo chamado 18.",
+      });
+    };
+    await carregarFontes([item(1, "a", { alterar: comParagrafo18 as never })], { cliente: carga });
+    expect(
+      await contar("select count(*) n from acervo.fonte_secao where id = 'josefo-antiguidades/18'"),
+    ).toBe(1);
+    expect(
+      await contar(
+        "select count(*) n from acervo.fonte_paragrafo where id = 'josefo-antiguidades/18'",
+      ),
+    ).toBe(1);
+  }
+  // O derivado novo só tem a seção 20, e sem o parágrafo 18: somem a seção 18 (e o 18.63) e o parágrafo 18.
+  const soSecao20 = (revisao: number, sha: string) =>
+    item(revisao, sha, {
+      soSecao20: true,
+      alterar: ((b: B) => {
+        b.secoes.splice(0, 1);
+      }) as never,
+    });
+
+  it("`paragrafo:<id>` apaga SÓ o parágrafo, mesmo existindo uma seção com o mesmo id", async () => {
+    await prepararColisao();
+    const r = await carregarFontes([soSecao20(2, "b")], {
+      cliente: carga,
+      remocoesAutorizadas: ["paragrafo:josefo-antiguidades/18"],
+    });
+    expect(r.paragrafos.removidos).toBe(1);
+    expect(r.secoes.removidos).toBe(0);
+    expect(
+      await contar(
+        "select count(*) n from acervo.fonte_paragrafo where id = 'josefo-antiguidades/18'",
+      ),
+    ).toBe(0);
+    // A seção 18 e o parágrafo 18.63 dela ficam.
+    expect(
+      await contar("select count(*) n from acervo.fonte_secao where id = 'josefo-antiguidades/18'"),
+    ).toBe(1);
+    expect(
+      await contar(
+        "select count(*) n from acervo.fonte_paragrafo where id = 'josefo-antiguidades/18.63'",
+      ),
+    ).toBe(1);
+    expect(r.mantidos).toEqual({ secoes: 1, paragrafos: 1 });
+  });
+
+  it("`secao:<id>` apaga a seção (e os parágrafos ausentes dela), e NÃO o parágrafo de mesmo id", async () => {
+    await prepararColisao();
+    const r = await carregarFontes([soSecao20(2, "b")], {
+      cliente: carga,
+      remocoesAutorizadas: ["secao:josefo-antiguidades/18"],
+    });
+    expect(r.secoes.removidos).toBe(1);
+    expect(r.paragrafos.removidos).toBe(1); // o 18.63, que era da seção
+    expect(
+      await contar("select count(*) n from acervo.fonte_secao where id = 'josefo-antiguidades/18'"),
+    ).toBe(0);
+    expect(
+      await contar(
+        "select count(*) n from acervo.fonte_paragrafo where id = 'josefo-antiguidades/18'",
+      ),
+    ).toBe(1);
+  });
+
+  it("autorização SEM tipo é recusada e nada é gravado", async () => {
+    await prepararColisao();
+    const antes = await foto("josefo-antiguidades");
+    await expect(
+      carregarFontes([soSecao20(2, "b")], {
+        cliente: carga,
+        remocoesAutorizadas: ["josefo-antiguidades/18"],
+      }),
+    ).rejects.toThrow(/secao:<slug>\/<seção> ou paragrafo:<slug>\/<ref>/);
+    expect(await foto("josefo-antiguidades")).toBe(antes);
+  });
+
+  it("o teto de remoções aborta SEM escrever: a seção leva 2 parágrafos, 3 unidades, teto 2", async () => {
+    await prepararColisao();
+    const antes = await foto("josefo-antiguidades");
+    await expect(
+      carregarFontes([soSecao20(2, "b")], {
+        cliente: carga,
+        remocoesAutorizadas: ["secao:josefo-antiguidades/18", "paragrafo:josefo-antiguidades/18"],
+        tetoDeRemocoes: 2,
+      }),
+    ).rejects.toThrow(/acima do teto de 2/);
+    expect(await foto("josefo-antiguidades")).toBe(antes);
+    // No teto exato, passa.
+    const r = await carregarFontes([soSecao20(2, "b")], {
+      cliente: carga,
+      remocoesAutorizadas: ["secao:josefo-antiguidades/18", "paragrafo:josefo-antiguidades/18"],
+      tetoDeRemocoes: 3,
+    });
+    expect(r.removidos).toBe(3);
+  });
+
+  it("o teto padrão de remoções (50) vale para uma lista colada errada: 60 parágrafos autorizados, nada apagado", async () => {
+    await apagarTudo();
+    const muitos = (b: B) => {
+      (b.secoes[0] as B["secoes"][number]).paragrafos = refs(
+        ...Array.from({ length: 61 }, (_, i) => `18.${i + 1}`),
+      );
+    };
+    await carregarFontes([item(1, "a", { alterar: muitos as never })], { cliente: carga });
+    const antes = await foto("josefo-antiguidades");
+    const autorizacoes = Array.from(
+      { length: 60 },
+      (_, i) => `paragrafo:josefo-antiguidades/18.${i + 2}`,
+    );
+    await expect(
+      carregarFontes([item(2, "b", { alterar: secao18("18.1") as never })], {
+        cliente: carga,
+        remocoesAutorizadas: autorizacoes,
+        tetoDeUnidades: 1000,
+      }),
+    ).rejects.toThrow(/acima do teto de 50/);
+    expect(await foto("josefo-antiguidades")).toBe(antes);
+  });
+
+  it("controle negativo: o teto de remoções aborta a carga inteira, e outra Fonte também não recebe escrita", async () => {
+    await prepararColisao();
+    await carregarFontes([item(1, "a", { slug: "outra-fonte" })], { cliente: carga });
+    const outraAntes = await foto("outra-fonte");
+    await expect(
+      carregarFontes(
+        [
+          item(2, "b", { slug: "outra-fonte", alterar: secao18("18.63", "18.99") as never }),
+          soSecao20(2, "b"),
+        ],
+        {
+          cliente: carga,
+          remocoesAutorizadas: ["secao:josefo-antiguidades/18"],
+          tetoDeRemocoes: 1,
+        },
+      ),
+    ).rejects.toThrow(ErroCarga);
+    expect(await foto("outra-fonte")).toBe(outraAntes);
+  });
+});

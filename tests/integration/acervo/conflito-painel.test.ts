@@ -27,6 +27,7 @@ import {
   criarBancoPreparado,
   removerBancoDeExecucao,
 } from "../../support/banco-local";
+import { yamlSha256DoArquivo } from "../../support/entrada";
 import { criarSessaoDeTeste } from "../../support/sessao-admin-banco";
 
 // A carga do arquivo NUNCA sobrescreve em silêncio uma edição feita no painel (ACER-08, T-02-42): recusa a Fonte editada
@@ -514,6 +515,7 @@ describe.skipIf(emNeon())("o comando acervo:load", () => {
           "josefo-antiguidades": {
             sha256: createHash("sha256").update(bytes).digest("hex"),
             bytes: bytes.length,
+            yaml_sha256: yamlSha256DoArquivo(path.join(fontes, "josefo-antiguidades.yaml")),
             revisao: 1,
           },
         },

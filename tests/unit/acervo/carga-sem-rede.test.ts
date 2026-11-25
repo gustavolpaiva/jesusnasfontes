@@ -25,6 +25,7 @@ import {
   criarBancoPreparado,
   removerBancoDeExecucao,
 } from "../../support/banco-local";
+import { yamlSha256DoArquivo } from "../../support/entrada";
 
 // O build de produção carrega texto só do que está versionado: o caminho de carga não usa rede nenhuma. Prova
 // em duas metades: (1) a carga inteira roda com `fetch` e os módulos de rede do Node trocados por funções que
@@ -78,6 +79,7 @@ function montarPastas(): { fontes: string; derivados: string; lock: string } {
         "josefo-antiguidades": {
           sha256: createHash("sha256").update(bytes).digest("hex"),
           bytes: bytes.length,
+          yaml_sha256: yamlSha256DoArquivo(path.join(fontes, "josefo-antiguidades.yaml")),
           revisao: 1,
         },
       },
