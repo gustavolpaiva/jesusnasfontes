@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { executarCarga } from "../../../scripts/acervo/carregar";
+import { PASSOS } from "../../../scripts/db/build-producao";
 import { urlDoPapel } from "../../../src/db/url";
 import {
   type BancoDeExecucao,
@@ -27,7 +28,8 @@ import {
 
 // O build de produção carrega texto só do que está versionado: o caminho de carga não usa rede nenhuma. Prova
 // em duas metades: (1) a carga inteira roda com `fetch` e os módulos de rede do Node trocados por funções que
-// lançam; (2) a análise das importações de `carregar.ts` e `derivados.ts` não alcança o módulo de download.
+// lançam; (2) a análise das importações de `carregar.ts` e de `derivados.ts`, e a dos scripts de TODOS os passos do
+// build (plano 02-22), não alcança o baixador nem o derivador.
 
 const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const FIXTURES = path.join(RAIZ, "tests", "fixtures", "acervo");
@@ -172,34 +174,56 @@ function alcancaveis(entrada: string): Set<string> {
   return vistos;
 }
 
+const BAIXADOR_OU_DERIVADOR = /acervo-(baixar|derivar)(\.ts)?$/;
+
 describe("análise das importações", () => {
-  const entradas = ["carregar.ts", "derivados.ts"].map((n) =>
+  const entradasDaCarga = ["carregar.ts", "derivados.ts"].map((n) =>
     path.join(RAIZ, "scripts", "acervo", n),
   );
+  // Os scripts de TODOS os passos do build de produção, lidos do próprio build: passo que entrar entra aqui (plano 02-22).
+  const entradasDoBuild: string[] = PASSOS.map((p) => path.join(RAIZ, ...p.script.split("/")));
+  const alcancaveisDe = (entrada: string): string[] => [...alcancaveis(entrada)];
+  const proibidos = (alcance: readonly string[]): string[] =>
+    alcance.filter((a) => BAIXADOR_OU_DERIVADOR.test(a));
 
-  it("nenhuma entrada da carga alcança um módulo de download (acervo-baixar)", () => {
-    for (const entrada of entradas) {
-      const alcance = alcancaveis(entrada);
+  it("nenhuma entrada da carga alcança o baixador (acervo-baixar)", () => {
+    for (const entrada of entradasDaCarga) {
+      const alcance = alcancaveisDe(entrada);
       // Controle positivo: a análise anda de fato pelos módulos (não devolve só a entrada).
-      expect(alcance.size).toBeGreaterThan(1);
-      const baixadores = [...alcance].filter((a) => /acervo-baixar/.test(a));
+      expect(alcance.length).toBeGreaterThan(1);
+      const baixadores = alcance.filter((a) => /acervo-baixar/.test(a));
       expect(baixadores, `${path.basename(entrada)} alcança ${baixadores.join(", ")}`).toEqual([]);
     }
   });
 
-  it("o controle negativo: a análise enxerga um baixador escondido atrás de duas importações", () => {
-    const raiz = mkdtempSync(path.join(tmpdir(), "jnf-importacoes-"));
-    temporarios.push(raiz);
-    writeFileSync(path.join(raiz, "acervo-baixar.ts"), "export const x = 1;\n");
-    writeFileSync(
-      path.join(raiz, "meio.ts"),
-      'import { x } from "./acervo-baixar";\nexport const y = x;\n',
-    );
-    writeFileSync(
-      path.join(raiz, "entrada.ts"),
-      'import { y } from "./meio";\nexport const z = y;\n',
-    );
-    const alcance = [...alcancaveis(path.join(raiz, "entrada.ts"))];
-    expect(alcance.some((a) => /acervo-baixar/.test(a))).toBe(true);
+  it("nenhum passo do build é o baixador nem o derivador, e nenhum dos seus scripts os alcança", () => {
+    expect(entradasDoBuild.length).toBeGreaterThan(1);
+    expect(proibidos(entradasDoBuild)).toEqual([]);
+    for (const entrada of [...entradasDoBuild, ...entradasDaCarga]) {
+      const alcance = alcancaveisDe(entrada);
+      expect(alcance.length, path.basename(entrada)).toBeGreaterThan(1);
+      expect(
+        proibidos(alcance),
+        `${path.basename(entrada)} alcança ${proibidos(alcance).join(", ")}`,
+      ).toEqual([]);
+    }
+  });
+
+  it("o controle negativo: a análise enxerga um baixador e um derivador escondidos atrás de duas importações", () => {
+    for (const nome of ["acervo-baixar", "acervo-derivar"]) {
+      const raiz = mkdtempSync(path.join(tmpdir(), "jnf-importacoes-"));
+      temporarios.push(raiz);
+      writeFileSync(path.join(raiz, `${nome}.ts`), "export const x = 1;\n");
+      writeFileSync(
+        path.join(raiz, "meio.ts"),
+        `import { x } from "./${nome}";\nexport const y = x;\n`,
+      );
+      writeFileSync(
+        path.join(raiz, "entrada.ts"),
+        'import { y } from "./meio";\nexport const z = y;\n',
+      );
+      const alcance = alcancaveisDe(path.join(raiz, "entrada.ts"));
+      expect(proibidos(alcance), nome).toHaveLength(1);
+    }
   });
 });
