@@ -78,6 +78,7 @@ function montarPastas(): { fontes: string; derivados: string; lock: string } {
         "josefo-antiguidades": {
           sha256: createHash("sha256").update(bytes).digest("hex"),
           bytes: bytes.length,
+          revisao: 1,
         },
       },
     }),

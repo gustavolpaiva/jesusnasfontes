@@ -152,7 +152,7 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
     });
   });
 
-  it("parágrafo que sumiu do derivado e não tem Citação é apagado", async () => {
+  it("parágrafo que sumiu do derivado NUNCA é apagado sozinho: fica, e a carga conta o que ficou", async () => {
     const com = derivadoDaFixture((b) => {
       b.secoes[0].paragrafos.push({ ref: "18.65", texto: "Um parágrafo de teste a mais." });
     });
@@ -162,11 +162,22 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
     const r = await carregarFontes([{ fonte: fonteDaFixture(), derivado: derivadoDaFixture() }], {
       cliente: carga,
     });
+    expect(r.paragrafos.removidos).toBe(0);
+    expect(r.mantidos).toEqual({ secoes: 0, paragrafos: 1 });
+    expect(await contar("select count(*) as n from acervo.fonte_paragrafo")).toBe(3);
+  });
+
+  it("parágrafo que sumiu do derivado e foi AUTORIZADO, sem Citação, é apagado (só ele)", async () => {
+    const r = await carregarFontes([{ fonte: fonteDaFixture(), derivado: derivadoDaFixture() }], {
+      cliente: carga,
+      remocoesAutorizadas: ["josefo-antiguidades/18.65"],
+    });
     expect(r.paragrafos.removidos).toBe(1);
+    expect(r.mantidos).toEqual({ secoes: 0, paragrafos: 0 });
     expect(await contar("select count(*) as n from acervo.fonte_paragrafo")).toBe(2);
   });
 
-  it("parágrafo que sumiu do derivado e tem Citação faz a carga falhar sem apagar nada", async () => {
+  it("parágrafo autorizado a sair que tem Citação faz a carga falhar sem apagar nada", async () => {
     const com = derivadoDaFixture((b) => {
       b.secoes[0].paragrafos.push({ ref: "18.65", texto: "Um parágrafo citado." });
     });
@@ -183,6 +194,7 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
     await expect(
       carregarFontes([{ fonte: fonteDaFixture(), derivado: derivadoDaFixture() }], {
         cliente: carga,
+        remocoesAutorizadas: ["josefo-antiguidades/18.65"],
       }),
     ).rejects.toThrow(ErroCarga);
     expect(await contar("select count(*) as n from acervo.fonte_paragrafo")).toBe(antes);
@@ -191,6 +203,7 @@ describe.skipIf(emNeon())("carga da Fonte a partir do derivado", () => {
     await dono.query("delete from acervo.afirmacao where id = 'teste-a1'");
     await carregarFontes([{ fonte: fonteDaFixture(), derivado: derivadoDaFixture() }], {
       cliente: carga,
+      remocoesAutorizadas: ["josefo-antiguidades/18.65"],
     });
   });
 

@@ -136,6 +136,7 @@ secao_max_caracteres:
           "fonte-x": {
             sha256: createHash("sha256").update(json).digest("hex"),
             bytes: Buffer.byteLength(json),
+            revisao: 1,
           },
         },
       }),

@@ -29,14 +29,27 @@ const esquemaLock = z
     derivados: z.record(
       z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
       z
-        .object({ sha256: z.string().regex(/^[0-9a-f]{64}$/), bytes: z.number().int().min(0) })
+        .object({
+          sha256: z.string().regex(/^[0-9a-f]{64}$/),
+          bytes: z.number().int().min(0),
+          // Número monótono da versão do derivado: sobe a cada `acervo:derivar` que muda o arquivo. É o que a carga
+          // compara com o do banco para nunca levar o conteúdo para trás (build de uma versão anterior). Obrigatório:
+          // lock sem ele não carrega (plano 02-22, revisão cruzada).
+          revisao: z.number().int().min(1),
+        })
         .strict(),
     ),
   })
   .strict();
 export type LockDerivados = z.infer<typeof esquemaLock>;
 
-export type DerivadoConferido = { slug: string; caminho: string; bytes: number; sha256: string };
+export type DerivadoConferido = {
+  slug: string;
+  caminho: string;
+  bytes: number;
+  sha256: string;
+  revisao: number;
+};
 
 const sha256 = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
@@ -111,7 +124,11 @@ export function verificarDerivados(pasta: string, lock: LockDerivados): Derivado
       throw new ErroDerivado(
         `derivado ${m.slug}: sha256 diferente do lock (lock ${esperado}, medido ${obtido})`,
       );
-    return { ...m, sha256: obtido };
+    return {
+      ...m,
+      sha256: obtido,
+      revisao: (lock.derivados[m.slug] as { revisao: number }).revisao,
+    };
   });
 }
 

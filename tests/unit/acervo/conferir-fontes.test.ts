@@ -786,12 +786,13 @@ function pastaDeConferencia(comDerivado: boolean): string {
   mkdirSync(path.join(raiz, "derivados"));
   writeFileSync(path.join(raiz, "fontes", "fonte-teste.yaml"), yamlValido(SECOES_VALIDAS));
   const derivado = JSON.stringify(derivadoValido(), null, 2);
-  const entradas: Record<string, { sha256: string; bytes: number }> = {};
+  const entradas: Record<string, { sha256: string; bytes: number; revisao: number }> = {};
   if (comDerivado) {
     writeFileSync(path.join(raiz, "derivados", "fonte-teste.json"), derivado);
     entradas["fonte-teste"] = {
       sha256: createHash("sha256").update(derivado).digest("hex"),
       bytes: Buffer.byteLength(derivado, "utf8"),
+      revisao: 1,
     };
   }
   writeFileSync(

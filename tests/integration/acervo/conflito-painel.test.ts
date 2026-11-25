@@ -514,6 +514,7 @@ describe.skipIf(emNeon())("o comando acervo:load", () => {
           "josefo-antiguidades": {
             sha256: createHash("sha256").update(bytes).digest("hex"),
             bytes: bytes.length,
+            revisao: 1,
           },
         },
       }),

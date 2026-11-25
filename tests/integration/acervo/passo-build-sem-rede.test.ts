@@ -146,6 +146,7 @@ function copiaDaFixture(): {
           "josefo-antiguidades": {
             sha256: createHash("sha256").update(bytes).digest("hex"),
             bytes: bytes.length,
+            revisao: 1,
           },
         },
       }),
@@ -210,7 +211,7 @@ describe.skipIf(emNeon())("o passo do Acervo do build sem rede", () => {
       console.log("LANCAM " + JSON.stringify(lancaram));
     `;
     const r = executar(["--input-type=module", "-e", sonda], {});
-    expect(r.codigo).toBe(0);
+    expect(r.codigo, `${r.stdout}\n${r.stderr}`).toBe(0);
     expect(r.stdout).toContain("LANCAM ");
     const lancaram = JSON.parse(
       /\bLANCAM (.+)$/.exec(r.stdout.trimEnd().split("\n").at(-1) ?? "")?.[1] ?? "[]",
@@ -303,7 +304,7 @@ describe.skipIf(emNeon())("o passo do Acervo do build sem rede", () => {
   it("o passo do Acervo termina com saída 0 e a Fonte de fixture carregada, sem nenhuma tentativa de rede", async () => {
     const copia = copiaDaFixture();
     const r = rodar(CARREGADOR, { argumentos: copia.argumentos });
-    expect(r.codigo).toBe(0);
+    expect(r.codigo, `${r.stdout}\n${r.stderr}`).toBe(0);
     // Como o `acervo:load`: a não publicada sem derivado é pulada, e o carregador avisa.
     expect(r.stdout).toContain("puladas (não publicadas e sem derivado): mara-bar-serapiao");
     const relatorios = semTentativa(r, 1);
@@ -327,7 +328,7 @@ describe.skipIf(emNeon())("o passo do Acervo do build sem rede", () => {
         JNF_MIGRA_PASSWORD: "nao-vale",
       },
     });
-    expect(r.codigo).toBe(0);
+    expect(r.codigo, `${r.stdout}\n${r.stderr}`).toBe(0);
     expect(r.stdout).toBe("passo de produção: pulado (VERCEL_ENV=preview)\n");
     // Só o próprio build rodou; não abriu conexão nenhuma e não tentou rede nenhuma.
     expect(semTentativa(r, 1)[0]?.permitidas).toBe(0);
@@ -344,8 +345,13 @@ describe.skipIf(emNeon())("o passo do Acervo do build sem rede", () => {
       expect(readFileSync(path.join(PASTA_DERIVADOS, `${slug}.json`)).length, slug).toBe(
         lock.derivados[slug]?.bytes,
       );
+    // Banco limpo das Fontes de fixture dos testes anteriores (a fixture de Josefo e a real têm a mesma revisão 1 e
+    // sha256 diferente: a carga recusa essa troca, que é o que se quer em produção).
+    await dono.query("delete from acervo.fonte_paragrafo");
+    await dono.query("delete from acervo.fonte_secao");
+    await dono.query("delete from acervo.fonte");
     const r = rodar(BUILD, { ambiente: { ...ENSAIO } });
-    expect(r.codigo).toBe(0);
+    expect(r.codigo, `${r.stdout}\n${r.stderr}`).toBe(0);
     // Anuncia o ensaio, não os passos da produção, e conclui.
     expect(r.stdout).toContain("passo de ensaio do Acervo: rodando");
     expect(r.stdout).not.toMatch(/passo de produção: (migrações|Bíblia|conteúdo|Admin inicial)/);
@@ -373,7 +379,7 @@ describe.skipIf(emNeon())("o passo do Acervo do build sem rede", () => {
       [editadas],
     );
     const r = rodar(BUILD, { ambiente: { ...ENSAIO } });
-    expect(r.codigo).toBe(0);
+    expect(r.codigo, `${r.stdout}\n${r.stderr}`).toBe(0);
     const linhas = r.stdout.trimEnd().split("\n");
     const avisos = linhas.filter((l) => l.includes(": aviso: "));
     // Uma linha de aviso por conflito, e o aviso é a linha do carregador (a Fonte e os campos em conflito).

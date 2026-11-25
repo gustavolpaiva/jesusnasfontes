@@ -253,7 +253,7 @@ export type OpcoesCli = {
   lockDerivados?: string;
 };
 
-export type ResultadoDerivacao = { slug: string; bytes: number; sha256: string };
+export type ResultadoDerivacao = { slug: string; bytes: number; sha256: string; revisao: number };
 
 /** Deriva `slug`, confere o orçamento e SÓ ENTÃO grava o arquivo e o lock dos derivados. */
 export function derivarParaDisco(slug: string, opcoes: OpcoesCli = {}): ResultadoDerivacao {
@@ -294,11 +294,18 @@ export function derivarParaDisco(slug: string, opcoes: OpcoesCli = {}): Resultad
   const hash = sha256(conteudo);
   mkdirSync(pastaDerivados, { recursive: true });
   writeFileSync(path.join(pastaDerivados, `${slug}.json`), conteudo);
-  const derivados: Record<string, { sha256: string; bytes: number }> = {
+  // A revisão é monótona: sobe quando o arquivo muda (outro sha256), fica quando é o mesmo, e começa em 1.
+  const anterior = lock.derivados[slug];
+  const revisao = !anterior
+    ? 1
+    : anterior.sha256 === hash
+      ? anterior.revisao
+      : anterior.revisao + 1;
+  const derivados: Record<string, { sha256: string; bytes: number; revisao: number }> = {
     ...lock.derivados,
-    [slug]: { sha256: hash, bytes },
+    [slug]: { sha256: hash, bytes, revisao },
   };
-  const ordenado: Record<string, { sha256: string; bytes: number }> = {};
+  const ordenado: Record<string, { sha256: string; bytes: number; revisao: number }> = {};
   for (const k of Object.keys(derivados).sort()) ordenado[k] = derivados[k] as never;
   writeFileSync(
     caminhoLock,
@@ -312,7 +319,7 @@ export function derivarParaDisco(slug: string, opcoes: OpcoesCli = {}): Resultad
       2,
     )}\n`,
   );
-  return { slug, bytes, sha256: hash };
+  return { slug, bytes, sha256: hash, revisao };
 }
 
 function lerOpcoes(argv: string[]): { slugs: string[]; opcoes: OpcoesCli } {

@@ -34,7 +34,7 @@ const ORCAMENTO = { orcamento_arquivo_bytes: 8_388_608, orcamento_total_bytes: 3
 type Lock = {
   orcamento_arquivo_bytes: number;
   orcamento_total_bytes: number;
-  derivados: Record<string, { sha256: string; bytes: number }>;
+  derivados: Record<string, { sha256: string; bytes: number; revisao: number }>;
 };
 
 /** Pasta de derivados com o JSON do Josefo e o lock que a descreve (ajustável pelo teste). */
@@ -62,7 +62,7 @@ function montar(ajustar?: (lock: Lock, pasta: string) => void): {
   const bytes = readFileSync(path.join(pasta, "josefo-antiguidades.json"));
   const lock: Lock = {
     ...ORCAMENTO,
-    derivados: { "josefo-antiguidades": { sha256: sha(bytes), bytes: bytes.length } },
+    derivados: { "josefo-antiguidades": { sha256: sha(bytes), bytes: bytes.length, revisao: 1 } },
   };
   ajustar?.(lock, pasta);
   const arquivoDoLock = path.join(raiz, "lock.json");
@@ -116,7 +116,7 @@ describe("verificarDerivados", () => {
 
   it("entrada do lock sem arquivo falha nomeando a Fonte", () => {
     const { pasta, lock } = montar((l) => {
-      l.derivados.fantasma = { sha256: "a".repeat(64), bytes: 10 };
+      l.derivados.fantasma = { sha256: "a".repeat(64), bytes: 10, revisao: 1 };
     });
     expect(mensagemDe(() => verificarDerivados(pasta, lock))).toContain("fantasma");
   });
@@ -153,7 +153,7 @@ describe("verificarDerivados", () => {
     const { pasta, lock } = montar((l, p) => {
       const original = readFileSync(path.join(p, "josefo-antiguidades.json"));
       writeFileSync(path.join(p, "outra-fonte.json"), original);
-      l.derivados["outra-fonte"] = { sha256: sha(original), bytes: original.length };
+      l.derivados["outra-fonte"] = { sha256: sha(original), bytes: original.length, revisao: 1 };
       l.orcamento_total_bytes = original.length + 10;
     });
     const msg = mensagemDe(() => verificarDerivados(pasta, lock));

@@ -15,11 +15,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 //      carregador confere sha256, bytes e orçamento do lock ANTES de abrir conexão. Sem rede nenhuma: o
 //      build não baixa nem deriva nada (CCEL, Gutenberg, GitHub e gospels.net não são contatados, então
 //      a produção não falha nem fica lenta quando um deles cai). Atualizar um texto de Fonte é passo de
-//      desenvolvedor (`acervo:baixar --fixar`, `acervo:derivar` e o commit do derivado e dos locks);
+//      desenvolvedor (`acervo:baixar --fixar`, `acervo:derivar` e o commit do derivado e dos locks).
+//      O passo NUNCA apaga (o que sumiu do derivado fica; remover é `acervo:load --remover <ids>` à mão), NUNCA leva
+//      uma Fonte para trás (o banco guarda a revisão do derivado de que a Fonte veio, e um build de uma versão anterior
+//      pula a Fonte com aviso, saída 0) e recusa, sem escrever, a Fonte que escreveria mais que o teto de unidades
+//      (recusada, saída 3, tolerada como aviso);
 //   5. Admin inicial (ADMIN_EMAIL_INICIAL), sem enviar e-mail.
 // Qualquer falha sai diferente de 0 e o build para: a produção segue na versão anterior. A única
-// exceção é o código 3 do passo do Acervo (Fonte recusada porque foi editada no painel, e nada foi
-// sobrescrito): vira AVISO impresso, uma linha por conflito, e o build segue. Conflito com a edição do
+// exceção é o código 3 do passo do Acervo (Fonte recusada porque foi editada no painel, ou porque passaria do teto
+// de unidades, e nada foi sobrescrito): vira AVISO impresso, uma linha por Fonte, e o build segue. Conflito com a edição do
 // painel não pode impedir a produção de receber uma correção de segurança; o painel mostra o conflito.
 // A tolerância não vale para nenhum outro código e para nenhum outro passo.
 //
@@ -93,12 +97,15 @@ export function decidirPasso(
   return { rodar: false, passos: [], mensagem: pulado(vercelEnv), ensaio: false };
 }
 
-/** As linhas de conflito do carregador do Acervo: a que ele imprime, uma por Fonte recusada por edição no painel. */
+/**
+ * As linhas de recusa do carregador do Acervo, uma por Fonte recusada: `conflito: ` (editada no painel) e `recusada: `
+ * (acima do teto de unidades por Fonte). Nos dois casos nada foi escrito na Fonte e o carregador sai com 3.
+ */
 export function linhasDeConflito(saida: string): string[] {
   return saida
     .split("\n")
     .map((linha) => linha.trim())
-    .filter((linha) => linha.startsWith("conflito: "));
+    .filter((linha) => linha.startsWith("conflito: ") || linha.startsWith("recusada: "));
 }
 
 /** O que o build faz com o código de saída de um passo: segue, segue com aviso (código tolerado) ou para. */

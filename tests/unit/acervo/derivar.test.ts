@@ -188,11 +188,36 @@ describe("derivarParaDisco", () => {
     expect(lido.length).toBe(r.bytes);
     expect(sha(lido)).toBe(r.sha256);
     const lock = JSON.parse(readFileSync(opcoes.lockDerivados, "utf8"));
-    expect(lock.derivados["josefo-antiguidades"]).toEqual({ sha256: r.sha256, bytes: r.bytes });
+    expect(lock.derivados["josefo-antiguidades"]).toEqual({
+      sha256: r.sha256,
+      bytes: r.bytes,
+      revisao: 1,
+    });
     const lockAntes = readFileSync(opcoes.lockDerivados, "utf8");
     derivarParaDisco("josefo-antiguidades", opcoes);
     expect(readFileSync(arquivo).equals(lido)).toBe(true);
     expect(readFileSync(opcoes.lockDerivados, "utf8")).toBe(lockAntes);
+  });
+
+  it("a revisão do derivado no lock é monótona: sobe quando o arquivo muda, fica quando é o mesmo", () => {
+    const { opcoes } = montar();
+    const r1 = derivarParaDisco("josefo-antiguidades", opcoes);
+    expect(r1.revisao).toBe(1);
+    // O lock passa a dizer que o derivado anterior era OUTRO (sha256 diferente), na revisão 4: derivar de novo sobe a 5.
+    const lock = JSON.parse(readFileSync(opcoes.lockDerivados, "utf8"));
+    lock.derivados["josefo-antiguidades"] = { sha256: "0".repeat(64), bytes: 1, revisao: 4 };
+    writeFileSync(opcoes.lockDerivados, JSON.stringify(lock));
+    const r2 = derivarParaDisco("josefo-antiguidades", opcoes);
+    expect(r2.revisao).toBe(5);
+    expect(
+      JSON.parse(readFileSync(opcoes.lockDerivados, "utf8")).derivados["josefo-antiguidades"],
+    ).toEqual({
+      sha256: r1.sha256,
+      bytes: r1.bytes,
+      revisao: 5,
+    });
+    // Mesmo conteúdo outra vez: a revisão não sobe.
+    expect(derivarParaDisco("josefo-antiguidades", opcoes).revisao).toBe(5);
   });
 
   it("estourar o orçamento por arquivo falha antes de gravar o derivado e o lock", () => {

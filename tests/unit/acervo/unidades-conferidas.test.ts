@@ -185,7 +185,9 @@ describe("acervo:verify com unidades_conferidas", () => {
       JSON.stringify({
         orcamento_arquivo_bytes: 8_388_608,
         orcamento_total_bytes: 31_457_280,
-        derivados: { "tacito-anais": { sha256: sha(conteudo), bytes: conteudo.byteLength } },
+        derivados: {
+          "tacito-anais": { sha256: sha(conteudo), bytes: conteudo.byteLength, revisao: 1 },
+        },
       }),
     );
     expect(raiz).toBeTruthy();
