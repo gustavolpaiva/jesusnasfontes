@@ -399,6 +399,31 @@ describe("executarCarga: confere tudo ANTES de abrir qualquer conexão", () => {
       expect(restrita.abrir).not.toHaveBeenCalled();
     });
 
+    it("arquivo tirado do registro (ou posto noutra origem) com o derivado mantido: recusa antes de abrir o banco", async () => {
+      const semArquivo = carregar(
+        montar(),
+        registro((o) => {
+          const origem = o[ORIGEM_DO_JOSEFO] as { arquivos: { slug: string }[] };
+          origem.arquivos = origem.arquivos.filter((a) => a.slug !== "josefo-antiguidades");
+        }),
+      );
+      await expect(semArquivo.resultado).rejects.toThrow(/nenhum arquivo do registro/);
+      expect(semArquivo.abrir).not.toHaveBeenCalled();
+
+      const outraOrigem = carregar(
+        montar(),
+        registro((o) => {
+          const origem = o[ORIGEM_DO_JOSEFO] as { arquivos: { slug: string }[] };
+          const outra = Object.keys(o).find((k) => k !== ORIGEM_DO_JOSEFO) as string;
+          const arquivo = origem.arquivos.find((a) => a.slug === "josefo-antiguidades");
+          origem.arquivos = origem.arquivos.filter((a) => a.slug !== "josefo-antiguidades");
+          (o[outra] as unknown as { arquivos: unknown[] }).arquivos.push(arquivo);
+        }),
+      );
+      await expect(outraOrigem.resultado).rejects.toThrow(/declara perseus-greeklit-josefo/);
+      expect(outraOrigem.abrir).not.toHaveBeenCalled();
+    });
+
     it("registro ilegível vira erro da carga, com a mensagem, e o comando sempre aponta o registro real", async () => {
       const m = montar();
       const { abrir, resultado } = carregar(m, path.join(m.raiz, "nao-existe.yaml"));

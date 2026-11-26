@@ -312,8 +312,16 @@ export function conferirOrigemDoDerivado(
       );
   }
   // Arquivo com divisões (volume de várias obras): nenhuma seção fora delas pode estar no derivado.
+  // O derivado tem de ter o arquivo no registro, e o arquivo tem de ser da MESMA origem que o derivado declara: tirar o arquivo do
+  // registro (ou pô-lo noutra origem) mantendo o derivado não pode soltar a conferência das divisões.
   const achado = acharArquivoDoDerivado(origens, slug);
-  const divisoes = achado ? divisoesPermitidas(achado.arquivo) : undefined;
+  if (!achado)
+    throw new ErroOrigem(`derivado ${slug}: nenhum arquivo do registro de origens o alimenta`);
+  if (achado.origemId !== derivado.origem_id)
+    throw new ErroOrigem(
+      `derivado ${slug}: o arquivo está na origem ${achado.origemId} e o derivado declara ${derivado.origem_id}`,
+    );
+  const divisoes = divisoesPermitidas(achado.arquivo);
   if (divisoes) {
     const permitidasSlug = new Set([...divisoes].map(slugDaDivisao));
     const fora = derivado.secoes.filter((s) => !permitidasSlug.has(s.slug)).map((s) => s.slug);

@@ -851,6 +851,43 @@ describe.skipIf(emNeon())(
       },
     );
 
+    it("o parágrafo citado mudado pela carga, com a Fonte travada, ENQUANTO a aprovação espera a trava: a aprovação relê o hash e é recusada (40001), nada gravado (0034)", async () => {
+      const c = await cenario();
+      await carga.query(
+        `insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id, trecho, idioma, ordem) values ($1, $2, null, 'en', 1)`,
+        [c.afirmacao, c.paragrafo],
+      );
+      const texto = await hashDoTexto(c.afirmacao);
+      const conjuntoLido = await hashDasCitacoes(c.afirmacao);
+      await cargaB.query("begin");
+      try {
+        await cargaB.query("select 1 from acervo.fonte where slug = $1 for update", [c.fonteSlug]);
+        await cargaB.query("update acervo.fonte_paragrafo set texto = $2 where id = $1", [
+          c.paragrafo,
+          "A paragraph revised while the Admin was approving.",
+        ]);
+        const pid = await pidDe(appA);
+        const resultado = appA
+          .query("select acervo.aprovar_afirmacao($1::uuid, $2, $3, 'consenso', $4)", [
+            admin(),
+            c.afirmacao,
+            texto,
+            conjuntoLido,
+          ])
+          .then(
+            () => "gravou",
+            (e: { code?: string }) => e.code ?? "erro",
+          );
+        await esperarBloqueio(pid);
+        await cargaB.query("commit");
+        expect(await resultado).toBe("40001");
+      } catch (erro) {
+        await cargaB.query("rollback").catch(() => {});
+        throw erro;
+      }
+      expect(await aprovacoes(c.afirmacao)).toBe(0);
+    });
+
     it("o texto da Afirmação mudado (a carga) ENQUANTO a aprovação trava: a carga espera e a aprovação fica obsoleta, sem ler o texto velho", async () => {
       const c = await cenario();
       await citarParagrafo(c.afirmacao, c.paragrafo);
