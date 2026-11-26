@@ -79,6 +79,14 @@ const configLocal = defineConfig({
   outputDir: `test-results/e2e-${porta}`,
   reporter: "list",
   fullyParallel: true,
+  // Prazos do servidor de desenvolvimento COMPARTILHADO com outros projetos (plano 02-24). MEDIDO em 26/11/2026, com a máquina em carga de
+  // 10 a 100 (outros projetos, não os três processos daqui): o mesmo teste de Admin (link, segundo fator, painel) leva de 6 a 11 s com a
+  // máquina quieta e de 16 a 30 s sob carga; o `expect` de 5 s do padrão venceu enquanto o cabeçalho ainda estava em "Carregando…"
+  // (admin-mfa, WebKit celular), e as execuções inteiras de hoje deram de 2 a 5 vermelhos por tempo esgotado, quase sempre nos mesmos
+  // testes de login do Admin e nunca na mesma asserção de conteúdo. Nenhuma asserção mudou: o teste continua esperando a mesma condição
+  // real (elemento, resposta), só que não conta a fila do servidor como falha. Um teste lento DE VERDADE (acima de 60 s) ainda reprova.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   // Três processos de teste, não os cinco que o padrão daria nesta máquina. Todos falam com UM servidor
   // de desenvolvimento (um só processo do Node): o trabalho dele é a fila, e com cinco clientes cada
   // teste esperava a vez dos outros quatro. Medido em `admin-mfa.spec.ts` (16 testes): cinco processos,
