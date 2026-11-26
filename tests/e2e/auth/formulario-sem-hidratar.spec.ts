@@ -87,3 +87,41 @@ test("a navegação para outro site não leva Referer, nem da tela com o token n
   await expect(page.getByText("terceiro", { exact: true })).toBeVisible();
   expect(referer).toBeUndefined();
 });
+
+// A busca do Acervo não é uma Server Action nativa: enviada antes da hidratação, a busca se perderia sem aviso. O botão "Buscar" fica desabilitado até a
+// página hidratar (revisão cruzada da fase, plano 02-24), e Enter no campo não envia. Controle positivo: com os scripts, o botão habilita e a busca roda.
+for (const rota of ["/acervo", "/acervo/busca"]) {
+  test(`${rota}: o botão Buscar fica desabilitado antes da hidratação e habilita depois`, async ({
+    browser,
+    baseURL,
+    page,
+  }) => {
+    const endereco = emailDeTeste("sem-js-busca");
+    await convidarParaTeste(endereco);
+    await isolarIp(page);
+    await pedirAcesso(page, endereco);
+    const { link } = await ultimoEmailPara(endereco);
+    await page.goto(link as string);
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Trilhas" })).toBeVisible();
+
+    const semScripts = await contextoSemHidratacao(browser, baseURL as string);
+    await semScripts.addCookies(await page.context().cookies());
+    const parada = await semScripts.newPage();
+    const posts: string[] = [];
+    parada.on("request", (r) => {
+      if (r.method() === "POST") posts.push(r.url());
+    });
+    await parada.goto(rota);
+    const botao = parada.getByRole("button", { name: "Buscar", exact: true });
+    await expect(botao).toBeDisabled();
+    await parada.getByRole("searchbox", { name: "Buscar no Acervo" }).fill("pilatos");
+    await parada.getByRole("searchbox", { name: "Buscar no Acervo" }).press("Enter");
+    await parada.waitForTimeout(500);
+    expect(posts, "nenhum POST nativo saiu").toEqual([]);
+    await semScripts.close();
+
+    await page.goto(rota);
+    await expect(page.getByRole("button", { name: "Buscar", exact: true })).toBeEnabled();
+  });
+}

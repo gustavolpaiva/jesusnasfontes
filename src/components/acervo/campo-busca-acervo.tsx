@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CHAVE_DO_TERMO_PENDENTE, TERMO_DA_BUSCA_MAX } from "@/modules/acervo/busca-limites";
@@ -14,6 +14,10 @@ import { CHAVE_DO_TERMO_PENDENTE, TERMO_DA_BUSCA_MAX } from "@/modules/acervo/bu
 export function CampoBuscaAcervo() {
   const roteador = useRouter();
   const [termo, setTermo] = useState("");
+  // O botão só vale depois de a página hidratar: enviado antes, o formulário faz um POST nativo que ninguém trata e o termo se
+  // perde sem aviso (revisão cruzada da fase, plano 02-24). Desabilitado, nem o clique nem o Enter enviam.
+  const [pronto, setPronto] = useState(false);
+  useEffect(() => setPronto(true), []);
 
   function enviar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -44,7 +48,7 @@ export function CampoBuscaAcervo() {
             enterKeyHint="search"
             className="flex-1"
           />
-          <Button type="submit" variant="secondary">
+          <Button type="submit" variant="secondary" disabled={!pronto}>
             Buscar
           </Button>
         </div>

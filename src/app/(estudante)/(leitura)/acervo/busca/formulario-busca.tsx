@@ -57,6 +57,10 @@ export function FormularioBusca({ oferecidos }: Props) {
   // fila (a segunda só começa quando a primeira responde), e a busca refeita com outro Nível ou termo tem de sair
   // na hora, deixando a resposta da anterior ser descartada pela geração.
   const [buscando, setBuscando] = useState(false);
+  // O botão só vale depois de a página hidratar: enviado antes, o formulário faz um POST nativo que ninguém trata e a busca se
+  // perde sem aviso (revisão cruzada da fase, plano 02-24). Desabilitado, nem o clique nem o Enter enviam.
+  const [pronto, setPronto] = useState(false);
+  useEffect(() => setPronto(true), []);
   const [carregandoMais, setCarregandoMais] = useState(false);
   const entrada = useRef<HTMLInputElement>(null);
   // Muda a cada busca e a cada "Limpar busca": a resposta de um pedido de uma geração que já passou não muda a tela.
@@ -229,7 +233,12 @@ export function FormularioBusca({ oferecidos }: Props) {
                 aria-describedby="acervo-ajuda"
                 className="flex-1"
               />
-              <Button type="submit" variant="secondary" aria-busy={buscando} disabled={buscando}>
+              <Button
+                type="submit"
+                variant="secondary"
+                aria-busy={buscando}
+                disabled={buscando || !pronto}
+              >
                 {buscando ? "Buscando…" : "Buscar"}
               </Button>
             </div>
