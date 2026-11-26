@@ -65,8 +65,8 @@
     "eusebio-historia-eclesiastica": {
       "sha256": "0b9d8233c950ae26b36ed8ca7c21d9591ab5e49d936e53189ab16059fb31ad1d",
       "bytes": 921604,
-      "yaml_sha256": "60e3e955604e8e7ae7664714709b3aaff90ad1503025d880f64b135c694d7b02",
-      "revisao": 1
+      "yaml_sha256": "85c4c831091c4cf13fe4faa54d0676aadb3abc3d398260cf12001699a85a8b63",
+      "revisao": 2
     },
     "evangelho-arabe-da-infancia": {
       "sha256": "5a7da0c1589d3d53b20b3d0ec1810d726bb95e44ee8878d9938e02220b49e267",
@@ -113,14 +113,14 @@
     "inacio-cartas": {
       "sha256": "dbd0292c2b17965f10bb6949a7dcc77c0334495eda5cfad5b4db67bbdc1741a7",
       "bytes": 77145,
-      "yaml_sha256": "3b081ed586de983e2fded6bb796d9802b7b85c28d4a7a5132072f8623d605500",
-      "revisao": 1
+      "yaml_sha256": "79686d906090a6c3d9858842cf0c6059a7d3be5a6a56b25da01ffa6d42aeacf2",
+      "revisao": 2
     },
     "ireneu-contra-heresias": {
       "sha256": "962bb95ff06e939610fa6ae13f9949143f795c806d017d2b25b8bd44c7e86581",
       "bytes": 1264601,
-      "yaml_sha256": "b2b09ff9dc4fd953c53aa32bdf4e97b1a09ae6b24bbacd683ea9da4b10d0e738",
-      "revisao": 1
+      "yaml_sha256": "12d7d29ef8b3b510eb3453c6388e2355d61d122ead4670eaba6792c36dcfd359",
+      "revisao": 2
     },
     "josefo-antiguidades": {
       "sha256": "1d3d83162fceb012bb30cfb739c1fc6dff3b9598bcb8399bc4302405436af6f8",
@@ -179,8 +179,8 @@
     "origenes-contra-celso": {
       "sha256": "c70b733968949df04030758d50626d32ee8a54adedb0ddf9d4656995178a0f65",
       "bytes": 1464933,
-      "yaml_sha256": "d8c9b7562d1528f8f4bd79898d9920850d7cbbeb64b194ae7111bdd8c9a02b6f",
-      "revisao": 1
+      "yaml_sha256": "aa072f01d6e6988e338aa33258468ec5b26ed3605714bb931998ab64e01de576",
+      "revisao": 2
     },
     "papias-fragmentos": {
       "sha256": "558bbc63779b9af6fdb2cae881330ee0fad85b822f8d97529546aa7f2af0fd82",
