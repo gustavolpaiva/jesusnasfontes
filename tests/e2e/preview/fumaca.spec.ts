@@ -93,6 +93,21 @@ test("link inválido: o GET só mostra a tela; o toque em Entrar leva a 'não va
   expect(page.url()).toContain("invalido=1");
 });
 
+// Fase 2 (Acervo): sem sessão, as telas do Acervo levam à entrada e a página de créditos traz a seção dos textos. Nada é lido do banco
+// nem gravado: só o que qualquer pessoa sem convite vê.
+for (const rota of ["/acervo", "/acervo/busca"]) {
+  test(`${rota} sem sessão leva a /entrar`, async ({ page }) => {
+    await page.goto(rota);
+    await expect(page).toHaveURL(/\/entrar(\?|$)/);
+  });
+}
+
+test("/creditos mostra a seção Textos do Acervo", async ({ page }) => {
+  const r = await page.goto("/creditos");
+  expect(r?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 2, name: "Textos do Acervo" })).toBeVisible();
+});
+
 test("a rota crua da biblioteca que envia e-mail responde 404", async ({ request }) => {
   const r = await request.post("/api/auth/sign-in/magic-link", {
     data: { email: endereco() },

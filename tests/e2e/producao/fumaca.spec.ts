@@ -1,5 +1,8 @@
 import { randomBytes } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@playwright/test";
+import { parse } from "yaml";
 
 // Fumaça contra a PRODUÇÃO, sem login e sem banco: nada aqui lê ou grava o banco de produção daqui.
 //
@@ -54,4 +57,69 @@ test("/creditos abre sem sessão", async ({ page }) => {
 test("/trilhas sem sessão leva a /entrar", async ({ page }) => {
   await page.goto("/trilhas");
   await expect(page).toHaveURL(/\/entrar(\?|$)/);
+});
+
+// ───────────────────────── Fase 2 (Acervo), sem login e sem banco ─────────────────────────
+
+for (const rota of ["/acervo", "/acervo/busca", "/acervo/carta-de-neutralidade"]) {
+  test(`${rota} sem sessão leva a /entrar`, async ({ page }) => {
+    await page.goto(rota);
+    await expect(page).toHaveURL(/\/entrar(\?|$)/);
+  });
+}
+
+// As entradas dos créditos do Acervo vêm do registro de origens e dos YAMLs das Fontes publicadas (os mesmos arquivos de que o
+// build de produção carrega o banco): a produção tem de mostrar uma entrada de cada família, com o nome do registro.
+type Origem = { nome: string; arquivos: { slug: string }[] };
+const origens = parse(readFileSync("data/acervo-origens.yaml", "utf8")) as Record<string, Origem>;
+type FonteYaml = { slug: string; publicada: boolean; tipo_texto: string };
+const publicadas = new Set(
+  readdirSync(join("content", "acervo", "fontes"))
+    .filter((nome) => nome.endsWith(".yaml"))
+    .map(
+      (nome) => parse(readFileSync(join("content", "acervo", "fontes", nome), "utf8")) as FonteYaml,
+    )
+    .filter((f) => f.publicada && f.tipo_texto === "integral")
+    .map((f) => f.slug),
+);
+
+test("/creditos mostra Textos do Acervo e uma entrada de cada família (Perseus, CCEL, Gutenberg, gospels.net)", async ({
+  page,
+}) => {
+  const r = await page.goto("/creditos");
+  expect(r?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 2, name: "Textos do Acervo" })).toBeVisible();
+  const titulos = await page.getByRole("heading", { level: 3 }).allInnerTexts();
+  for (const familia of ["perseus", "ccel", "gutenberg", "gospels"]) {
+    const nomes = Object.entries(origens)
+      .filter(
+        ([chave, o]) => chave.startsWith(familia) && o.arquivos.some((a) => publicadas.has(a.slug)),
+      )
+      .map(([, o]) => o.nome);
+    expect(
+      nomes.length,
+      `a família ${familia} tem origem com derivado no registro`,
+    ).toBeGreaterThan(0);
+    expect(
+      titulos.some((t) => nomes.includes(t)),
+      `uma entrada da família ${familia} nos créditos`,
+    ).toBe(true);
+  }
+});
+
+// O painel do Admin não revela que existe: sem sessão a resposta é a de uma rota que nunca existiu (mesmo status e mesma tela).
+test("/admin/acervo/fontes e /admin/acervo/fichas sem sessão respondem como qualquer rota inexistente", async ({
+  page,
+}) => {
+  const inexistente = await page.goto(
+    `/admin/rota-que-nunca-existiu-${randomBytes(4).toString("hex")}`,
+  );
+  const statusBase = inexistente?.status();
+  const tituloBase = await page.getByRole("heading", { level: 1 }).first().innerText();
+  for (const rota of ["/admin/acervo/fontes", "/admin/acervo/fichas"]) {
+    const r = await page.goto(rota);
+    expect(r?.status(), rota).toBe(statusBase);
+    expect(new URL(page.url()).pathname, rota).toBe(rota);
+    await expect(page.getByRole("heading", { level: 1 }).first(), rota).toHaveText(tituloBase);
+  }
 });
