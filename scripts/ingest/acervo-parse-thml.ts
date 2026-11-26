@@ -34,7 +34,7 @@
 //                         e as marcas vazias pb, hr, index, insertIndex, scripCom e br (que vira espaço)
 
 import { Parser } from "htmlparser2";
-import { TETO_BRUTO_BYTES } from "./acervo-origens";
+import { slugDaDivisao, TETO_BRUTO_BYTES } from "./acervo-origens";
 import type { ParagrafoTei, SecaoTei } from "./acervo-parse-tei";
 
 export class ErroThml extends Error {
@@ -82,8 +82,10 @@ export type ResultadoThml = {
 export const SEPARADOR_DE_LINHA = " / ";
 
 const compactar = (s: string) => s.split(/\s+/).filter(Boolean).join(" ");
+
 /** O id pontuado da divisão da edição (ex.: "ii.xii") vira o slug kebab-case que o contrato do derivado exige. */
-export const slugDaDivisao = (id: string) => id.replaceAll(".", "-");
+export { slugDaDivisao };
+
 const NIVEIS = new Set(["div1", "div2", "div3", "div4", "div5", "div6"]);
 const CABECALHOS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 

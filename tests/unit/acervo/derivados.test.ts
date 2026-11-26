@@ -5,13 +5,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { executarCarga } from "../../../scripts/acervo/carregar";
+import { executarCarga, lerOpcoes } from "../../../scripts/acervo/carregar";
 import {
   ErroDerivado,
   lerDerivado,
   lerLock,
   verificarDerivados,
 } from "../../../scripts/acervo/derivados";
+import { hashDoYaml } from "../../../scripts/acervo/entrada";
+import { CAMINHO_ORIGENS, lerOrigens } from "../../../scripts/ingest/acervo-origens";
+import { interpretarFonteYaml } from "../../../src/modules/acervo/schemas";
 
 // A carga só aceita derivado conferido contra o lock (sha256 e bytes) e contra o orçamento, e confere ANTES de
 // abrir qualquer conexão. Tudo aqui roda sobre pastas e locks sintéticos em diretório temporário.
@@ -312,6 +315,97 @@ describe("executarCarga: confere tudo ANTES de abrir qualquer conexão", () => {
     expect(r.puladas).toEqual(["josefo-antiguidades"]);
     expect(saida.join("\n")).toContain("josefo-antiguidades");
     expect(abrir).not.toHaveBeenCalled();
+  });
+
+  // D-06 (revisão cruzada da fase, plano 02-24): o build não roda `acervo:verify`, então a carga é que recusa um derivado cuja
+  // origem deixou de ser publicável, ou que traz unidade fora das autorizadas, antes de abrir conexão.
+  describe("registro de origens", () => {
+    const ORIGEM_DO_JOSEFO = "perseus-greeklit-josefo";
+    const ate = new Error("passou pelas conferências e chegou ao banco");
+
+    function registro(ajustar: (origens: Record<string, Record<string, unknown>>) => void): string {
+      const origens = JSON.parse(JSON.stringify(lerOrigens())) as Record<
+        string,
+        Record<string, unknown>
+      >;
+      ajustar(origens);
+      const arquivo = path.join(mkdtempSync(path.join(tmpdir(), "jnf-origens-")), "origens.yaml");
+      temporarios.push(path.dirname(arquivo));
+      writeFileSync(arquivo, JSON.stringify(origens));
+      return arquivo;
+    }
+
+    const carregar = (m: ReturnType<typeof montar>, origens: string) => {
+      const abrir = vi.fn(async () => {
+        throw ate;
+      });
+      return {
+        abrir,
+        resultado: executarCarga(
+          { fontes: m.fontes, derivados: m.pasta, lock: m.arquivoDoLock, origens },
+          { abrir, escrever: () => {} },
+        ),
+      };
+    };
+
+    it("controle positivo: com a origem publicável a carga passa pelas conferências e só então abre o banco", async () => {
+      // O lock da montagem traz o YAML "não travado": aqui ele é travado de verdade, para a carga chegar ao banco.
+      const m = montar((l, _pasta) => {
+        const yaml = interpretarFonteYaml(
+          readFileSync(path.join(FIXTURES, "fontes", "josefo-antiguidades.yaml"), "utf8"),
+          "josefo-antiguidades.yaml",
+        );
+        const e = l.derivados["josefo-antiguidades"];
+        if (e) e.yaml_sha256 = hashDoYaml(yaml);
+      });
+      const { abrir, resultado } = carregar(
+        m,
+        registro(() => {}),
+      );
+      await expect(resultado).rejects.toBe(ate);
+      expect(abrir).toHaveBeenCalledTimes(1);
+    });
+
+    it("origem marcada como não publicável: recusa antes de abrir o banco, mesmo com derivado e lock intactos", async () => {
+      const m = montar();
+      const { abrir, resultado } = carregar(
+        m,
+        registro((o) => {
+          (o[ORIGEM_DO_JOSEFO] as Record<string, unknown>).publicavel = false;
+        }),
+      );
+      await expect(resultado).rejects.toThrow(/não é publicável/);
+      await expect(resultado).rejects.toBeInstanceOf(ErroDerivado);
+      expect(abrir).not.toHaveBeenCalled();
+    });
+
+    it("origem fora do registro, ou derivado com unidade fora das conferidas: recusa antes de abrir o banco", async () => {
+      const fora = carregar(
+        montar(),
+        registro((o) => {
+          delete o[ORIGEM_DO_JOSEFO];
+        }),
+      );
+      await expect(fora.resultado).rejects.toThrow(/fora do registro/);
+      expect(fora.abrir).not.toHaveBeenCalled();
+
+      const restrita = carregar(
+        montar(),
+        registro((o) => {
+          (o[ORIGEM_DO_JOSEFO] as Record<string, unknown>).unidades_conferidas = ["99.99"];
+        }),
+      );
+      await expect(restrita.resultado).rejects.toThrow(/fora de unidades_conferidas/);
+      expect(restrita.abrir).not.toHaveBeenCalled();
+    });
+
+    it("registro ilegível vira erro da carga, com a mensagem, e o comando sempre aponta o registro real", async () => {
+      const m = montar();
+      const { abrir, resultado } = carregar(m, path.join(m.raiz, "nao-existe.yaml"));
+      await expect(resultado).rejects.toThrow(/registro de origens/);
+      expect(abrir).not.toHaveBeenCalled();
+      expect(lerOpcoes([]).origens).toBe(CAMINHO_ORIGENS);
+    });
   });
 
   it("lock vazio e nenhum derivado: sai bem, diz que não há o que carregar e não abre conexão", async () => {

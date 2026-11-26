@@ -22,17 +22,15 @@ import { conferirBruto, derivar, serializar } from "./acervo-derivar";
 import { conferirEvidenciaNoBruto } from "./acervo-evidencia";
 import { ErroLicenca } from "./acervo-licenca";
 import {
-  acharArquivoDoDerivado,
   caminhoDoBruto,
   chaveDoArquivo,
-  divisoesPermitidas,
+  conferirOrigemDoDerivado,
   lerLockBruto,
   lerOrigens,
   type Origens,
   PASTA_BRUTO,
   unidadesPermitidas,
 } from "./acervo-origens";
-import { slugDaDivisao } from "./acervo-parse-thml";
 
 const sha256 = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
 /** Primeiros itens de uma lista e, se ela for longa, o último entre parênteses. */
@@ -88,33 +86,7 @@ export function verificarAcervo(opcoes: OpcoesVerificar = {}): ResultadoVerifica
     for (const c of conferidos) {
       try {
         const d = lerDerivado(pastaDerivados, lock, c.slug);
-        const origem = origens[d.origem_id];
-        if (!origem)
-          throw new ErroDerivado(`derivado ${c.slug}: origem ${d.origem_id} fora do registro`);
-        if (!origem.publicavel)
-          throw new ErroDerivado(`derivado ${c.slug}: a origem ${d.origem_id} não é publicável`);
-        // Origem com lista de unidades conferidas: nada fora dela pode estar no derivado (lista vazia reprova).
-        const permitidas = unidadesPermitidas(origem);
-        if (permitidas) {
-          const fora = d.secoes
-            .flatMap((s) => s.paragrafos.map((p) => p.ref))
-            .filter((ref) => !permitidas.has(ref));
-          if (fora.length > 0)
-            throw new ErroDerivado(
-              `derivado ${c.slug}: ${fora.length} unidade(s) fora de unidades_conferidas da origem ${d.origem_id} (${fora.slice(0, 5).join(", ")}${fora.length > 5 ? ", …" : ""})`,
-            );
-        }
-        // Arquivo com divisões (volume de várias obras): nenhuma seção fora delas pode estar no derivado.
-        const achado = acharArquivoDoDerivado(origens, c.slug);
-        const divisoes = achado ? divisoesPermitidas(achado.arquivo) : undefined;
-        if (divisoes) {
-          const permitidasSlug = new Set([...divisoes].map(slugDaDivisao));
-          const fora = d.secoes.filter((s) => !permitidasSlug.has(s.slug)).map((s) => s.slug);
-          if (fora.length > 0)
-            throw new ErroDerivado(
-              `derivado ${c.slug}: ${fora.length} seção(ões) fora das divisões do arquivo (${fora.join(", ")})`,
-            );
-        }
+        conferirOrigemDoDerivado(c.slug, d, origens);
         slugsConferidos.add(c.slug);
         linhas.push(`OK ${c.slug} (${c.bytes} bytes, sha256 ${c.sha256.slice(0, 12)})`);
       } catch (erro) {

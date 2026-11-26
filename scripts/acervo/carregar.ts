@@ -16,6 +16,13 @@ import {
   type FonteYaml,
   interpretarFonteYaml,
 } from "../../src/modules/acervo/schemas";
+import {
+  CAMINHO_ORIGENS,
+  conferirOrigemDoDerivado,
+  ErroOrigem,
+  lerOrigens,
+  type Origens,
+} from "../ingest/acervo-origens";
 import { abrirCarga, ErroCarga } from "../ingest/carregar-biblia";
 import {
   CAMINHO_LOCK,
@@ -869,6 +876,12 @@ export type OpcoesDoComando = {
   fontes: string;
   derivados: string;
   lock: string;
+  /**
+   * Registro de origens (`data/acervo-origens.yaml`). Quando dado, cada derivado só carrega se a origem dele é publicável e
+   * ele não traz nada fora das unidades e divisões autorizadas (D-06): a mesma regra do `acervo:verify`, que o build não roda.
+   * O comando (`lerOpcoes`) sempre o preenche; só os testes de unidade da carga com pastas fictícias o omitem.
+   */
+  origens?: string;
   /** Autorizações tipadas (`secao:<id>`, `paragrafo:<id>`) do que ESTA execução pode apagar. Só o `acervo:load` à mão; o build nunca. */
   remover?: readonly string[];
   /** Outro teto de remoções por Fonte, só à mão (`--teto-remocoes`). */
@@ -920,6 +933,28 @@ function versaoDaEntrada(
   return { revisao: entrada.revisao, sha256: shaDaEntrada(entrada.sha256, yaml) };
 }
 
+function lerOrigensParaCarga(caminho: string): Origens {
+  try {
+    return lerOrigens(caminho);
+  } catch (erro) {
+    if (erro instanceof ErroOrigem) throw new ErroCarga(`registro de origens: ${erro.message}`);
+    throw erro;
+  }
+}
+
+function conferirOrigem(
+  slug: string,
+  derivado: Parameters<typeof conferirOrigemDoDerivado>[1],
+  origens: Origens,
+): void {
+  try {
+    conferirOrigemDoDerivado(slug, derivado, origens);
+  } catch (erro) {
+    if (erro instanceof ErroOrigem) throw new ErroDerivado(erro.message);
+    throw erro;
+  }
+}
+
 /**
  * Confere o lock, o orçamento e o contrato de cada YAML e de cada derivado, TUDO antes de criar o cliente do banco;
  * só então carrega. Sem derivado a carregar, não abre conexão. Erro lança (o comando sai com 1); nada é gravado.
@@ -933,6 +968,7 @@ export async function executarCarga(
   const conferidos = verificarDerivados(opcoes.derivados, lock);
   const yamls = lerYamls(opcoes.fontes);
 
+  const origens = opcoes.origens ? lerOrigensParaCarga(opcoes.origens) : undefined;
   const slugsDosYamls = new Set(yamls.map((y) => y.slug));
   for (const d of conferidos) {
     if (!slugsDosYamls.has(d.slug))
@@ -943,9 +979,11 @@ export async function executarCarga(
   const comDerivado = new Set(conferidos.map((d) => d.slug));
   for (const fonte of yamls) {
     if (comDerivado.has(fonte.slug)) {
+      const derivado = lerDerivado(opcoes.derivados, lock, fonte.slug);
+      if (origens) conferirOrigem(fonte.slug, derivado, origens);
       itens.push({
         fonte,
-        derivado: lerDerivado(opcoes.derivados, lock, fonte.slug),
+        derivado,
         // Revisão e sha256 da ENTRADA (derivado + YAML) do lock já conferido: a carga nunca leva uma Fonte para uma
         // revisão menor que a do banco.
         versao: versaoDaEntrada(lock, fonte),
@@ -1015,7 +1053,7 @@ export function codigoDeSaida(r: ResultadoDoComando): number {
 }
 
 const USO =
-  "Uso: acervo:load [--fontes <pasta>] [--derivados <pasta>] [--lock <arquivo>] [--remover <secao:id,paragrafo:id,...>] [--teto <n>] [--teto-remocoes <n>]";
+  "Uso: acervo:load [--fontes <pasta>] [--derivados <pasta>] [--lock <arquivo>] [--origens <arquivo>] [--remover <secao:id,paragrafo:id,...>] [--teto <n>] [--teto-remocoes <n>]";
 
 export function lerOpcoes(argumentos: string[]): OpcoesDoComando {
   const valorBruto = (flag: string): string | undefined => {
@@ -1055,6 +1093,7 @@ export function lerOpcoes(argumentos: string[]): OpcoesDoComando {
     fontes: valor("--fontes", PASTA_FONTES),
     derivados: valor("--derivados", PASTA_DERIVADOS),
     lock: valor("--lock", CAMINHO_LOCK),
+    origens: valor("--origens", CAMINHO_ORIGENS),
     ...(remover ? { remover } : {}),
     ...(teto === undefined ? {} : { teto }),
     ...(tetoDeRemocoes === undefined ? {} : { tetoDeRemocoes }),

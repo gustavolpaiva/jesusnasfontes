@@ -1,7 +1,8 @@
 // Registro das ORIGENS do Acervo (`data/acervo-origens.yaml`) e lock do arquivo BRUTO (`data/acervo.lock.json`).
 // Uma origem é um conjunto de arquivos de um mesmo lugar, com a mesma licença e o mesmo commit. É código de
-// DESENVOLVEDOR (usado por baixar, derivar e verificar): nenhum caminho de carga o importa. Só `node:fs`, `yaml`
-// e `zod`; nenhuma rede.
+// DESENVOLVEDOR (usado por baixar, derivar e verificar). O carregador (`scripts/acervo/carregar.ts`) importa DAQUI só
+// `conferirOrigemDoDerivado`, para recusar, antes de abrir conexão, um derivado cuja origem deixou de ser publicável
+// (revisão cruzada da fase, plano 02-24): o build não roda o `acervo:verify`. Só `node:fs`, `yaml` e `zod`; nenhuma rede.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -278,4 +279,47 @@ export function acharArquivoDoDerivado(
     if (arquivo) return { origemId, origem, arquivo };
   }
   return null;
+}
+
+/** O id pontuado da divisão da edição (ex.: "ii.xii") vira o slug kebab-case que o contrato do derivado exige. */
+export const slugDaDivisao = (id: string) => id.replaceAll(".", "-");
+
+/**
+ * Um derivado só pode ser carregado se a origem dele está no registro, é publicável e o derivado não traz nada fora das
+ * unidades conferidas e das divisões que o registro autoriza. Lança `ErroOrigem` com a mensagem do motivo (nunca texto da
+ * Fonte). É a MESMA regra do `acervo:verify` e a que o carregador aplica antes de abrir conexão: marcar uma origem como
+ * `publicavel: false` (D-06) tem de barrar o build, não só o comando de desenvolvedor.
+ */
+export function conferirOrigemDoDerivado(
+  slug: string,
+  derivado: { origem_id: string; secoes: { slug: string; paragrafos: { ref: string }[] }[] },
+  origens: Origens,
+): void {
+  const origem = origens[derivado.origem_id];
+  if (!origem)
+    throw new ErroOrigem(`derivado ${slug}: origem ${derivado.origem_id} fora do registro`);
+  if (!origem.publicavel)
+    throw new ErroOrigem(`derivado ${slug}: a origem ${derivado.origem_id} não é publicável`);
+  // Origem com lista de unidades conferidas: nada fora dela pode estar no derivado (lista vazia reprova).
+  const permitidas = unidadesPermitidas(origem);
+  if (permitidas) {
+    const fora = derivado.secoes
+      .flatMap((s) => s.paragrafos.map((p) => p.ref))
+      .filter((ref) => !permitidas.has(ref));
+    if (fora.length > 0)
+      throw new ErroOrigem(
+        `derivado ${slug}: ${fora.length} unidade(s) fora de unidades_conferidas da origem ${derivado.origem_id} (${fora.slice(0, 5).join(", ")}${fora.length > 5 ? ", …" : ""})`,
+      );
+  }
+  // Arquivo com divisões (volume de várias obras): nenhuma seção fora delas pode estar no derivado.
+  const achado = acharArquivoDoDerivado(origens, slug);
+  const divisoes = achado ? divisoesPermitidas(achado.arquivo) : undefined;
+  if (divisoes) {
+    const permitidasSlug = new Set([...divisoes].map(slugDaDivisao));
+    const fora = derivado.secoes.filter((s) => !permitidasSlug.has(s.slug)).map((s) => s.slug);
+    if (fora.length > 0)
+      throw new ErroOrigem(
+        `derivado ${slug}: ${fora.length} seção(ões) fora das divisões do arquivo (${fora.join(", ")})`,
+      );
+  }
 }
