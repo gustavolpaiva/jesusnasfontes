@@ -595,11 +595,15 @@ function SecaoDoFormulario({
           value={secao.palavras_chave_pt}
           onChange={(e) => mudar({ palavras_chave_pt: e.target.value })}
           autoComplete="off"
-          aria-describedby={`ajuda-${id("palavras")}`}
+          aria-invalid={inv("palavras_chave_pt")}
+          aria-describedby={[`ajuda-${id("palavras")}`, desc("palavras_chave_pt")]
+            .filter(Boolean)
+            .join(" ")}
         />
         <FieldDescription>
           <span id={`ajuda-${id("palavras")}`}>Separadas por vírgula.</span>
         </FieldDescription>
+        <ErroDoCampo id={id("palavras_chave_pt")} erros={erros} />
       </Field>
       {aoRemover ? (
         <Button

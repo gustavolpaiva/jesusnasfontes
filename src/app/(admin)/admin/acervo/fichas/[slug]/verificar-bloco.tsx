@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ehSinalDeNavegacao } from "@/app/(admin)/admin/convites/mensagens";
 import { StatusMessage } from "@/components/estado/status-message";
 import {
   AlertDialog,
@@ -91,7 +92,7 @@ export function VerificarBloco({
       try {
         return await verificarFichaAction({ slug, fichaId, hash });
       } catch (erro) {
-        if (erro instanceof Error && "digest" in erro) throw erro;
+        if (ehSinalDeNavegacao(erro)) throw erro;
         return { ok: false, motivo: "servidor", mensagem: MENSAGENS_FICHA.servidorVerificar };
       }
     });

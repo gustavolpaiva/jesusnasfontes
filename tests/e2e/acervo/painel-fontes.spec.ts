@@ -178,6 +178,36 @@ test("texto integral sem licença, ou com endereço sem https, mostra a mensagem
   );
 });
 
+test("palavras-chave de uma seção acima do teto: o erro aparece no campo, o campo fica inválido com o foco, e nada é gravado (revisão da fase, plano 02-24)", async ({
+  page,
+}) => {
+  await entrarComoAdmin(page, `painel-palavras-${sufixo}`);
+  await abrirFormularioNovo(page);
+  const titulo = `Palavras demais ${sufixo}`;
+  await page.getByLabel("Título", { exact: true }).fill(titulo);
+  await page.getByLabel("Origem do texto (endereço https)").fill("https://exemplo.invalid/obra");
+  await page.getByLabel("Licença (código)").fill("dp-declarado-pela-origem");
+  await page.getByRole("button", { name: "Adicionar seção" }).click();
+  await page.getByLabel("Título", { exact: true }).nth(1).fill("Capítulo único");
+  await page
+    .getByLabel("Texto (parágrafos separados por uma linha em branco)")
+    .fill("Um parágrafo do teste.");
+  const palavras = page.getByLabel("Palavras-chave em português");
+  await palavras.fill(`${"a".repeat(1_000)}, ${"b".repeat(1_001)}`);
+  await page.getByRole("button", { name: "Salvar Fonte" }).click();
+  await expect(palavras).toHaveAttribute("aria-invalid", "true");
+  await expect(palavras).toBeFocused();
+  // O erro está ligado ao campo (aria-describedby) e tem texto; a ajuda "Separadas por vírgula." segue ligada também.
+  const descricao = (await palavras.getAttribute("aria-describedby")) ?? "";
+  expect(descricao.split(" ").length).toBe(2);
+  const erro = page.locator(`[id="${descricao.split(" ")[1]}"]`);
+  await expect(erro).toBeVisible();
+  expect(((await erro.textContent()) ?? "").trim().length).toBeGreaterThan(0);
+  expect(await contar("select count(*) as n from acervo.fonte where titulo = $1", [titulo])).toBe(
+    0,
+  );
+});
+
 test("Fonte do arquivo: o painel só oferece limites e publicação; o conflito com a carga aparece e 'Reverter ao arquivo' o desfaz", async ({
   page,
 }) => {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mensagemDaFalha, SEM_CONEXAO } from "@/app/(admin)/admin/convites/mensagens";
+import {
+  ehSinalDeNavegacao,
+  mensagemDaFalha,
+  SEM_CONEXAO,
+} from "@/app/(admin)/admin/convites/mensagens";
 
 // Revisão da fase (plano 01-20): um 503 com o navegador "online" escapava do tratador assíncrono e a tela não
 // dizia nada. Sinal de navegação do Next (redirecionamento, não encontrado) continua passando adiante.
@@ -35,5 +39,28 @@ describe("mensagemDaFalha", () => {
       digest: "NEXT_REDIRECT;replace;/entrar;307;",
     });
     expect(mensagemDaFalha(sinal, true)).toBeNull();
+  });
+});
+
+// Os botões "Conferi no livro" e "Marcar como verificada" (plano 02-18) decidiam por `"digest" in erro`: em produção toda
+// falha de servidor traz digest, e a recusa "tente de novo" nunca aparecia (revisão da fase, plano 02-24). Agora decidem
+// por este predicado, que olha o VALOR.
+describe("ehSinalDeNavegacao", () => {
+  it("só o sinal do Next passa adiante; erro comum com digest, não", () => {
+    expect(
+      ehSinalDeNavegacao(Object.assign(new Error("x"), { digest: "NEXT_REDIRECT;push;/a;307;" })),
+    ).toBe(true);
+    expect(ehSinalDeNavegacao(Object.assign(new Error("x"), { digest: "NEXT_NOT_FOUND" }))).toBe(
+      true,
+    );
+    expect(
+      ehSinalDeNavegacao(Object.assign(new Error("x"), { digest: "NEXT_HTTP_ERROR_FALLBACK;404" })),
+    ).toBe(true);
+    expect(
+      ehSinalDeNavegacao(Object.assign(new Error("falha do banco"), { digest: "1234567890" })),
+    ).toBe(false);
+    expect(ehSinalDeNavegacao(new Error("sem digest"))).toBe(false);
+    expect(ehSinalDeNavegacao(null)).toBe(false);
+    expect(ehSinalDeNavegacao("texto")).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { ehSinalDeNavegacao } from "@/app/(admin)/admin/convites/mensagens";
 import { Button } from "@/components/ui/button";
 import { conferirItemAction } from "@/modules/acervo/acoes-ficha";
 import { MENSAGENS_FICHA, type ResultadoDeConferir } from "@/modules/acervo/painel-fichas";
@@ -29,8 +30,9 @@ export function ConferirBotao({
       try {
         return await conferirItemAction({ slug, itemId, hash });
       } catch (erro) {
-        // Redirecionamento e "não encontrado" do Next passam adiante; o resto é falha de rede.
-        if (erro instanceof Error && "digest" in erro) throw erro;
+        // Redirecionamento e "não encontrado" do Next passam adiante (pelo VALOR do digest: em produção o React põe digest
+        // em qualquer erro de servidor, e só o campo não os distingue); o resto é falha de rede ou do servidor, e vira recusa.
+        if (ehSinalDeNavegacao(erro)) throw erro;
         return { ok: false, motivo: "servidor", mensagem: MENSAGENS_FICHA.servidorConferir };
       }
     });

@@ -16,7 +16,7 @@ const FALHA: Mensagem = { tipo: "erro", texto: "Não conseguimos concluir agora.
 // `null` quando o erro é um sinal de navegação do Next (redirecionamento, não encontrado), que precisa subir. Antes, só "sem conexão" era tratada e todo o resto escapava do tratador assíncrono sem mensagem alguma.
 // Redirecionamento e "não encontrado" do Next trazem um digest com esses prefixos. Em produção o React põe digest em
 // QUALQUER erro de servidor, então a presença do campo não distingue: só o valor.
-function ehSinalDeNavegacao(erro: unknown): boolean {
+export function ehSinalDeNavegacao(erro: unknown): boolean {
   const digest = (erro as { digest?: unknown } | null)?.digest;
   return (
     typeof digest === "string" &&
