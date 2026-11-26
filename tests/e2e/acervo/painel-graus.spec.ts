@@ -20,7 +20,7 @@ import {
   lerTexto,
   semearAdminParaTeste,
 } from "../../support/login-e2e";
-import { gerarTotp } from "../../support/totp";
+import { confirmarSegundoFator } from "../../support/segundo-fator-e2e";
 
 // O painel de graus propostos do Admin (ACER-06, ACER-10, D-04; UI-SPEC tela 13), de ponta a ponta. As propostas, as
 // Citações, as fichas e o Admin são SINTÉTICOS e a aprovação passa pela função REAL do banco (`acervo.aprovar_afirmacao`)
@@ -104,6 +104,9 @@ async function abrirProposta(page: Page, id: string): Promise<{ item: Locator; a
   await expect(gatilho).toHaveAttribute("aria-expanded", "true");
   const aprovar = item.locator('[data-slot="aprovar-grau"]');
   await expect(aprovar).toBeVisible();
+  // O conteúdo do acordeão só monta quando abre: espera o React estar ligado nas ESCOLHAS também
+  // (o gatilho hidratado não garante o item aberto — clicar numa escolha antes disso perde o clique).
+  await esperarHidratado(item.getByRole("radio").first());
   return { item, aprovar };
 }
 
@@ -111,21 +114,6 @@ async function abrirProposta(page: Page, id: string): Promise<{ item: Locator; a
 async function acionar(botao: Locator): Promise<void> {
   await botao.focus();
   await botao.press("Enter");
-}
-
-async function confirmarSegundoFator(page: Page, chave: string): Promise<void> {
-  for (const adiante of [0, 30_000, 60_000]) {
-    await page.getByLabel("Código de 6 dígitos").fill(gerarTotp(chave, Date.now() + adiante));
-    await page.getByRole("button", { name: "Confirmar" }).click();
-    const saiu = await page
-      .waitForURL((url) => !url.pathname.endsWith("/admin/segundo-fator"), {
-        timeout: 8_000,
-        waitUntil: "commit",
-      })
-      .then(() => true)
-      .catch(() => false);
-    if (saiu) return;
-  }
 }
 
 const aprovacaoDe = (id: string) =>

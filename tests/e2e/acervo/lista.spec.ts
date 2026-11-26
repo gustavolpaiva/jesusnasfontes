@@ -3,9 +3,10 @@ import { expect, type Page, test } from "@playwright/test";
 import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/login-e2e";
 
 // Lista do Acervo (ACER-01, D-13): o Estudante abre /acervo pela navegação, vê as Fontes agrupadas por
-// Nível, filtra e nunca é levado a uma lista vazia. As contagens são RELATIVAS (a contagem exibida é igual
-// ao número de linhas): outros testes semeiam Fontes extras no mesmo banco de e2e. Roda sobre o recorte
-// real do Josefo semeado por `scripts/dev/e2e.ts`.
+// Nível, filtra e nunca é levado a uma lista vazia. As contagens são RELATIVAS à PRÓPRIA render (a
+// contagem exibida é igual ao número de linhas da mesma página): outros testes semeiam e removem fichas
+// verificadas no mesmo banco de e2e o tempo todo, então um número lido numa render anterior não vale na
+// seguinte. Roda sobre o recorte real do Josefo semeado por `scripts/dev/e2e.ts`.
 
 async function entrar(page: Page): Promise<void> {
   const email = emailDeTeste("acervo-lista");
@@ -76,18 +77,21 @@ test("agrupa por Nível, a contagem é a das linhas e o filtro seleciona por for
   const textoCor = await marcado.evaluate((el) => getComputedStyle(el).color);
   expect(fundo).not.toBe(textoCor);
   await expect(page.locator('[data-slot="grupo-nivel"]')).toHaveCount(1);
+  // A contagem é da render FILTRADA (o clique refaz a lista no servidor): nunca o número da
+  // página anterior, que outros testes podem ter mudado no banco entre uma e outra.
+  const linhasDoFiltro = await page.locator('[data-slot="linha-fonte"]').count();
+  expect(linhasDoFiltro).toBeGreaterThanOrEqual(1);
   await expect(page.locator('[data-slot="contagem-acervo"]')).toHaveText(
-    linhas === 1 ? "1 Fonte primária" : `${linhas} Fontes primárias`,
+    linhasDoFiltro === 1 ? "1 Fonte primária" : `${linhasDoFiltro} Fontes primárias`,
   );
-  expect(await page.locator('[data-slot="linha-fonte"]').count()).toBe(linhas);
+  await expect(marcado).toContainText(`(${linhasDoFiltro})`);
+  await expect(page.locator('[data-slot="linha-fonte"]')).toHaveCount(linhasDoFiltro);
 });
 
 test("Nível sem Fonte ou valor desconhecido no endereço mostra a lista completa com o aviso", async ({
   page,
 }) => {
   await entrar(page);
-  await page.goto("/acervo");
-  const total = await page.locator('[data-slot="linha-fonte"]').count();
 
   for (const endereco of [
     "/acervo?nivel=confessional",
@@ -102,7 +106,16 @@ test("Nível sem Fonte ou valor desconhecido no endereço mostra a lista complet
       continue;
     await expect(aviso).toContainText("Aviso.");
     await expect(aviso).toContainText("Mostramos todas.");
-    expect(await page.locator('[data-slot="linha-fonte"]').count()).toBe(total);
+    // A lista é completa na PRÓPRIA render, sem número de render anterior: a contagem da página é
+    // a das linhas e a Fonte do recorte (Josefo) está entre elas. Um total lido antes valia menos
+    // quando outros testes semeavam ou removiam fichas entre as cargas (era a falha emparelhada).
+    const contagem = page.locator('[data-slot="contagem-acervo"]');
+    await expect(contagem).toHaveText(/^(\d+) Fontes?$/);
+    const n = Number(/\d+/.exec((await contagem.textContent()) ?? ""));
+    await expect(page.locator('[data-slot="linha-fonte"]')).toHaveCount(n);
+    await expect(
+      page.locator('[data-slot="linha-fonte"]').filter({ hasText: "Antiguidades Judaicas" }),
+    ).toHaveCount(1);
     await expect(
       page.getByRole("navigation", { name: "Nível de fonte" }).getByRole("link", { name: "Todos" }),
     ).toHaveAttribute("aria-current", "true");

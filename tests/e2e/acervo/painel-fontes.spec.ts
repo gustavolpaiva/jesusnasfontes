@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect as esperar, type Page, test } from "@playwright/test";
 import {
   cargarFonteDoArquivo,
   LIMITES_DO_ARQUIVO,
@@ -22,7 +22,8 @@ import {
 
 test.describe.configure({ mode: "default" });
 // Ações de servidor e gravação no banco sob a carga de três processos: o limite padrão de 5 s dá falso vermelho.
-expect.configure({ timeout: 15_000 });
+// `expect.configure` DEVOLVE um `expect` novo (não muda o global): é ELE que o arquivo usa.
+const expect = esperar.configure({ timeout: 15_000 });
 
 let sufixo = "";
 const criadas: string[] = [];

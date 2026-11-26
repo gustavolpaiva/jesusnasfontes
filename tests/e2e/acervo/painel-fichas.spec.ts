@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect as esperar, type Locator, type Page, test } from "@playwright/test";
 import {
   removerFichasParaConferir,
   semearFichasParaConferir,
@@ -16,7 +16,7 @@ import {
   lerTexto,
   semearAdminParaTeste,
 } from "../../support/login-e2e";
-import { gerarTotp } from "../../support/totp";
+import { confirmarSegundoFator } from "../../support/segundo-fator-e2e";
 
 // Painel de fichas do Admin (ACER-07, D-02, D-03, D-05; UI-SPEC tela 12): a ficha entra como rascunho, o Admin de teste
 // (com segundo fator, pela tela de verdade) confere cada página e a marca como verificada, e um Estudante em outra sessão
@@ -26,7 +26,8 @@ import { gerarTotp } from "../../support/totp";
 
 test.describe.configure({ mode: "default", timeout: 120_000 });
 // Ações de servidor e gravação no banco sob a carga de três processos: o limite padrão de 5 s dá falso vermelho.
-expect.configure({ timeout: 15_000 });
+// `expect.configure` DEVOLVE um `expect` novo (não muda o global): é ELE que o arquivo usa.
+const expect = esperar.configure({ timeout: 15_000 });
 
 let projeto = "";
 const semeados: string[] = [];
@@ -41,7 +42,10 @@ test.afterAll(async () => {
 });
 
 async function semear(teste: string) {
-  const sufixo = `${projeto}-${teste}`;
+  // Sufixo único por EXECUÇÃO (projeto, teste e repetição do --repeat-each): o registro de verificação
+  // guarda o slug para sempre, então repetições no mesmo banco acumulavam as contagens de `registros`
+  // do teste "duas abas" (2, 3… em vez de 1).
+  const sufixo = `${projeto}-${teste}-${test.info().repeatEachIndex}`;
   semeados.push(sufixo);
   await semearFichasParaConferir(sufixo);
   return {
@@ -79,24 +83,6 @@ const verificar = (page: Page) =>
 async function acionar(botao: Locator): Promise<void> {
   await botao.focus();
   await botao.press("Enter");
-}
-
-// Confirma o segundo fator na tela dele. O código da ativação (o passo atual) já foi usado e não vale de novo; o do passo
-// seguinte vale, MAS só enquanto o relógio não andou um passo inteiro desde a ativação (com o servidor de teste ocupado
-// isso acontece). Então tenta o passo atual e, se a tela não sair, o seguinte: nunca depende de a sorte do relógio.
-async function confirmarSegundoFator(page: Page, chave: string): Promise<void> {
-  for (const adiante of [0, 30_000, 60_000]) {
-    await page.getByLabel("Código de 6 dígitos").fill(gerarTotp(chave, Date.now() + adiante));
-    await page.getByRole("button", { name: "Confirmar" }).click();
-    const saiu = await page
-      .waitForURL((url) => !url.pathname.endsWith("/admin/segundo-fator"), {
-        timeout: 8_000,
-        waitUntil: "commit",
-      })
-      .then(() => true)
-      .catch(() => false);
-    if (saiu) return;
-  }
 }
 
 async function abrirFicha(page: Page, slug: string): Promise<void> {

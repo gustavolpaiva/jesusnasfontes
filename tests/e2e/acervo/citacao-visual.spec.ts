@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { expect, type Page, test } from "@playwright/test";
+import { expect as esperar, type Page, test } from "@playwright/test";
 import {
   ESTUDO_DA_CAPITULAR,
   ESTUDO_DA_VARREDURA,
@@ -21,7 +21,8 @@ import { convidarParaTeste, emailDeTeste, entrarPorLink } from "../../support/lo
 const PASTA = process.env.VISUAL_DIR;
 test.skip(!PASTA, "conferência visual só com VISUAL_DIR");
 test.describe.configure({ mode: "default" });
-expect.configure({ timeout: 15_000 });
+// `expect.configure` DEVOLVE um `expect` novo (não muda o global): é ELE que o arquivo usa.
+const expect = esperar.configure({ timeout: 15_000 });
 
 const LARGURAS_DA_CONFERENCIA = new Set([
   "varredura-320-claro",

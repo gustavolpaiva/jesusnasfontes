@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { expect, type Page, test } from "@playwright/test";
+import { expect as esperar, type Page, test } from "@playwright/test";
 import {
   removerFichas,
   removerFichasParaConferir,
@@ -20,7 +20,8 @@ import { conferirParaTeste } from "../../support/verificar-ficha-teste";
 const PASTA = process.env.VISUAL_DIR;
 test.skip(!PASTA, "conferência visual só com VISUAL_DIR");
 test.describe.configure({ mode: "default" });
-expect.configure({ timeout: 15_000 });
+// `expect.configure` DEVOLVE um `expect` novo (não muda o global): é ELE que o arquivo usa.
+const expect = esperar.configure({ timeout: 15_000 });
 
 type Linha = { criterio: string; ok: boolean; medida: string };
 type Rgb = [number, number, number];
