@@ -505,6 +505,10 @@ export const TELAS: Tela[] = [
       await page.goto("/acervo/busca");
       await h1(page, "Buscar no Acervo");
       await expect(page.getByRole("radiogroup", { name: "Nível de fonte" })).toBeVisible();
+      // A tela leva o foco ao campo quando o React a liga (efeito de montagem): esperar o foco é esperar a
+      // hidratação. Sem isso o foco chegava ao campo DEPOIS de o teste de teclado voltar o ponto de partida do Tab
+      // ao topo, e o primeiro Tab caía no campo em vez do link de salto (corrida medida, uma por rodada sob carga).
+      await expect(page.getByRole("searchbox", { name: "Buscar no Acervo" })).toBeFocused();
     },
   },
   {
