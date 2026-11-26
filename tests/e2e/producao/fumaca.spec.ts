@@ -23,7 +23,7 @@ test("/entrar responde 200 com CSP, HSTS e Referrer-Policy", async ({ page }) =>
   const h = r?.headers() ?? {};
   expect(h["content-security-policy"] ?? "").toContain("frame-ancestors 'none'");
   expect(h["strict-transport-security"] ?? "").toContain("max-age=");
-  expect(h["referrer-policy"]).toBe("no-referrer");
+  expect(h["referrer-policy"]).toBe("same-origin");
 });
 
 test("endereço não convidado recebe a etapa neutra", async ({ page }) => {

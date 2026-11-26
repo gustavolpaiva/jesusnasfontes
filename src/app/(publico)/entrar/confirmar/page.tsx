@@ -2,8 +2,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { confirmarEntrada } from "@/modules/identidade/entrada";
 
-export const metadata = { referrer: "no-referrer" as const, robots: { index: false } };
+export const metadata = { referrer: "same-origin" as const, robots: { index: false } };
 
+// `same-origin` (nunca `no-referrer`): o endereço com o token não sai do site, e o POST do botão, se enviado antes da
+// hidratação, leva a origem verdadeira em vez de `Origin: null` (que o Next recusa).
 // O GET só mostra a tela e nunca consulta o banco: um leitor automático que busca o link não o
 // gasta, e a tela é a mesma para qualquer token. Só o POST do botão consome o link.
 export default async function PaginaConfirmar({

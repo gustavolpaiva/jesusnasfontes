@@ -12,7 +12,7 @@ test("a resposta traz os cabeçalhos de segurança", async ({ request }) => {
   const csp = resposta.headers()["content-security-policy"] ?? "";
   expect(csp).toContain("frame-ancestors 'none'");
   expect(csp).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/=]+'/);
-  expect(resposta.headers()["referrer-policy"]).toBe("no-referrer");
+  expect(resposta.headers()["referrer-policy"]).toBe("same-origin");
   expect(resposta.headers()["x-content-type-options"]).toBe("nosniff");
 });
 

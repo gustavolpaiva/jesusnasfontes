@@ -28,7 +28,11 @@ const config: NextConfig = {
   },
   async headers() {
     const cabecalhos = [
-      { key: "Referrer-Policy", value: "no-referrer" },
+      // `same-origin`, não `no-referrer`: nenhum Referer sai do site (nem o endereço com o token do link de entrada),
+      // mas o POST de um formulário enviado ANTES da hidratação leva a origem verdadeira. Com `no-referrer` o
+      // navegador manda `Origin: null` nesse POST e o Next recusa a Server Action ("Invalid Server Actions request"):
+      // a pessoa que toca em "Entrar" antes de a página ficar pronta não entrava (plano 02-24).
+      { key: "Referrer-Policy", value: "same-origin" },
       { key: "X-Content-Type-Options", value: "nosniff" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
     ];

@@ -20,7 +20,7 @@ test("um leitor automático que busca o link não o gasta; só o POST do botão 
     expect(resposta.status()).toBe(200);
     const html = await resposta.text();
     expect(html).toContain("Confirmar entrada");
-    expect(resposta.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(resposta.headers()["referrer-policy"]).toBe("same-origin");
     expect(html).not.toContain("Este link não vale mais");
   }
 
