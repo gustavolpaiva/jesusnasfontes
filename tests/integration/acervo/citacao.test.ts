@@ -566,6 +566,36 @@ describe.skipIf(emNeon())(
       expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
     });
 
+    it("Citação de parágrafo SEM trecho cita o parágrafo inteiro: mudar o texto dele derruba a aprovação, e o texto de volta a restaura (0033)", async () => {
+      const c = await cenario();
+      await carga.query(
+        `insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id, trecho, idioma, ordem) values ($1, $2, null, 'en', 1)`,
+        [c.afirmacao, c.paragrafo],
+      );
+      await aprovar(app, admin(), c.afirmacao, "consenso");
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
+      const hashAprovado = await hashDasCitacoes(c.afirmacao);
+      const original = (
+        await superusuario.query("select texto from acervo.fonte_paragrafo where id = $1", [
+          c.paragrafo,
+        ])
+      ).rows[0] as { texto: string };
+      await superusuario.query("update acervo.fonte_paragrafo set texto = $2 where id = $1", [
+        c.paragrafo,
+        "A paragraph that the Admin never saw.",
+      ]);
+      expect(await hashDasCitacoes(c.afirmacao)).not.toBe(hashAprovado);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      expect(await leitura(assistente, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      expect(await aprovacoes(c.afirmacao)).toBe(1);
+      await superusuario.query("update acervo.fonte_paragrafo set texto = $2 where id = $1", [
+        c.paragrafo,
+        original.texto,
+      ]);
+      expect(await hashDasCitacoes(c.afirmacao)).toBe(hashAprovado);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
+    });
+
     it("mudar o conjunto de Citações (acrescentar, trocar o trecho, remover) devolve zero linhas", async () => {
       const c = await cenario();
       await citarParagrafo(c.afirmacao, c.paragrafo, 1);
