@@ -1,8 +1,9 @@
 import { expect as esperar, type Locator, type Page, test } from "@playwright/test";
 import {
-  mudarHashDoTexto,
+  mudarTextoDaAfirmacao,
   removerLoteDePropostas,
   removerPropostas,
+  restaurarTextoDaAfirmacao,
   type SemeadoDePropostas,
   semearLoteDePropostas,
   semearPropostas,
@@ -334,7 +335,7 @@ test("o texto muda entre a leitura e o clique: o banco recusa (40001), nada é g
   await abrirLista(page);
   const { item, aprovar } = await abrirProposta(page, id);
   await expect(item.locator('[data-slot="chip-estado"]').first()).toHaveText("Pendente");
-  const original = await mudarHashDoTexto(id);
+  const original = await mudarTextoDaAfirmacao(id);
   try {
     await aprovar.click();
     const recusa = item.locator('[data-slot="recusa-do-grau"]');
@@ -347,7 +348,7 @@ test("o texto muda entre a leitura e o clique: o banco recusa (40001), nada é g
     await recusa.getByRole("button", { name: "Recarregar as propostas" }).click();
     await expect(item.locator('[data-slot="chip-estado"]').first()).toHaveText("Texto mudou");
   } finally {
-    await escrever("update acervo.afirmacao set texto_hash = $2 where id = $1", [id, original]);
+    await restaurarTextoDaAfirmacao(id, original);
   }
 });
 

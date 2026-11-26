@@ -101,6 +101,15 @@ const hashDoTexto = async (a: string) =>
     (await superusuario.query("select texto_hash from acervo.afirmacao where id = $1", [a]))
       .rows[0] as { texto_hash: string }
   ).texto_hash;
+const textoDe = async (a: string) =>
+  (
+    (await superusuario.query("select texto from acervo.afirmacao where id = $1", [a])).rows[0] as {
+      texto: string;
+    }
+  ).texto;
+/** Muda o TEXTO da Afirmação como a carga faz; o hash é do banco (migração 0032), nunca do chamador. */
+const mudarTexto = (c: pg.Client, a: string, texto: string) =>
+  c.query("update acervo.afirmacao set texto = $2 where id = $1", [a, texto]);
 const hashDasCitacoes = async (a: string) =>
   (
     (await superusuario.query("select acervo.hash_citacoes($1) as h", [a])).rows[0] as {
@@ -471,11 +480,8 @@ describe.skipIf(emNeon())(
       const c = await cenario();
       await citarParagrafo(c.afirmacao, c.paragrafo);
       await aprovar(app, admin(), c.afirmacao, "disputada");
-      const original = await hashDoTexto(c.afirmacao);
-      await carga.query("update acervo.afirmacao set texto_hash = $2 where id = $1", [
-        c.afirmacao,
-        sha("texto novo"),
-      ]);
+      const original = await textoDe(c.afirmacao);
+      await mudarTexto(carga, c.afirmacao, "texto novo");
       expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
       expect(await leitura(assistente, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
       // Nada foi apagado: a aprovação e a Citação continuam lá.
@@ -485,11 +491,79 @@ describe.skipIf(emNeon())(
           c.afirmacao,
         ]),
       ).toBe(1);
+      await mudarTexto(carga, c.afirmacao, original);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["disputada"] });
+    });
+
+    it("o hash do texto é do banco: a carga que muda só o texto, ou muda o texto e tenta guardar o hash velho, derruba a aprovação (0032)", async () => {
+      const c = await cenario();
+      await citarParagrafo(c.afirmacao, c.paragrafo);
+      await aprovar(app, admin(), c.afirmacao, "consenso");
+      const velho = await hashDoTexto(c.afirmacao);
+      const textoAprovado = await textoDe(c.afirmacao);
+      // O hash gravado é o sha256 do texto, não o que o teste inseriu (controle: a coluna não é mais de quem escreve).
+      expect(velho).toBe(sha(await textoDe(c.afirmacao)));
+      // 1. Só o texto: o hash acompanha.
+      await mudarTexto(carga, c.afirmacao, "Outra afirmação que ninguém aprovou");
+      expect(await hashDoTexto(c.afirmacao)).toBe(sha("Outra afirmação que ninguém aprovou"));
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      // 2. Texto novo E o hash velho no mesmo comando: o banco ignora o hash dado e calcula o do texto.
+      await carga.query("update acervo.afirmacao set texto = $2, texto_hash = $3 where id = $1", [
+        c.afirmacao,
+        "Mais uma frase que ninguém aprovou",
+        velho,
+      ]);
+      expect(await hashDoTexto(c.afirmacao)).toBe(sha("Mais uma frase que ninguém aprovou"));
+      expect(await hashDoTexto(c.afirmacao)).not.toBe(velho);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      expect(await leitura(assistente, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      // 3. Dois passos (texto novo com hash qualquer, depois o hash velho de volta): o segundo passo também é recalculado.
       await carga.query("update acervo.afirmacao set texto_hash = $2 where id = $1", [
         c.afirmacao,
-        original,
+        velho,
       ]);
-      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["disputada"] });
+      expect(await hashDoTexto(c.afirmacao)).toBe(sha("Mais uma frase que ninguém aprovou"));
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      // Nada foi apagado, e o texto aprovado de volta restaura a aprovação (controle positivo).
+      expect(await aprovacoes(c.afirmacao)).toBe(1);
+      await mudarTexto(carga, c.afirmacao, textoAprovado);
+      expect(await hashDoTexto(c.afirmacao)).toBe(velho);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
+    });
+
+    it("o trecho guardado precisa continuar no parágrafo: se o texto do parágrafo muda, a aprovação some e uma nova é recusada (0032)", async () => {
+      const c = await cenario();
+      await citarParagrafo(c.afirmacao, c.paragrafo);
+      await aprovar(app, admin(), c.afirmacao, "consenso");
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
+      const textoDoParagrafo = (
+        await superusuario.query("select texto from acervo.fonte_paragrafo where id = $1", [
+          c.paragrafo,
+        ])
+      ).rows[0] as { texto: string };
+      // Controle positivo: só o ESPAÇO muda (quebra de linha, espaço sem quebra, espaços repetidos): o trecho segue nele.
+      await superusuario.query("update acervo.fonte_paragrafo set texto = $2 where id = $1", [
+        c.paragrafo,
+        "An\u00a0 invented\n\n sentence for a made-up source.",
+      ]);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
+      // O texto do parágrafo é outro: o trecho aprovado já não existe nele.
+      await superusuario.query("update acervo.fonte_paragrafo set texto = $2 where id = $1", [
+        c.paragrafo,
+        "A different sentence, revised in a later edition.",
+      ]);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      expect(await leitura(assistente, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+      await expect(aprovar(app, admin(), c.afirmacao, "consenso")).rejects.toMatchObject({
+        code: "P0003",
+      });
+      // Nada foi apagado: o texto de volta restaura a aprovação.
+      expect(await aprovacoes(c.afirmacao)).toBe(1);
+      await superusuario.query("update acervo.fonte_paragrafo set texto = $2 where id = $1", [
+        c.paragrafo,
+        textoDoParagrafo.texto,
+      ]);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
     });
 
     it("mudar o conjunto de Citações (acrescentar, trocar o trecho, remover) devolve zero linhas", async () => {
@@ -520,10 +594,7 @@ describe.skipIf(emNeon())(
       const c = await cenario();
       await citarParagrafo(c.afirmacao, c.paragrafo);
       await aprovar(app, admin(), c.afirmacao);
-      await carga.query("update acervo.afirmacao set texto_hash = $2 where id = $1", [
-        c.afirmacao,
-        sha("mudou"),
-      ]);
+      await mudarTexto(carga, c.afirmacao, "mudou");
       const comSessao = async (sessao: string) => {
         await appA.query("begin");
         try {
@@ -627,13 +698,20 @@ describe.skipIf(emNeon())(
       await expect(
         app.query("delete from acervo.proposta_grau where afirmacao_id = $1", [c.afirmacao]),
       ).rejects.toMatchObject({ code: "42501" });
-      // Grau fora da lista é recusado pelo banco.
+      // Grau fora da lista é recusado pelo banco: com uma Afirmação que EXISTE e ainda não tem proposta, para que só a restrição
+      // do grau possa recusar (com id inexistente a chave estrangeira recusaria do mesmo jeito, e o teste passaria sem ela).
+      const semProposta = await cenario();
       await expect(
         carga.query(
           "insert into acervo.proposta_grau (afirmacao_id, grau_proposto, justificativa, texto_hash) values ($1, 'certo', 'x', $2)",
-          [`outra-${proximo()}`, sha("a")],
+          [semProposta.afirmacao, sha("a")],
         ),
-      ).rejects.toMatchObject({ code: expect.stringMatching(/^23/) });
+      ).rejects.toMatchObject({ code: "23514" });
+      // Controle positivo: a mesma linha com um grau da lista entra.
+      await carga.query(
+        "insert into acervo.proposta_grau (afirmacao_id, grau_proposto, justificativa, texto_hash) values ($1, 'consenso', 'x', $2)",
+        [semProposta.afirmacao, sha("a")],
+      );
     });
   },
 );
@@ -750,10 +828,7 @@ describe.skipIf(emNeon())(
       try {
         await aprovar(appA, admin(), c.afirmacao, "consenso");
         const pid = await pidDe(cargaB);
-        const mudanca = cargaB.query("update acervo.afirmacao set texto_hash = $2 where id = $1", [
-          c.afirmacao,
-          sha("novo texto"),
-        ]);
+        const mudanca = mudarTexto(cargaB, c.afirmacao, "novo texto");
         await esperarBloqueio(pid);
         await appA.query("commit");
         await mudanca;
@@ -874,7 +949,7 @@ describe.skipIf(emNeon())(
       const lido = await par(slug, async () => {
         rodou = true;
         // Outra conexão confirma, entre a leitura do Grau e a das Citações: uma 2ª Citação e a aprovação nova.
-        await citarParagrafo(c.afirmacao, c.paragrafo, 2, "second invented sentence");
+        await citarParagrafo(c.afirmacao, c.paragrafo, 2, "a made-up source");
         await aprovar(app, admin(), c.afirmacao, "disputada");
       });
       expect(rodou, "o gancho da corrida rodou").toBe(true);

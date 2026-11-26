@@ -348,10 +348,10 @@ describe.skipIf(emNeon())(
       await dono.query("update acervo.fonte set publicada = true where slug = $1", [a.fonteSlug]);
       await concorda(a.id, "aprovada");
 
-      // 4. O texto mudou (a carga muda frase e hash): "Texto mudou", e a aprovação não vale.
-      await dono.query("update acervo.afirmacao set texto_hash = $2 where id = $1", [
+      // 4. O texto mudou (a carga muda a frase; o hash é do banco): "Texto mudou", e a aprovação não vale.
+      await dono.query("update acervo.afirmacao set texto = $2 where id = $1", [
         a.id,
-        sha("outro"),
+        "outro texto",
       ]);
       await concorda(a.id, "texto-mudou");
     });

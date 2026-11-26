@@ -410,20 +410,29 @@ async function removerDasAfirmacoes(ids: string[]): Promise<void> {
   });
 }
 
-/** Muda o hash do texto da Afirmação no banco, como a carga faz quando a frase muda. Devolve o hash de antes. */
-export async function mudarHashDoTexto(afirmacao: string, novo?: string): Promise<string> {
+/**
+ * Muda o TEXTO da Afirmação no banco, como a carga faz quando a frase muda (o hash é do banco, migração 0032: acompanha o
+ * texto). Só ganha um espaço no fim, que a tela não mostra: nenhum outro teste que leia a frase vê diferença. Devolve o
+ * texto de antes, para `restaurarTextoDaAfirmacao`.
+ */
+export async function mudarTextoDaAfirmacao(afirmacao: string): Promise<string> {
   return comCliente("dono", async (c) => {
-    const antes = await c.query<{ h: string }>(
-      "select texto_hash as h from acervo.afirmacao where id = $1",
+    const antes = await c.query<{ t: string }>(
+      "select texto as t from acervo.afirmacao where id = $1",
       [afirmacao],
     );
-    const h = antes.rows[0]?.h;
-    if (!h) throw new Error(`mudarHashDoTexto: Afirmação ${afirmacao} não existe`);
-    await c.query("update acervo.afirmacao set texto_hash = $2 where id = $1", [
-      afirmacao,
-      novo ?? "e".repeat(64),
-    ]);
-    return h;
+    const t = antes.rows[0]?.t;
+    if (t === undefined)
+      throw new Error(`mudarTextoDaAfirmacao: Afirmação ${afirmacao} não existe`);
+    await c.query("update acervo.afirmacao set texto = $2 where id = $1", [afirmacao, `${t} `]);
+    return t;
+  });
+}
+
+/** Devolve o texto de antes (e, com ele, o hash de antes: o banco o recalcula). */
+export async function restaurarTextoDaAfirmacao(afirmacao: string, texto: string): Promise<void> {
+  await comCliente("dono", async (c) => {
+    await c.query("update acervo.afirmacao set texto = $2 where id = $1", [afirmacao, texto]);
   });
 }
 

@@ -1,10 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect as esperar, type Page, test } from "@playwright/test";
-import { mudarHashDoTexto, removerPropostas, semearPropostas } from "../../support/citacao-e2e";
+import {
+  mudarTextoDaAfirmacao,
+  removerPropostas,
+  restaurarTextoDaAfirmacao,
+  semearPropostas,
+} from "../../support/citacao-e2e";
 import { esperarHidratado } from "../../support/hidratacao";
 import { entrarComoAdmin } from "../../support/login-admin-e2e";
-import { escrever } from "../../support/login-e2e";
 
 // Conferência RENDERIZADA do painel de graus propostos (plano 02-21; rule `visual-verification-gate`). Roda só com
 // `VISUAL_DIR` (pasta das capturas e das medições) e com UM processo (`--workers=1`: cada projeto semeia e remove as
@@ -15,6 +19,15 @@ import { escrever } from "../../support/login-e2e";
 const PASTA = process.env.VISUAL_DIR;
 test.skip(!PASTA, "conferência visual só com VISUAL_DIR");
 test.describe.configure({ mode: "default" });
+// Os projetos de varredura caem todos nas mesmas Afirmações (só `celular` e `computador` têm Estudos próprios): com mais de um
+// processo eles se disputam a semeadura e a falha aparece como restrição única, longe da causa. Falha logo, dizendo o porquê.
+// biome-ignore lint/correctness/noEmptyPattern: o Playwright exige o padrão de desestruturação no primeiro argumento
+test.beforeAll(async ({}, info) => {
+  if (PASTA && info.config.workers > 1)
+    throw new Error(
+      "painel-graus-visual: rode com --workers=1 (cada projeto semeia e remove as mesmas Afirmações)",
+    );
+});
 // `expect.configure` DEVOLVE um `expect` novo (não muda o global): sob a carga de vários processos o padrão de 5 s dá falso vermelho.
 const expect = esperar.configure({ timeout: 30000 });
 
@@ -438,7 +451,7 @@ for (const variante of ["projeto", "390-claro"] as const) {
 
       // ── (g) com a recusa do banco à mostra (o texto muda entre a leitura e o clique) ──
       await abrir(page, a.corrida);
-      original = await mudarHashDoTexto(a.corrida);
+      original = await mudarTextoDaAfirmacao(a.corrida);
       await itemDe(page, a.corrida).locator('[data-slot="aprovar-grau"]').click();
       const recusa = itemDe(page, a.corrida)
         .locator('[data-slot="recusa-do-grau"]')
@@ -471,10 +484,7 @@ for (const variante of ["projeto", "390-claro"] as const) {
       await foto("recusa");
     } finally {
       if (original) {
-        await escrever("update acervo.afirmacao set texto_hash = $2 where id = $1", [
-          a.corrida,
-          original,
-        ]);
+        await restaurarTextoDaAfirmacao(a.corrida, original);
       }
       await removerPropostas(semeado);
     }
