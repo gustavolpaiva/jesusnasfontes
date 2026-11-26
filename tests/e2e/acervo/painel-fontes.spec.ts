@@ -20,7 +20,12 @@ import {
 // a reversão, e a 404 para quem não é Admin com segundo fator. As Fontes de teste têm o sufixo do projeto (celular e
 // computador rodam o mesmo arquivo ao mesmo tempo no mesmo banco) e saem no fim.
 
-test.describe.configure({ mode: "default" });
+// Prazo de teste de 120 s, o mesmo de `painel-fichas` e `painel-graus` (plano 02-24). MEDIDO em 26/11/2026, com a máquina em carga 10 a 12
+// (uma execução de 20 testes deste arquivo, dois projetos): 8 a 30 s por teste, 5 deles acima de 20 s e 2 acima do padrão de 30 s
+// ("Estudante recebe a 404…": 24,0 s e 30,2 s; "a ação de salvar recusa…": 9,8 s e 30,1 s). Cada teste entra como Admin (link e
+// segundo fator, de 6 a 8 s) e vários entram mais de uma vez, e o mesmo teste varia 3 vezes entre os dois projetos. Os 120 s não
+// mudam nenhuma asserção nem o `expect` (15 s); só deixam de contar a fila do servidor de desenvolvimento como falha.
+test.describe.configure({ mode: "default", timeout: 120_000 });
 // Ações de servidor e gravação no banco sob a carga de três processos: o limite padrão de 5 s dá falso vermelho.
 // `expect.configure` DEVOLVE um `expect` novo (não muda o global): é ELE que o arquivo usa.
 const expect = esperar.configure({ timeout: 15_000 });

@@ -39,7 +39,10 @@ export const JOSEFO = {
   secao: "18",
   slug: "josefo-antiguidades",
   // O trecho carrega marcação de propósito: tem de aparecer como TEXTO e nunca virar elemento (T-02-52).
-  trecho: 'Now there was about this time Jesus, a wise man <img src=x onerror="window.__xss=1">',
+  // Com espaços em volta do `=`: continua sendo marcação válida, mas nenhuma palavra passa de 13 caracteres, porque o trecho
+  // também é acrescentado ao parágrafo (ver `inserirCitacoes`) e uma palavra longa estouraria a largura de 320 px.
+  trecho:
+    'Now there was about this time Jesus, a wise man <img src = x onerror = "window.__xss = 1" >',
   rotulo: "Flávio Josefo, Antiguidades Judaicas, 18.63",
 } as const;
 
@@ -122,6 +125,22 @@ type NovaCitacao =
 
 /** Insere as Citações como `jnf_carga`, na ordem dada (a ordem é do banco, `unique (afirmacao, ordem)`). */
 export async function inserirCitacoes(afirmacao: string, itens: NovaCitacao[]): Promise<void> {
+  // Desde a migração 0032 o trecho de uma Citação de parágrafo precisa continuar DENTRO do parágrafo (senão a aprovação é
+  // recusada, P0003). O trecho de teste carrega marcação de propósito (T-02-52) e não existe no texto do Josefo: ele é
+  // acrescentado ao fim do parágrafo (como dono, uma vez; o banco da execução é descartável), e a marcação segue sendo
+  // lida como TEXTO tanto na Citação quanto no parágrafo.
+  await comCliente("dono", async (d) => {
+    for (const i of itens) {
+      if (i.tipo !== "paragrafo" || !i.trecho || i.trecho.trim() === "") continue;
+      await d.query(
+        `update acervo.fonte_paragrafo
+            set texto = texto || ' ' || $2::text
+          where id = $1
+            and strpos(acervo.espaco_normalizado(texto), acervo.espaco_normalizado($2::text)) = 0`,
+        [i.id, i.trecho],
+      );
+    }
+  });
   await comCliente("carga", async (c) => {
     let ordem = 0;
     for (const i of itens) {
