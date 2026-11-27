@@ -345,6 +345,8 @@ test("o texto muda entre a leitura e o clique: o banco recusa (40001), nada é g
     // Falhou em 2 de 5 suítes inteiras (sem a mensagem em 30 s, o teste levou 46,8 s) e em nenhuma de 4 execuções só deste arquivo. Causa NÃO
     // provada: a hipótese é que, na suíte inteira, esta seja a primeira chamada da ação de aprovar no servidor de desenvolvimento, que a compila na
     // hora sob carga de 10 a 30 (outros projetos). A condição esperada é a mesma; só o prazo é maior, só aqui.
+    // debt: causa da falha intermitente NÃO provada (o revisor também não a achou no código: ordem das travas da 0034 correta para a recusa por
+    // texto, sem corrida em `ocupado`/`emVoo`). Para provar: rodar a suíte inteira com `JNF_LOG_SERVIDOR` e olhar o POST da ação nesse teste.
     await expect(recusa.getByRole("alert")).toContainText(
       "Esta frase mudou depois da proposta. Recarregue as propostas.",
       { timeout: 90_000 },
