@@ -342,8 +342,12 @@ test("o texto muda entre a leitura e o clique: o banco recusa (40001), nada é g
   try {
     await aprovar.click();
     const recusa = item.locator('[data-slot="recusa-do-grau"]');
+    // Falhou em 2 de 5 suítes inteiras (sem a mensagem em 30 s, o teste levou 46,8 s) e em nenhuma de 4 execuções só deste arquivo. Causa NÃO
+    // provada: a hipótese é que, na suíte inteira, esta seja a primeira chamada da ação de aprovar no servidor de desenvolvimento, que a compila na
+    // hora sob carga de 10 a 30 (outros projetos). A condição esperada é a mesma; só o prazo é maior, só aqui.
     await expect(recusa.getByRole("alert")).toContainText(
       "Esta frase mudou depois da proposta. Recarregue as propostas.",
+      { timeout: 90_000 },
     );
     expect(await quantasAprovacoes(id)).toBe(0);
     await expect(page.locator('[data-slot="aviso-dos-graus"]').getByRole("status")).toHaveCount(0);
