@@ -108,6 +108,9 @@ async function abrirProposta(page: Page, id: string): Promise<{ item: Locator; a
   // O conteúdo do acordeão só monta quando abre: espera o React estar ligado nas ESCOLHAS também
   // (o gatilho hidratado não garante o item aberto — clicar numa escolha antes disso perde o clique).
   await esperarHidratado(item.getByRole("radio").first());
+  // O botão de aprovar também: clicar antes de o React ligar o tratador perde o clique, e o teste esperava 30 s por uma mensagem que
+  // nunca viria (uma falha em cerca de cinco suítes inteiras, 26/11/2026, e nenhuma em quatro execuções só deste arquivo).
+  await esperarHidratado(aprovar);
   return { item, aprovar };
 }
 
