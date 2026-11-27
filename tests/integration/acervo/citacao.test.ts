@@ -596,6 +596,34 @@ describe.skipIf(emNeon())(
       expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 1, graus: ["consenso"] });
     });
 
+    it("um trecho que imita o marcador do parágrafo não reproduz o hash: Citação sem trecho trocada por trecho igual ao hash antigo derruba a aprovação (0036)", async () => {
+      const c = await cenario();
+      await carga.query(
+        `insert into acervo.citacao (afirmacao_id, fonte_paragrafo_id, trecho, idioma, ordem) values ($1, $2, null, 'en', 1)`,
+        [c.afirmacao, c.paragrafo],
+      );
+      await aprovar(app, admin(), c.afirmacao, "consenso");
+      const hashAprovado = await hashDasCitacoes(c.afirmacao);
+      const antigo = (
+        await superusuario.query(
+          "select encode(sha256(convert_to(texto, 'UTF8')), 'hex') as h from acervo.fonte_paragrafo where id = $1",
+          [c.paragrafo],
+        )
+      ).rows[0] as { h: string };
+      // A carga troca o parágrafo por um texto que CONTÉM o marcador antigo e grava esse mesmo texto como trecho.
+      const imitacao = `texto-do-paragrafo:${antigo.h}`;
+      await superusuario.query("update acervo.fonte_paragrafo set texto = $2 where id = $1", [
+        c.paragrafo,
+        imitacao,
+      ]);
+      await carga.query("update acervo.citacao set trecho = $2 where afirmacao_id = $1", [
+        c.afirmacao,
+        imitacao,
+      ]);
+      expect(await hashDasCitacoes(c.afirmacao)).not.toBe(hashAprovado);
+      expect(await leitura(app, c.afirmacao)).toEqual({ citacoes: 0, graus: [] });
+    });
+
     it("mudar o conjunto de Citações (acrescentar, trocar o trecho, remover) devolve zero linhas", async () => {
       const c = await cenario();
       await citarParagrafo(c.afirmacao, c.paragrafo, 1);
