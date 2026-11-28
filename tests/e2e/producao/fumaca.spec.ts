@@ -107,19 +107,21 @@ test("/creditos mostra Textos do Acervo e uma entrada de cada família (Perseus,
   }
 });
 
-// O painel do Admin não revela que existe: sem sessão a resposta é a de uma rota que nunca existiu (mesmo status e mesma tela).
-test("/admin/acervo/fontes e /admin/acervo/fichas sem sessão respondem como qualquer rota inexistente", async ({
+// O painel do Admin: sem sessão, as rotas novas do Acervo respondem exatamente como a rota de Admin da Fase 1 (`/admin/convites`): levam a `/entrar`,
+// sem página, sem texto e sem diferença que revele o que há por trás. (O plano supunha "como rota inexistente" (404); a produção, desde a Fase 1, manda
+// toda rota de Admin existente à entrada e só a inexistente dá 404: medido em 28/11/2026 e o critério passou a ser a igualdade com a rota da Fase 1.)
+test("/admin/acervo/fontes e /admin/acervo/fichas sem sessão respondem como /admin/convites: levam a /entrar", async ({
   page,
 }) => {
-  const inexistente = await page.goto(
-    `/admin/rota-que-nunca-existiu-${randomBytes(4).toString("hex")}`,
-  );
-  const statusBase = inexistente?.status();
+  await page.goto("/admin/convites");
+  const baseUrl = new URL(page.url());
   const tituloBase = await page.getByRole("heading", { level: 1 }).first().innerText();
   for (const rota of ["/admin/acervo/fontes", "/admin/acervo/fichas"]) {
     const r = await page.goto(rota);
-    expect(r?.status(), rota).toBe(statusBase);
-    expect(new URL(page.url()).pathname, rota).toBe(rota);
+    const url = new URL(page.url());
+    expect(url.pathname, rota).toBe(baseUrl.pathname);
+    expect(url.search, rota).toBe(baseUrl.search);
+    expect(r?.status(), rota).toBe(200);
     await expect(page.getByRole("heading", { level: 1 }).first(), rota).toHaveText(tituloBase);
   }
 });
